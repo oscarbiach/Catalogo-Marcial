@@ -158,6 +158,10 @@
 
   function aplicar(datos) {
     estado.datos = datos;
+    // El servidor ya manda los productos ordenados por lo mas pedido. Se guarda
+    // esa posicion para poder volver a ese orden sin conocer el numero, que a
+    // proposito no viaja al navegador.
+    (datos.productos || []).forEach(function (p, i) { p.posicion = i; });
     aplicarConfig(datos.config || {});
     llenarCategorias(datos.categorias || []);
     llenarMarcas(datos.marcas || []);
@@ -323,7 +327,7 @@
       lista.sort(function (a, b) {
         if (a.sinStock !== b.sinStock) return a.sinStock ? 1 : -1;
         if (a.destacado !== b.destacado) return a.destacado ? -1 : 1;
-        if ((b.pedidos || 0) !== (a.pedidos || 0)) return (b.pedidos || 0) - (a.pedidos || 0);
+        if (a.posicion !== b.posicion) return a.posicion - b.posicion;
         if ((b.orden || 0) !== (a.orden || 0)) return (b.orden || 0) - (a.orden || 0);
         return a.nombre.localeCompare(b.nombre, 'es');
       });
