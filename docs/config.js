@@ -11,7 +11,7 @@
 window.CATALOGO_CONFIG = {
 
   // Ejemplo: 'https://script.google.com/macros/s/AKfy.../exec'
-  API: 'PEGAR_ACA_LA_URL_DEL_WEB_APP',
+  API: 'https://script.google.com/macros/s/AKfycbzgSbKJJOA_dcsaAILAVCjDZFdNyE4w5IKIiZIDeXW7jRwqsujEw-9p9BRzzv71CjCraA/exec',
 
   // Minutos que el navegador reutiliza el catalogo guardado antes de pedirlo
   // de nuevo. El contenido igual se refresca en segundo plano en cada visita.
