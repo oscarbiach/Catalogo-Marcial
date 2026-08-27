@@ -3,191 +3,201 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Catalogo de productos</title>
-<meta name="description" content="Catalogo de productos con fotos, presentaciones y precios.">
+<title>Catalogo</title>
+<meta name="description" content="Catalogo de productos con fotos y precios.">
+<meta name="theme-color" content="#edeef0">
 
-<!-- Open Graph: asi se ve el link cuando lo comparten por WhatsApp -->
 <meta property="og:type" content="website">
-<meta property="og:title" content="Catalogo de productos">
-<meta property="og:description" content="Mira todo nuestro catalogo con fotos y precios.">
+<meta property="og:title" content="Catalogo">
+<meta property="og:description" content="Mira todo el catalogo con fotos y precios.">
 
 <link rel="preconnect" href="https://script.google.com">
 <link rel="preconnect" href="https://drive.google.com">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Instrument+Sans:wght@400;500;600&display=swap">
 
 <!-- El ?v=N obliga al navegador a bajar los archivos nuevos. Subilo cada vez
      que actualices el sitio: si no, alguien que ya entro puede quedarse con
      el HTML nuevo y el JavaScript viejo, y la pagina se rompe. -->
-<link rel="stylesheet" href="assets/css/styles.css?v=2">
+<link rel="stylesheet" href="assets/css/styles.css?v=3">
 </head>
 <body>
 
 <a class="saltar" href="#catalogo">Saltar al catalogo</a>
 
-<header class="cabecera" id="cabecera">
-  <div class="contenedor cabecera-fila">
-    <a class="logo" href="#inicio">
-      <img id="logo-img" alt="" hidden>
-      <span id="logo-texto">Catalogo</span>
-    </a>
-    <div class="cabecera-acciones">
-      <label class="buscador-envoltorio">
-        <svg class="lupa" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
-        <input type="search" id="buscar" placeholder="Buscar producto..." aria-label="Buscar producto" autocomplete="off">
-      </label>
-      <a class="btn btn-marca" id="cta-whatsapp" hidden target="_blank" rel="noopener">Consultar</a>
-      <button class="btn btn-marca boton-pedido" id="abrir-pedido" hidden aria-haspopup="dialog">
-        <svg class="icono-bolsa" viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M6 8h12l-1 12H7L6 8z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>
-        </svg>
-        <span>Pedido</span>
-        <span class="chapa" id="pedido-cuenta" hidden>0</span>
-      </button>
-    </div>
+<!-- ===================== Barra superior ===================== -->
+<header class="barra">
+  <a class="marca" href="#inicio">
+    <img id="logo-img" alt="" hidden>
+    <span id="logo-texto">Catalogo</span>
+  </a>
+
+  <div class="barra-buscar">
+    <svg class="lupa" viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/>
+    </svg>
+    <input type="search" id="buscar" placeholder="Buscar" aria-label="Buscar producto" autocomplete="off">
   </div>
+
+  <a class="boton-fantasma" id="cta-whatsapp" hidden target="_blank" rel="noopener">Consultar</a>
 </header>
 
+<!-- ===================== Portada ===================== -->
 <section class="portada" id="inicio">
-  <div class="contenedor">
-    <p class="portada-eyebrow" id="portada-eyebrow" hidden></p>
-    <h1 id="portada-titulo">Nuestro catalogo</h1>
-    <p class="portada-bajada" id="portada-bajada">Cargando productos...</p>
-    <div class="portada-datos" id="portada-datos"></div>
-  </div>
+  <h1 id="portada-titulo">Catalogo</h1>
+  <p class="portada-bajada" id="portada-bajada"></p>
 </section>
 
-<nav class="filtros" id="filtros" aria-label="Filtros del catalogo">
-  <div class="contenedor">
-    <div class="chips" id="chips" role="group" aria-label="Categorias"></div>
-    <div class="filtros-fila">
-      <select id="filtro-marca" class="select" aria-label="Filtrar por marca">
-        <option value="">Todas las marcas</option>
-      </select>
-      <select id="orden" class="select" aria-label="Ordenar catalogo">
-        <option value="destacados">Destacados primero</option>
-        <option value="nombre">Nombre A-Z</option>
-        <option value="precio-asc">Precio: menor a mayor</option>
-        <option value="precio-desc">Precio: mayor a menor</option>
-      </select>
-      <span class="resultado-conteo" id="conteo"></span>
-    </div>
+<!-- ===================== Filtros ===================== -->
+<nav class="rail" aria-label="Categorias">
+  <div class="rail-pistas" id="chips"></div>
+  <div class="rail-fin">
+    <select id="filtro-marca" class="menu" aria-label="Filtrar por marca" hidden>
+      <option value="">Todas las marcas</option>
+    </select>
+    <select id="orden" class="menu" aria-label="Ordenar">
+      <option value="destacados">Destacados</option>
+      <option value="nombre">A-Z</option>
+      <option value="precio-asc">Menor precio</option>
+      <option value="precio-desc">Mayor precio</option>
+    </select>
   </div>
 </nav>
 
-<main class="contenedor" id="catalogo">
+<!-- ===================== Catalogo ===================== -->
+<main id="catalogo">
   <div class="grilla" id="grilla" aria-live="polite"></div>
 
   <p class="estado" id="estado-vacio" hidden>
-    No encontramos productos con esa busqueda.
-    <button class="enlace" id="limpiar-filtros">Ver todo el catalogo</button>
+    Nada coincide con esa busqueda.
+    <button class="enlace" id="limpiar-filtros" type="button">Ver todo</button>
   </p>
 
-  <div class="estado estado-error" id="estado-error" hidden>
+  <div class="estado" id="estado-error" hidden>
     <p id="estado-error-texto">No pudimos cargar el catalogo.</p>
-    <button class="btn" id="reintentar">Reintentar</button>
+    <button class="boton-fantasma" id="reintentar" type="button">Reintentar</button>
   </div>
 </main>
 
+<!-- ===================== Pie ===================== -->
 <footer class="pie">
-  <div class="contenedor pie-grilla">
-    <div>
-      <strong id="pie-nombre">Catalogo</strong>
-      <p class="pie-nota" id="pie-nota"></p>
-    </div>
-    <ul class="pie-contacto" id="pie-contacto"></ul>
-  </div>
-  <p class="pie-legal">Catalogo de exhibicion. Los pedidos se coordinan por los canales de contacto.</p>
+  <span id="pie-nombre">Catalogo</span>
+  <ul class="pie-contacto" id="pie-contacto"></ul>
+  <p class="pie-nota" id="pie-nota"></p>
 </footer>
 
 <!-- ===================== Ficha de producto ===================== -->
-<dialog class="ficha" id="ficha" aria-labelledby="ficha-nombre">
-  <button class="ficha-cerrar" id="ficha-cerrar" aria-label="Cerrar">&times;</button>
-  <div class="ficha-cuerpo">
-    <div class="ficha-galeria">
-      <div class="ficha-principal">
-        <img id="ficha-img" alt="">
-      </div>
-      <div class="ficha-tiras" id="ficha-tiras"></div>
+<div class="velo" id="ficha-velo" hidden></div>
+
+<article class="ficha" id="ficha" hidden role="dialog" aria-modal="true" aria-labelledby="ficha-nombre">
+  <button class="cerrar" id="ficha-cerrar" aria-label="Cerrar">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+  </button>
+
+  <div class="ficha-visual">
+    <div class="ficha-marco" id="ficha-marco">
+      <img id="ficha-img" alt="">
     </div>
-    <div class="ficha-datos">
-      <div class="ficha-etiquetas" id="ficha-etiquetas"></div>
-      <p class="ficha-categoria" id="ficha-categoria"></p>
-      <h2 id="ficha-nombre"></h2>
-      <p class="ficha-marca" id="ficha-marca"></p>
-      <div class="ficha-precio" id="ficha-precio"></div>
-      <dl class="ficha-specs" id="ficha-specs"></dl>
-      <p class="ficha-descripcion" id="ficha-descripcion"></p>
+    <div class="ficha-tiras" id="ficha-tiras"></div>
+  </div>
+
+  <div class="ficha-texto">
+    <div class="senias" id="ficha-etiquetas"></div>
+    <h2 id="ficha-nombre" class="display"></h2>
+    <p class="ficha-sub" id="ficha-sub"></p>
+    <div class="ficha-precio" id="ficha-precio"></div>
+    <p class="ficha-descripcion" id="ficha-descripcion"></p>
+    <dl class="specs" id="ficha-specs"></dl>
+
+    <div class="ficha-acciones">
       <div class="ficha-sumar" id="ficha-sumar" hidden>
-        <div class="contador" data-contador="ficha">
-          <button class="contador-btn" type="button" data-delta="-1" aria-label="Quitar uno">&minus;</button>
-          <input class="contador-valor" id="ficha-cantidad" type="text" inputmode="numeric" value="1" aria-label="Cantidad">
-          <button class="contador-btn" type="button" data-delta="1" aria-label="Agregar uno">+</button>
+        <div class="paso">
+          <button class="paso-btn" type="button" data-delta="-1" aria-label="Quitar uno">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg>
+          </button>
+          <input class="paso-valor" id="ficha-cantidad" type="text" inputmode="numeric" value="1" aria-label="Cantidad">
+          <button class="paso-btn" type="button" data-delta="1" aria-label="Sumar uno">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          </button>
         </div>
-        <button class="btn btn-marca" id="ficha-agregar" type="button">Agregar al pedido</button>
+        <button class="boton" id="ficha-agregar" type="button">Sumar al pedido</button>
       </div>
 
-      <div class="ficha-acciones">
-        <a class="btn btn-marca" id="ficha-whatsapp" hidden target="_blank" rel="noopener">Consultar por WhatsApp</a>
-        <button class="btn" id="ficha-compartir">Compartir</button>
-      </div>
+      <a class="boton" id="ficha-whatsapp" hidden target="_blank" rel="noopener">Consultar</a>
+      <button class="boton-fantasma" id="ficha-compartir" type="button">Compartir</button>
     </div>
   </div>
-</dialog>
+</article>
 
 <!-- ===================== Pedido ===================== -->
-<div class="pedido-fondo" id="pedido-fondo" hidden></div>
+<div class="velo" id="pedido-velo" hidden></div>
 
-<aside class="pedido" id="pedido" hidden role="dialog" aria-modal="true" aria-labelledby="pedido-titulo">
-  <header class="pedido-barra">
-    <h2 id="pedido-titulo">Tu pedido</h2>
-    <button class="pedido-cerrar" id="pedido-cerrar" aria-label="Cerrar el pedido">&times;</button>
-  </header>
-
-  <div class="pedido-cuerpo" id="pedido-cuerpo">
-    <ul class="pedido-lineas" id="pedido-lineas"></ul>
-    <p class="pedido-vacio" id="pedido-vacio">
-      Todavia no agregaste productos. Recorre el catalogo y toca <strong>Agregar</strong>
-      en los que te interesen.
-    </p>
-  </div>
-
-  <footer class="pedido-pie" id="pedido-pie" hidden>
-    <div class="pedido-total" id="pedido-total"></div>
-    <p class="pedido-nota-precios" id="pedido-nota-precios"></p>
-
-    <label class="pedido-campo">
-      <span>Tu nombre o comercio</span>
-      <input id="pedido-nombre" autocomplete="organization" placeholder="Ej: Bar La Esquina">
-    </label>
-    <label class="pedido-campo">
-      <span>Aclaraciones (opcional)</span>
-      <input id="pedido-nota" placeholder="Ej: entregar por la maniana">
-    </label>
-
-    <p class="pedido-largo" id="pedido-largo" hidden>
-      Tu pedido es muy largo para mandarlo entero por el enlace. El mensaje va a
-      salir resumido: mejor toca <strong>Copiar el pedido</strong> y pegalo en el chat.
-    </p>
-
-    <a class="btn btn-marca btn-ancho" id="pedido-enviar" target="_blank" rel="noopener">
-      Enviar pedido por WhatsApp
-    </a>
-    <div class="pedido-secundarias">
-      <button class="enlace" id="pedido-copiar" type="button">Copiar el pedido</button>
-      <button class="enlace enlace-tenue" id="pedido-vaciar" type="button">Vaciar</button>
-    </div>
-  </footer>
-</aside>
-
-<!-- Barra fija en celulares: el panel del pedido queda a un toque -->
-<button class="barra-pedido" id="barra-pedido" hidden type="button">
-  <span class="barra-pedido-cuenta" id="barra-pedido-cuenta">0</span>
-  <span>Ver pedido</span>
-  <span class="barra-pedido-total" id="barra-pedido-total"></span>
+<button class="dock" id="dock" hidden type="button" aria-expanded="false" aria-controls="pedido">
+  <svg class="dock-icono" viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M6 8h12l-1 12H7L6 8z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>
+  </svg>
+  <span class="dock-cuenta" id="dock-cuenta">0</span>
+  <span class="dock-total" id="dock-total"></span>
 </button>
 
-<div class="aviso" id="aviso" hidden></div>
+<section class="pedido" id="pedido" hidden role="dialog" aria-modal="true" aria-labelledby="pedido-titulo">
+  <header class="pedido-cabeza">
+    <h2 id="pedido-titulo" class="display">Pedido</h2>
+    <button class="cerrar" id="pedido-cerrar" aria-label="Cerrar el pedido">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </header>
 
-<script src="config.js?v=2"></script>
-<script src="assets/js/app.js?v=2"></script>
+  <!-- Estado normal: la lista -->
+  <div class="pedido-vista" id="pedido-vista-lista">
+    <ul class="pedido-lineas" id="pedido-lineas"></ul>
+    <p class="pedido-vacio" id="pedido-vacio">
+      Tu pedido esta vacio. Tocá <span class="mas-inline" aria-hidden="true">+</span> en los productos que quieras.
+    </p>
+
+    <div class="pedido-pie" id="pedido-pie" hidden>
+      <div class="pedido-total" id="pedido-total"></div>
+
+      <input id="pedido-nombre" class="campo" autocomplete="organization" placeholder="Tu nombre o comercio">
+      <input id="pedido-nota" class="campo" placeholder="Aclaraciones (opcional)">
+
+      <p class="alerta" id="pedido-largo" hidden>
+        El pedido es largo para el enlace: el mensaje sale resumido.
+        Mejor usá <strong>Copiar</strong> y pegalo en el chat.
+      </p>
+
+      <a class="boton boton-ancho" id="pedido-enviar" target="_blank" rel="noopener">Enviar por WhatsApp</a>
+
+      <div class="pedido-menores">
+        <button class="enlace" id="pedido-copiar" type="button">Copiar</button>
+        <button class="enlace enlace-apagado" id="pedido-vaciar" type="button">Vaciar</button>
+        <span class="confirmar" id="pedido-vaciar-confirmar" hidden>
+          Vaciar?
+          <button class="enlace enlace-peligro" id="pedido-vaciar-si" type="button">Si</button>
+          <button class="enlace enlace-apagado" id="pedido-vaciar-no" type="button">No</button>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Estado tras enviar -->
+  <div class="pedido-vista" id="pedido-vista-enviado" hidden>
+    <div class="enviado">
+      <div class="enviado-marca" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M4 12.5l5.5 5.5L20 7"/></svg>
+      </div>
+      <h3 class="display">Pedido enviado</h3>
+      <p id="enviado-detalle"></p>
+      <button class="boton boton-ancho" id="enviado-nuevo" type="button">Empezar uno nuevo</button>
+      <button class="enlace" id="enviado-volver" type="button">Volver a mi pedido</button>
+    </div>
+  </div>
+</section>
+
+<div class="nota" id="aviso" hidden></div>
+
+<script src="config.js?v=3"></script>
+<script src="assets/js/app.js?v=3"></script>
 </body>
 </html>
