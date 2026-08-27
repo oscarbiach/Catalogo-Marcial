@@ -207,6 +207,10 @@ body.scrolleado .barra::before { opacity: .95; box-shadow: var(--flota-2); }
 .rail-pistas {
   display: flex; gap: 7px; overflow-x: auto; flex: 1 1 auto; padding: 4px;
   scrollbar-width: none; -ms-overflow-style: none;
+  /* El ultimo chip visible se desvanece en vez de cortarse a la mitad: asi se
+     entiende que la lista sigue y no parece un error de maquetado. */
+  mask-image: linear-gradient(to right, #000 calc(100% - 34px), transparent);
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 34px), transparent);
 }
 .rail-pistas::-webkit-scrollbar { display: none; }
 
@@ -240,7 +244,9 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 
 .grilla {
   display: grid; gap: 34px 22px;
-  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  /* Piezas grandes: 4 por fila en pantalla ancha, 3 en notebook. Con foto de
+     producto, cuanto mas grande la losa, mejor se lee la mercaderia. */
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
   perspective: 1100px;
 }
 
@@ -269,13 +275,13 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 .mas {
   position: absolute; right: 10px; bottom: 10px; z-index: 3;
   appearance: none; border: 0; cursor: pointer; padding: 0;
-  width: 36px; height: 36px; border-radius: 50%;
+  width: 42px; height: 42px; border-radius: 50%;
   background: var(--losa); color: var(--tinta); box-shadow: var(--flota-2);
   display: grid; place-items: center;
   transform: translateZ(28px);
   transition: transform .2s var(--curva), background .2s var(--curva), color .2s var(--curva);
 }
-.mas svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.1; stroke-linecap: round; }
+.mas svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.1; stroke-linecap: round; }
 .mas:hover { background: var(--marca); color: var(--marca-tinta); transform: translateZ(28px) scale(1.1); }
 .mas[disabled] { opacity: .4; cursor: default; }
 .mas[disabled]:hover { background: var(--losa); color: var(--tinta); transform: translateZ(28px); }
@@ -305,13 +311,13 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 .pieza-pie { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 0 3px; }
 .pieza-nombre {
   appearance: none; background: none; border: 0; padding: 0; cursor: pointer; text-align: left;
-  font: inherit; font-size: 14px; font-weight: 500; color: var(--tinta); line-height: 1.35;
+  font: inherit; font-size: 15px; font-weight: 500; color: var(--tinta); line-height: 1.35;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 /* El nombre abre la ficha, y su area sensible cubre toda la pieza */
 .pieza-nombre::after { content: ''; position: absolute; inset: 0; z-index: 1; }
 .pieza-precio {
-  font-size: 14px; font-weight: 600; white-space: nowrap;
+  font-size: 15px; font-weight: 600; white-space: nowrap;
   font-variant-numeric: tabular-nums; flex: 0 0 auto;
 }
 .pieza-precio:empty { display: none; }
@@ -555,7 +561,7 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
   .portada { padding: 34px 22px 22px; }
   .rail { top: 56px; padding: 8px 14px 12px; }
   main { padding: 10px 14px 130px; }
-  .grilla { gap: 26px 14px; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); }
+  .grilla { gap: 26px 14px; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
 
   /* En celular el pedido es una hoja apoyada abajo.
      La animacion desplaza solo 18px a proposito: si por lo que sea no llega a

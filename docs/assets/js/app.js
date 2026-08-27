@@ -318,9 +318,12 @@
         return y - x;
       });
     } else {
+      // Lo mas pedido arriba. Los destacados van primero igual, y lo que no
+      // hay en stock cae al final.
       lista.sort(function (a, b) {
         if (a.sinStock !== b.sinStock) return a.sinStock ? 1 : -1;
         if (a.destacado !== b.destacado) return a.destacado ? -1 : 1;
+        if ((b.pedidos || 0) !== (a.pedidos || 0)) return (b.pedidos || 0) - (a.pedidos || 0);
         if ((b.orden || 0) !== (a.orden || 0)) return (b.orden || 0) - (a.orden || 0);
         return a.nombre.localeCompare(b.nombre, 'es');
       });
