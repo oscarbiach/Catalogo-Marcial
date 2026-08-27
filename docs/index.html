@@ -13,7 +13,11 @@
 
 <link rel="preconnect" href="https://script.google.com">
 <link rel="preconnect" href="https://drive.google.com">
-<link rel="stylesheet" href="assets/css/styles.css">
+
+<!-- El ?v=N obliga al navegador a bajar los archivos nuevos. Subilo cada vez
+     que actualices el sitio: si no, alguien que ya entro puede quedarse con
+     el HTML nuevo y el JavaScript viejo, y la pagina se rompe. -->
+<link rel="stylesheet" href="assets/css/styles.css?v=2">
 </head>
 <body>
 
@@ -31,6 +35,13 @@
         <input type="search" id="buscar" placeholder="Buscar producto..." aria-label="Buscar producto" autocomplete="off">
       </label>
       <a class="btn btn-marca" id="cta-whatsapp" hidden target="_blank" rel="noopener">Consultar</a>
+      <button class="btn btn-marca boton-pedido" id="abrir-pedido" hidden aria-haspopup="dialog">
+        <svg class="icono-bolsa" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M6 8h12l-1 12H7L6 8z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>
+        </svg>
+        <span>Pedido</span>
+        <span class="chapa" id="pedido-cuenta" hidden>0</span>
+      </button>
     </div>
   </div>
 </header>
@@ -105,6 +116,15 @@
       <div class="ficha-precio" id="ficha-precio"></div>
       <dl class="ficha-specs" id="ficha-specs"></dl>
       <p class="ficha-descripcion" id="ficha-descripcion"></p>
+      <div class="ficha-sumar" id="ficha-sumar" hidden>
+        <div class="contador" data-contador="ficha">
+          <button class="contador-btn" type="button" data-delta="-1" aria-label="Quitar uno">&minus;</button>
+          <input class="contador-valor" id="ficha-cantidad" type="text" inputmode="numeric" value="1" aria-label="Cantidad">
+          <button class="contador-btn" type="button" data-delta="1" aria-label="Agregar uno">+</button>
+        </div>
+        <button class="btn btn-marca" id="ficha-agregar" type="button">Agregar al pedido</button>
+      </div>
+
       <div class="ficha-acciones">
         <a class="btn btn-marca" id="ficha-whatsapp" hidden target="_blank" rel="noopener">Consultar por WhatsApp</a>
         <button class="btn" id="ficha-compartir">Compartir</button>
@@ -113,9 +133,61 @@
   </div>
 </dialog>
 
+<!-- ===================== Pedido ===================== -->
+<div class="pedido-fondo" id="pedido-fondo" hidden></div>
+
+<aside class="pedido" id="pedido" hidden role="dialog" aria-modal="true" aria-labelledby="pedido-titulo">
+  <header class="pedido-barra">
+    <h2 id="pedido-titulo">Tu pedido</h2>
+    <button class="pedido-cerrar" id="pedido-cerrar" aria-label="Cerrar el pedido">&times;</button>
+  </header>
+
+  <div class="pedido-cuerpo" id="pedido-cuerpo">
+    <ul class="pedido-lineas" id="pedido-lineas"></ul>
+    <p class="pedido-vacio" id="pedido-vacio">
+      Todavia no agregaste productos. Recorre el catalogo y toca <strong>Agregar</strong>
+      en los que te interesen.
+    </p>
+  </div>
+
+  <footer class="pedido-pie" id="pedido-pie" hidden>
+    <div class="pedido-total" id="pedido-total"></div>
+    <p class="pedido-nota-precios" id="pedido-nota-precios"></p>
+
+    <label class="pedido-campo">
+      <span>Tu nombre o comercio</span>
+      <input id="pedido-nombre" autocomplete="organization" placeholder="Ej: Bar La Esquina">
+    </label>
+    <label class="pedido-campo">
+      <span>Aclaraciones (opcional)</span>
+      <input id="pedido-nota" placeholder="Ej: entregar por la maniana">
+    </label>
+
+    <p class="pedido-largo" id="pedido-largo" hidden>
+      Tu pedido es muy largo para mandarlo entero por el enlace. El mensaje va a
+      salir resumido: mejor toca <strong>Copiar el pedido</strong> y pegalo en el chat.
+    </p>
+
+    <a class="btn btn-marca btn-ancho" id="pedido-enviar" target="_blank" rel="noopener">
+      Enviar pedido por WhatsApp
+    </a>
+    <div class="pedido-secundarias">
+      <button class="enlace" id="pedido-copiar" type="button">Copiar el pedido</button>
+      <button class="enlace enlace-tenue" id="pedido-vaciar" type="button">Vaciar</button>
+    </div>
+  </footer>
+</aside>
+
+<!-- Barra fija en celulares: el panel del pedido queda a un toque -->
+<button class="barra-pedido" id="barra-pedido" hidden type="button">
+  <span class="barra-pedido-cuenta" id="barra-pedido-cuenta">0</span>
+  <span>Ver pedido</span>
+  <span class="barra-pedido-total" id="barra-pedido-total"></span>
+</button>
+
 <div class="aviso" id="aviso" hidden></div>
 
-<script src="config.js"></script>
-<script src="assets/js/app.js"></script>
+<script src="config.js?v=2"></script>
+<script src="assets/js/app.js?v=2"></script>
 </body>
 </html>
