@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Catalogo de productos</title>
+<meta name="description" content="Catalogo de productos con fotos, presentaciones y precios.">
+
+<!-- Open Graph: asi se ve el link cuando lo comparten por WhatsApp -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="Catalogo de productos">
+<meta property="og:description" content="Mira todo nuestro catalogo con fotos y precios.">
+
+<link rel="preconnect" href="https://script.google.com">
+<link rel="preconnect" href="https://drive.google.com">
+<link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+
+<a class="saltar" href="#catalogo">Saltar al catalogo</a>
+
+<header class="cabecera" id="cabecera">
+  <div class="contenedor cabecera-fila">
+    <a class="logo" href="#inicio">
+      <img id="logo-img" alt="" hidden>
+      <span id="logo-texto">Catalogo</span>
+    </a>
+    <div class="cabecera-acciones">
+      <label class="buscador-envoltorio">
+        <svg class="lupa" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+        <input type="search" id="buscar" placeholder="Buscar producto..." aria-label="Buscar producto" autocomplete="off">
+      </label>
+      <a class="btn btn-marca" id="cta-whatsapp" hidden target="_blank" rel="noopener">Consultar</a>
+    </div>
+  </div>
+</header>
+
+<section class="portada" id="inicio">
+  <div class="contenedor">
+    <p class="portada-eyebrow" id="portada-eyebrow" hidden></p>
+    <h1 id="portada-titulo">Nuestro catalogo</h1>
+    <p class="portada-bajada" id="portada-bajada">Cargando productos...</p>
+    <div class="portada-datos" id="portada-datos"></div>
+  </div>
+</section>
+
+<nav class="filtros" id="filtros" aria-label="Filtros del catalogo">
+  <div class="contenedor">
+    <div class="chips" id="chips" role="group" aria-label="Categorias"></div>
+    <div class="filtros-fila">
+      <select id="filtro-marca" class="select" aria-label="Filtrar por marca">
+        <option value="">Todas las marcas</option>
+      </select>
+      <select id="orden" class="select" aria-label="Ordenar catalogo">
+        <option value="destacados">Destacados primero</option>
+        <option value="nombre">Nombre A-Z</option>
+        <option value="precio-asc">Precio: menor a mayor</option>
+        <option value="precio-desc">Precio: mayor a menor</option>
+      </select>
+      <span class="resultado-conteo" id="conteo"></span>
+    </div>
+  </div>
+</nav>
+
+<main class="contenedor" id="catalogo">
+  <div class="grilla" id="grilla" aria-live="polite"></div>
+
+  <p class="estado" id="estado-vacio" hidden>
+    No encontramos productos con esa busqueda.
+    <button class="enlace" id="limpiar-filtros">Ver todo el catalogo</button>
+  </p>
+
+  <div class="estado estado-error" id="estado-error" hidden>
+    <p id="estado-error-texto">No pudimos cargar el catalogo.</p>
+    <button class="btn" id="reintentar">Reintentar</button>
+  </div>
+</main>
+
+<footer class="pie">
+  <div class="contenedor pie-grilla">
+    <div>
+      <strong id="pie-nombre">Catalogo</strong>
+      <p class="pie-nota" id="pie-nota"></p>
+    </div>
+    <ul class="pie-contacto" id="pie-contacto"></ul>
+  </div>
+  <p class="pie-legal">Catalogo de exhibicion. Los pedidos se coordinan por los canales de contacto.</p>
+</footer>
+
+<!-- ===================== Ficha de producto ===================== -->
+<dialog class="ficha" id="ficha" aria-labelledby="ficha-nombre">
+  <button class="ficha-cerrar" id="ficha-cerrar" aria-label="Cerrar">&times;</button>
+  <div class="ficha-cuerpo">
+    <div class="ficha-galeria">
+      <div class="ficha-principal">
+        <img id="ficha-img" alt="">
+      </div>
+      <div class="ficha-tiras" id="ficha-tiras"></div>
+    </div>
+    <div class="ficha-datos">
+      <div class="ficha-etiquetas" id="ficha-etiquetas"></div>
+      <p class="ficha-categoria" id="ficha-categoria"></p>
+      <h2 id="ficha-nombre"></h2>
+      <p class="ficha-marca" id="ficha-marca"></p>
+      <div class="ficha-precio" id="ficha-precio"></div>
+      <dl class="ficha-specs" id="ficha-specs"></dl>
+      <p class="ficha-descripcion" id="ficha-descripcion"></p>
+      <div class="ficha-acciones">
+        <a class="btn btn-marca" id="ficha-whatsapp" hidden target="_blank" rel="noopener">Consultar por WhatsApp</a>
+        <button class="btn" id="ficha-compartir">Compartir</button>
+      </div>
+    </div>
+  </div>
+</dialog>
+
+<div class="aviso" id="aviso" hidden></div>
+
+<script src="config.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>
