@@ -174,7 +174,17 @@ img { max-width: 100%; display: block; }
   transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
 }
 .tarjeta:hover { transform: translateY(-3px); box-shadow: var(--sombra); border-color: var(--tinta-tenue); }
-.tarjeta:focus-visible { outline: 3px solid color-mix(in srgb, var(--marca) 45%, transparent); outline-offset: 2px; }
+.tarjeta:has(:focus-visible) { outline: 3px solid color-mix(in srgb, var(--marca) 45%, transparent); outline-offset: 2px; }
+
+/* El nombre es el disparador de la ficha; su ::after cubre toda la tarjeta para
+   que el area clickeable sea la tarjeta entera. Los controles del pedido se
+   apoyan por encima con z-index. */
+.tarjeta-abrir {
+  appearance: none; background: none; border: 0; padding: 0; margin: 0;
+  font: inherit; color: inherit; text-align: left; cursor: pointer;
+}
+.tarjeta-abrir::after { content: ''; position: absolute; inset: 0; z-index: 1; }
+.tarjeta-abrir:focus-visible { outline: none; }
 
 .tarjeta-foto { position: relative; aspect-ratio: 1 / 1; background: var(--fondo-alt); }
 .tarjeta-foto img { width: 100%; height: 100%; object-fit: cover; }
@@ -210,6 +220,41 @@ img { max-width: 100%; display: block; }
 .tarjeta-unitario {
   display: block; font-size: 12px; font-weight: 500;
   color: var(--tinta-tenue); letter-spacing: 0; margin-top: 1px;
+}
+
+/* ---------- Controles del pedido en la tarjeta ---------- */
+.tarjeta-pie { position: relative; z-index: 2; padding: 0 15px 15px; }
+
+.btn-sumar {
+  width: 100%; appearance: none; cursor: pointer;
+  border: 1px solid var(--borde); background: var(--fondo-alt); color: var(--tinta);
+  padding: 8px 12px; border-radius: 999px; font: inherit; font-size: 13.5px; font-weight: 650;
+  transition: background .12s ease, border-color .12s ease, color .12s ease;
+}
+.btn-sumar:hover { background: var(--marca); border-color: var(--marca); color: var(--marca-tinta); }
+.btn-sumar[disabled] { opacity: .5; cursor: default; }
+.btn-sumar[disabled]:hover { background: var(--fondo-alt); border-color: var(--borde); color: var(--tinta); }
+
+.contador {
+  display: flex; align-items: center; justify-content: space-between;
+  border: 1px solid var(--marca); border-radius: 999px; overflow: hidden;
+  background: var(--superficie);
+}
+.contador-btn {
+  appearance: none; border: 0; background: none; cursor: pointer;
+  width: 34px; height: 34px; flex: 0 0 34px;
+  font-size: 17px; line-height: 1; color: var(--marca); font-family: inherit;
+}
+.contador-btn:hover { background: var(--fondo-alt); }
+.contador-valor {
+  flex: 1; min-width: 0; width: 100%;
+  border: 0; background: none; padding: 0; text-align: center;
+  font: inherit; font-size: 13.5px; font-weight: 650; color: var(--tinta);
+  font-variant-numeric: tabular-nums;
+}
+.contador-valor:focus { outline: none; }
+.contador-unidad {
+  display: block; text-align: center; font-size: 11px; color: var(--tinta-tenue); margin-top: 4px;
 }
 
 /* Esqueletos de carga */
@@ -298,6 +343,134 @@ img { max-width: 100%; display: block; }
 .pie-legal {
   max-width: var(--ancho); margin: 28px auto 0; padding: 16px 20px 0;
   border-top: 1px solid var(--borde); color: var(--tinta-tenue); font-size: 12.5px;
+}
+
+/* ---------- Boton de pedido en la cabecera ---------- */
+.boton-pedido { display: inline-flex; align-items: center; gap: 7px; padding-right: 14px; }
+.icono-bolsa {
+  width: 17px; height: 17px; fill: none; stroke: currentColor;
+  stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+}
+.chapa {
+  min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px;
+  background: var(--marca-tinta); color: var(--marca);
+  font-size: 11.5px; font-weight: 700; line-height: 20px; text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Panel del pedido ---------- */
+.pedido-fondo { position: fixed; inset: 0; background: rgba(12, 14, 18, .5); z-index: 45; }
+
+.pedido {
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: 55;
+  width: min(420px, 100%); display: flex; flex-direction: column;
+  background: var(--superficie); color: var(--tinta);
+  box-shadow: -8px 0 34px rgba(12, 14, 18, .18);
+}
+.pedido-barra {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 20px; border-bottom: 1px solid var(--borde); flex: 0 0 auto;
+}
+.pedido-barra h2 { margin: 0; font-size: 18px; letter-spacing: -.02em; }
+.pedido-cerrar {
+  appearance: none; border: 1px solid var(--borde); background: var(--superficie);
+  color: var(--tinta); width: 32px; height: 32px; border-radius: 50%;
+  font-size: 21px; line-height: 1; cursor: pointer; display: grid; place-items: center; padding: 0;
+}
+.pedido-cerrar:hover { background: var(--fondo-alt); }
+
+.pedido-cuerpo { flex: 1 1 auto; overflow-y: auto; padding: 8px 20px 20px; }
+.pedido-lineas { list-style: none; margin: 0; padding: 0; }
+.pedido-linea {
+  display: grid; grid-template-columns: 52px 1fr; gap: 12px;
+  padding: 14px 0; border-bottom: 1px solid var(--borde);
+}
+.pedido-linea:last-child { border-bottom: 0; }
+.pedido-foto {
+  width: 52px; height: 52px; border-radius: 8px; object-fit: cover; background: var(--fondo-alt);
+}
+.pedido-foto-vacia { width: 52px; height: 52px; border-radius: 8px; background: var(--fondo-alt); }
+.pedido-nombre { font-weight: 620; font-size: 14px; line-height: 1.35; }
+.pedido-detalle { font-size: 12.5px; color: var(--tinta-tenue); margin-top: 2px; }
+.pedido-fila {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px;
+}
+.pedido-fila .contador { flex: 0 0 116px; }
+.pedido-subtotal { font-weight: 650; font-variant-numeric: tabular-nums; font-size: 14px; }
+.pedido-quitar {
+  appearance: none; border: 0; background: none; padding: 0; cursor: pointer;
+  color: var(--tinta-tenue); font: inherit; font-size: 12.5px; text-decoration: underline;
+}
+.pedido-quitar:hover { color: var(--marca); }
+.pedido-vacio { color: var(--tinta-suave); font-size: 14px; padding: 26px 0; }
+
+.pedido-pie {
+  flex: 0 0 auto; border-top: 1px solid var(--borde); background: var(--fondo-alt);
+  padding: 16px 20px 20px; display: flex; flex-direction: column; gap: 10px;
+  max-height: 62vh; overflow-y: auto;
+}
+.pedido-total {
+  display: flex; align-items: baseline; justify-content: space-between;
+  font-size: 20px; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums;
+}
+.pedido-total span:first-child { font-size: 14px; font-weight: 600; color: var(--tinta-suave); letter-spacing: 0; }
+.pedido-nota-precios { margin: -4px 0 0; font-size: 11.5px; color: var(--tinta-tenue); }
+.pedido-nota-precios:empty { display: none; }
+
+.pedido-campo { display: block; }
+.pedido-campo > span {
+  display: block; font-size: 11.5px; font-weight: 650; color: var(--tinta-suave); margin-bottom: 4px;
+}
+.pedido-campo input {
+  width: 100%; padding: 9px 12px; border: 1px solid var(--borde); border-radius: 10px;
+  background: var(--superficie); color: var(--tinta); font: inherit; font-size: 14px;
+}
+.pedido-campo input:focus {
+  outline: none; border-color: var(--marca);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--marca) 18%, transparent);
+}
+
+.pedido-largo {
+  margin: 0; padding: 10px 12px; border-radius: 8px;
+  border-left: 3px solid var(--marca);
+  background: color-mix(in srgb, var(--marca) 10%, var(--superficie));
+  color: var(--tinta); font-size: 12.5px; line-height: 1.45;
+}
+
+.btn-ancho { width: 100%; text-align: center; }
+.pedido-secundarias { display: flex; align-items: center; justify-content: space-between; }
+.enlace-tenue { color: var(--tinta-tenue); font-weight: 500; }
+.enlace-tenue:hover { color: var(--marca); }
+
+/* ---------- Sumar desde la ficha ---------- */
+.ficha-sumar { display: flex; align-items: center; gap: 10px; margin-top: 22px; flex-wrap: wrap; }
+.ficha-sumar .contador { flex: 0 0 120px; }
+.ficha-sumar .btn { flex: 1 1 auto; }
+
+/* ---------- Barra fija de celular ---------- */
+.barra-pedido { display: none; }
+
+@media (max-width: 700px) {
+  .barra-pedido[hidden] { display: none; }
+  .barra-pedido {
+    display: flex; align-items: center; gap: 10px;
+    position: fixed; left: 12px; right: 12px; bottom: 12px; z-index: 44;
+    appearance: none; border: 0; cursor: pointer;
+    background: var(--marca); color: var(--marca-tinta);
+    padding: 13px 18px; border-radius: 999px;
+    font: inherit; font-size: 15px; font-weight: 650;
+    box-shadow: 0 6px 22px rgba(12, 14, 18, .26);
+  }
+  .barra-pedido-cuenta {
+    min-width: 22px; height: 22px; border-radius: 999px; padding: 0 6px;
+    background: var(--marca-tinta); color: var(--marca);
+    font-size: 12px; font-weight: 700; line-height: 22px; text-align: center;
+  }
+  .barra-pedido-total { margin-left: auto; font-variant-numeric: tabular-nums; }
+  /* Espacio para que la barra no tape la ultima fila de productos */
+  body.con-barra-pedido .pie-legal { padding-bottom: 64px; }
+  .boton-pedido span:not(.chapa) { display: none; }
+  .boton-pedido { padding: 9px 12px; }
 }
 
 /* ---------- Aviso flotante ---------- */
