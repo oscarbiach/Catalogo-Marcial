@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Catalogo</title>
 <meta name="description" content="Catalogo de productos con fotos y precios.">
-<meta name="theme-color" content="#edeef0">
+<meta name="theme-color" content="#e4e1d9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1d2c" media="(prefers-color-scheme: dark)">
 
 <meta property="og:type" content="website">
 <meta property="og:title" content="Catalogo">
@@ -15,12 +16,12 @@
 <link rel="preconnect" href="https://drive.google.com">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Instrument+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700&family=Archivo:wght@400;500;600&display=swap">
 
 <!-- El ?v=N obliga al navegador a bajar los archivos nuevos. Subilo cada vez
      que actualices el sitio: si no, alguien que ya entro puede quedarse con
      el HTML nuevo y el JavaScript viejo, y la pagina se rompe. -->
-<link rel="stylesheet" href="assets/css/styles.css?v=5">
+<link rel="stylesheet" href="assets/css/styles.css?v=6">
 </head>
 <body>
 
@@ -28,9 +29,12 @@
 
 <!-- ===================== Barra superior ===================== -->
 <header class="barra">
-  <a class="marca" href="#inicio">
+  <a class="marca" href="#inicio" aria-label="Inicio">
     <img id="logo-img" alt="" hidden>
-    <span id="logo-texto">Catalogo</span>
+    <span class="firma">
+      <span class="firma-nombre" id="logo-texto">Marcial</span>
+      <span class="firma-bajo" id="logo-bajo">Distribuidora</span>
+    </span>
   </a>
 
   <div class="barra-buscar">
@@ -45,7 +49,11 @@
 
 <!-- ===================== Portada ===================== -->
 <section class="portada" id="inicio">
-  <h1 id="portada-titulo">Catalogo</h1>
+  <span class="portada-firma">
+    <h1 id="portada-titulo">Marcial</h1>
+    <p class="portada-sub" id="portada-sub">Distribuidora</p>
+  </span>
+  <div class="portada-regla" aria-hidden="true"></div>
   <p class="portada-bajada" id="portada-bajada"></p>
 </section>
 
@@ -82,7 +90,10 @@
 
 <!-- ===================== Pie ===================== -->
 <footer class="pie">
-  <span id="pie-nombre">Catalogo</span>
+  <span class="pie-firma">
+    <span class="pie-nombre" id="pie-nombre">Marcial</span>
+    <span class="pie-bajo" id="pie-bajo">Distribuidora</span>
+  </span>
   <ul class="pie-contacto" id="pie-contacto"></ul>
   <p class="pie-nota" id="pie-nota"></p>
 </footer>
@@ -197,7 +208,7 @@
 
 <div class="nota" id="aviso" hidden></div>
 
-<script src="config.js?v=5"></script>
-<script src="assets/js/app.js?v=5"></script>
+<script src="config.js?v=6"></script>
+<script src="assets/js/app.js?v=6"></script>
 </body>
 </html>

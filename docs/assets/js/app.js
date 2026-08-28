@@ -86,15 +86,6 @@
     avisoTimer = setTimeout(function () { caja.hidden = true; }, 2800);
   }
 
-  /** Blanco o negro segun cual contraste mejor sobre el color de marca. */
-  function tintaSobre(color) {
-    var m = /^#?([0-9a-f]{6})$/i.exec(String(color || '').trim());
-    if (!m) return '#ffffff';
-    var n = parseInt(m[1], 16);
-    var r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
-    return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.62 ? '#101215' : '#ffffff';
-  }
-
   function idSeguro(id) {
     return (window.CSS && CSS.escape) ? CSS.escape(id) : String(id).replace(/["\\]/g, '\\$&');
   }
@@ -174,13 +165,44 @@
   // Marca y textos del negocio
   // -------------------------------------------------------------------------
 
+  /**
+   * Parte el nombre del negocio en las dos lineas del logotipo: el nombre
+   * propio arriba y el rubro abajo, espaciado. "Distribuidora Marcial" se
+   * muestra como MARCIAL / DISTRIBUIDORA, igual que la marca.
+   */
+  var RUBROS = /^(distribuidora|distribuidor|mayorista|almacen|deposito)$/i;
+
+  function partirNombre(nombre) {
+    var palabras = String(nombre || '').trim().split(/\s+/).filter(Boolean);
+    if (palabras.length < 2) return { nombre: nombre || 'Catalogo', rubro: '' };
+
+    if (RUBROS.test(palabras[0])) {
+      return { nombre: palabras.slice(1).join(' '), rubro: palabras[0] };
+    }
+    if (RUBROS.test(palabras[palabras.length - 1])) {
+      return { nombre: palabras.slice(0, -1).join(' '), rubro: palabras[palabras.length - 1] };
+    }
+    return { nombre: nombre, rubro: '' };
+  }
+
   function aplicarConfig(config) {
     var nombre = config.negocio_nombre || 'Catalogo';
+    var firma = partirNombre(nombre);
 
     document.title = nombre;
-    $('logo-texto').textContent = nombre;
-    $('pie-nombre').textContent = nombre;
-    $('portada-titulo').textContent = nombre;
+    $('logo-texto').textContent = firma.nombre;
+    $('portada-titulo').textContent = firma.nombre;
+    $('pie-nombre').textContent = firma.nombre;
+
+    // Si el nombre no trae rubro, la segunda linea sobra
+    [['logo-bajo', firma.rubro], ['portada-sub', firma.rubro], ['pie-bajo', firma.rubro]]
+      .forEach(function (par) {
+        var el = $(par[0]);
+        if (!el) return;
+        el.textContent = par[1];
+        el.hidden = !par[1];
+      });
+
     $('portada-bajada').textContent = config.negocio_bajada || '';
     $('pie-nota').textContent = config.nota_precios || '';
 
@@ -192,10 +214,9 @@
       logo.onerror = function () { logo.hidden = true; };
     }
 
-    if (/^#[0-9a-f]{6}$/i.test(config.color_marca || '')) {
-      document.documentElement.style.setProperty('--marca', config.color_marca);
-      document.documentElement.style.setProperty('--marca-tinta', tintaSobre(config.color_marca));
-    }
+    // El color NO se toma de la configuracion: la identidad de marca (azul
+    // marino sobre beige) esta fijada en el CSS. Dejarlo configurable invitaba
+    // a romperla desde el panel sin querer.
 
     var contactos = [];
     if (config.telefono) contactos.push({ etiqueta: config.telefono, url: 'tel:' + config.telefono.replace(/\s/g, '') });
