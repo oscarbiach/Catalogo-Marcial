@@ -352,8 +352,9 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 }
 .pieza-precio:empty { display: none; }
 
-.pieza { opacity: 0; transform: translateY(14px); }
-.pieza.dentro { opacity: 1; transform: none; transition: opacity .5s var(--curva), transform .5s var(--curva); }
+/* Las piezas NO arrancan en opacity:0. Antes lo hacian y solo se revelaban al
+   recibir una clase por scroll; al no existir ese codigo, el catalogo entero
+   quedaba invisible. Nada que el cliente deba ver depende de una animacion. */
 
 .hueso { display: flex; flex-direction: column; gap: 12px; }
 .hueso-losa { aspect-ratio: 1 / 1; border-radius: var(--r-medio); background: var(--losa); opacity: .55; }
@@ -704,5 +705,4 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
     transition-duration: .01ms !important;
   }
   html { scroll-behavior: auto; }
-  .pieza { opacity: 1; transform: none; }
 }
