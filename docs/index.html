@@ -16,12 +16,12 @@
 <link rel="preconnect" href="https://drive.google.com">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700&family=Archivo:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700&family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 
 <!-- El ?v=N obliga al navegador a bajar los archivos nuevos. Subilo cada vez
      que actualices el sitio: si no, alguien que ya entro puede quedarse con
      el HTML nuevo y el JavaScript viejo, y la pagina se rompe. -->
-<link rel="stylesheet" href="assets/css/styles.css?v=7">
+<link rel="stylesheet" href="assets/css/styles.css?v=8">
 </head>
 <body>
 
@@ -154,7 +154,10 @@
 
 <section class="pedido" id="pedido" hidden role="dialog" aria-modal="true" aria-labelledby="pedido-titulo">
   <header class="pedido-cabeza">
-    <h2 id="pedido-titulo" class="display">Pedido</h2>
+    <div class="remito-sello">
+      <h2 id="pedido-titulo" class="display">Pedido</h2>
+      <span class="remito-linea" id="remito-linea">Distribuidora Marcial</span>
+    </div>
     <button class="cerrar" id="pedido-cerrar" aria-label="Cerrar el pedido">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
     </button>
@@ -208,7 +211,7 @@
 
 <div class="nota" id="aviso" hidden></div>
 
-<script src="config.js?v=7"></script>
-<script src="assets/js/app.js?v=7"></script>
+<script src="config.js?v=8"></script>
+<script src="assets/js/app.js?v=8"></script>
 </body>
 </html>

@@ -204,6 +204,7 @@
       });
 
     $('portada-bajada').textContent = config.negocio_bajada || '';
+    if ($('remito-linea')) $('remito-linea').textContent = nombre;
     $('pie-nota').textContent = config.nota_precios || '';
 
     if (config.negocio_logo_url) {

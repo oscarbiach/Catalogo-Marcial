@@ -369,9 +369,7 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
   position: fixed; inset: 0; z-index: 50;
   background: rgba(18, 41, 63, .5);
   backdrop-filter: blur(3px);
-  animation: aparecer .25s var(--curva);
 }
-@keyframes aparecer { from { opacity: 0; } to { opacity: 1; } }
 
 /* ---------- Ficha de producto ---------- */
 .ficha {
@@ -380,11 +378,6 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
   display: grid; grid-template-columns: 1.05fr 1fr;
   background: var(--losa); border-radius: var(--r-grande);
   box-shadow: var(--flota-4); overflow: hidden;
-  animation: subir .32s var(--curva);
-}
-@keyframes subir {
-  from { opacity: 0; transform: translate(-50%, -46%) scale(.97); }
-  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 }
 
 .ficha .cerrar { position: absolute; top: 14px; right: 14px; z-index: 4; }
@@ -474,10 +467,8 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
   font-family: var(--display); font-size: 13px; font-weight: 700;
   letter-spacing: .05em; text-transform: uppercase;
   box-shadow: var(--flota-3);
-  animation: brotar .35s var(--curva);
   transition: transform .2s var(--curva), box-shadow .2s var(--curva);
 }
-@keyframes brotar { from { opacity: 0; transform: translateY(14px) scale(.94); } to { opacity: 1; transform: none; } }
 .dock:hover { transform: translateY(-2px); box-shadow: var(--flota-4); }
 .dock-icono { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .dock-cuenta {
@@ -496,7 +487,6 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
   display: flex; flex-direction: column;
   background: var(--losa); border-radius: var(--r-grande);
   box-shadow: var(--flota-4); overflow: hidden;
-  animation: brotar .3s var(--curva);
 }
 .pedido-cabeza {
   display: flex; align-items: center; justify-content: space-between;
@@ -567,7 +557,6 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 .enviado-marca {
   width: 52px; height: 52px; border-radius: var(--r-medio); display: grid; place-items: center;
   background: var(--marca); color: var(--marca-tinta); box-shadow: var(--flota-2);
-  animation: brotar .4s var(--curva);
 }
 .enviado-marca svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
 .enviado h3 { margin: 4px 0 0; font-size: 17px; letter-spacing: .08em; }
@@ -601,7 +590,7 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
   z-index: 70; padding: 11px 20px; border-radius: var(--r-chico);
   background: var(--marino); color: #fff;
   font-size: 13px; font-weight: 500; box-shadow: var(--flota-3);
-  animation: brotar .25s var(--curva); max-width: calc(100vw - 40px); text-align: center;
+ max-width: calc(100vw - 40px); text-align: center;
 }
 
 /* ---------- Ajustes puntuales del modo oscuro ----------
@@ -665,7 +654,7 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
   .ficha {
     width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh;
     top: 0; left: 0; transform: none; border-radius: 0;
-    animation: aparecer .22s var(--curva); grid-template-rows: auto 1fr;
+ grid-template-rows: auto 1fr;
   }
   .ficha .cerrar { top: 10px; right: 10px; }
   .ficha-marco { aspect-ratio: 1 / 1; }
@@ -677,12 +666,10 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
   .pedido {
     right: 0; left: 0; bottom: 0; width: 100%;
     max-height: 90dvh; border-radius: var(--r-grande) var(--r-grande) 0 0;
-    animation: hoja .3s var(--curva);
   }
   /* Sube apenas, no desde fuera de la pantalla: si la animacion no llegara a
      correr (por ejemplo con la pestania en segundo plano), el panel queda
      igual en su lugar y no inaccesible. */
-  @keyframes hoja { from { transform: translateY(20px); opacity: 0; } to { transform: none; opacity: 1; } }
   .pedido-cabeza { padding: 16px 16px 10px; }
   .pedido-lineas { padding: 0 16px; }
   .pedido-pie { padding: 12px 16px calc(16px + env(safe-area-inset-bottom)); }
@@ -705,4 +692,82 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
     transition-duration: .01ms !important;
   }
   html { scroll-behavior: auto; }
+}
+
+/* ===========================================================================
+   Capa de identidad
+   ---------------------------------------------------------------------------
+   Dos decisiones sacadas del oficio, no del gusto:
+
+   1. Los numeros van en monoespaciada. Una lista de precios mayorista ES un
+      documento monoespaciado: con los digitos alineados el cliente compara
+      precios bajando la vista por la columna, sin leer.
+
+   2. El pedido se lee como un remito. Es donde el cliente pasa mas tiempo y lo
+      unico que despues manda por WhatsApp; darle la forma del comprobante que
+      ya usa todos los dias lo hace entendible sin explicacion.
+
+   Ninguna de las dos depende de animaciones: los paneles aparecen y ya. Tres
+   veces una animacion congelada dejo contenido invisible o corrido, asi que
+   solo queda el pulso de los placeholders de carga, que no oculta nada real.
+   =========================================================================== */
+
+:root { --datos: 'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace; }
+
+/* ---------- Los numeros, en monoespaciada ---------- */
+.pieza-precio,
+.ficha-precio,
+.pedido-subtotal,
+.pedido-total,
+.dock-total,
+.dock-cuenta,
+.paso-valor {
+  font-family: var(--datos);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.02em;
+}
+.pieza-precio { font-weight: 500; font-size: 14.5px; }
+.ficha-precio { font-weight: 600; letter-spacing: -.03em; }
+.ficha-precio small { font-family: var(--texto); letter-spacing: 0; }
+.pedido-total, .dock-cuenta { font-weight: 600; }
+
+/* ---------- El pedido como remito ---------- */
+.remito-sello { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.remito-linea {
+  font-family: var(--datos); font-size: 10px; font-weight: 400;
+  letter-spacing: .04em; color: var(--tinta-3); text-transform: uppercase;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* La linea de puntos entre el producto y su importe: el gesto del comprobante */
+.pedido-linea + .pedido-linea { border-top: 0; }
+.pedido-linea { padding: 11px 0; }
+.pedido-fila { position: relative; }
+.pedido-fila::before {
+  content: ''; position: absolute; left: 0; right: 0; top: -7px;
+  border-top: 1px dotted var(--linea);
+}
+.pedido-subtotal { font-size: 13.5px; font-weight: 500; }
+
+/* El total cierra el remito con una regla llena, no punteada */
+.pedido-total { border-top: 2px solid var(--tinta); padding-top: 12px; margin-bottom: 2px; }
+.pedido-total span:first-child {
+  font-family: var(--datos); font-size: 10px; font-weight: 400;
+  letter-spacing: .1em; text-transform: uppercase; color: var(--tinta-2);
+}
+
+/* ---------- La diagonal del isotipo ---------- */
+/* Los dos trazos del logo estan inclinados. Ese mismo angulo marca el filtro
+   activo y la regla de la portada, en vez de sumar otro color. */
+.pista.viva { position: relative; overflow: hidden; }
+.pista.viva::after {
+  content: ''; position: absolute; left: -14%; bottom: 0; width: 128%; height: 3px;
+  background: var(--marca-tinta); opacity: .55; transform: skewX(-18deg);
+}
+.portada-regla { transform: skewX(-18deg); }
+
+@media (max-width: 620px) {
+  .pieza-precio { font-size: 13.5px; }
+  .remito-linea { font-size: 9px; }
+  .pedido-total { padding-top: 10px; }
 }
