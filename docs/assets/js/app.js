@@ -643,6 +643,79 @@
     if (losa && !losa.contains(evento.relatedTarget)) losa.style.transform = '';
   });
 
+  /**
+   * Deja correr una tira horizontal arrastrandola con el mouse. En el telefono
+   * ya se arrastra con el dedo, pero en la computadora no hay dedo y la barra
+   * de scroll esta oculta a proposito: sin esto no habia forma de mover ni los
+   * destacados ni los filtros.
+   *
+   * conRueda ademas convierte la rueda vertical en desplazamiento horizontal,
+   * pero solo mientras a la tira le quede recorrido: pasado el final el evento
+   * sigue de largo y la pagina scrollea como siempre, para no dejar al usuario
+   * trabado sobre la tira.
+   */
+  function arrastrable(el, conRueda) {
+    if (!el) return;
+    el.classList.add('arrastrable');
+
+    var activo = false, desdeX = 0, desdeScroll = 0, corrio = 0, snapPrevio = '';
+    var terminoEn = 0;
+
+    el.addEventListener('pointerdown', function (evento) {
+      if (evento.pointerType !== 'mouse' || evento.button !== 0) return;
+      if (evento.target.closest('input, select, textarea')) return;
+      activo = true; corrio = 0;
+      desdeX = evento.clientX; desdeScroll = el.scrollLeft;
+      // El snap obligatorio pelea con el arrastre: cada asignacion de
+      // scrollLeft la volveria a alinear. Se apaga mientras dura y vuelve al
+      // soltar, asi el carrusel se acomoda solo al final.
+      snapPrevio = el.style.scrollSnapType;
+      el.style.scrollSnapType = 'none';
+    });
+
+    function mover(evento) {
+      if (!activo) return;
+      var delta = evento.clientX - desdeX;
+      corrio = Math.max(corrio, Math.abs(delta));
+      if (corrio <= 3) return;                    // todavia puede ser un clic
+      el.classList.add('agarrando');
+      el.scrollLeft = desdeScroll - delta;
+      evento.preventDefault();
+    }
+
+    function soltar() {
+      if (!activo) return;
+      activo = false;
+      el.classList.remove('agarrando');
+      el.style.scrollSnapType = snapPrevio;
+      if (corrio > 3) terminoEn = Date.now();
+    }
+
+    window.addEventListener('pointermove', mover);
+    window.addEventListener('pointerup', soltar);
+    window.addEventListener('pointercancel', soltar);
+
+    // Soltar despues de arrastrar dispara un clic sobre la tarjeta que quedo
+    // bajo el puntero. Se lo traga por ventana de tiempo y no por un listener
+    // de una sola vez, que si el clic no llegaba se comia el siguiente.
+    el.addEventListener('click', function (evento) {
+      if (Date.now() - terminoEn > 250) return;
+      evento.stopImmediatePropagation();
+      evento.preventDefault();
+    }, true);
+
+    if (!conRueda) return;
+    el.addEventListener('wheel', function (evento) {
+      if (Math.abs(evento.deltaY) <= Math.abs(evento.deltaX)) return;   // trackpad horizontal: nativo
+      var tope = el.scrollWidth - el.clientWidth;
+      if (tope <= 0) return;
+      if (evento.deltaY < 0 && el.scrollLeft <= 0) return;
+      if (evento.deltaY > 0 && el.scrollLeft >= tope - 1) return;
+      evento.preventDefault();
+      el.scrollLeft += evento.deltaY;
+    }, { passive: false });
+  }
+
   var scrollTimer = null;
   window.addEventListener('scroll', function () {
     if (scrollTimer) return;
@@ -1290,6 +1363,8 @@
   // -------------------------------------------------------------------------
 
   dibujarParadas();
+  arrastrable($('destacados-pista'), true);
+  arrastrable($('chips'), false);
   recuperarPedido();
   recordarCliente();
   iniciar();
