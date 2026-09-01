@@ -157,6 +157,8 @@
     llenarCategorias(datos.categorias || []);
     llenarMarcas(datos.marcas || []);
     dibujar();
+    dibujarDestacados();
+    dibujarMarcador();
     dibujarPedido();   // el pedido guardado se resuelve contra el catalogo nuevo
     abrirDesdeUrl();
   }
@@ -191,11 +193,10 @@
 
     document.title = nombre;
     $('logo-texto').textContent = firma.nombre;
-    $('portada-titulo').textContent = firma.nombre;
     $('pie-nombre').textContent = firma.nombre;
 
     // Si el nombre no trae rubro, la segunda linea sobra
-    [['logo-bajo', firma.rubro], ['portada-sub', firma.rubro], ['pie-bajo', firma.rubro]]
+    [['logo-bajo', firma.rubro], ['pie-bajo', firma.rubro]]
       .forEach(function (par) {
         var el = $(par[0]);
         if (!el) return;
@@ -203,7 +204,11 @@
         el.hidden = !par[1];
       });
 
-    $('portada-bajada').textContent = config.negocio_bajada || '';
+    // El titulo del banner se edita desde el panel. Si viene vacio queda el
+    // que ya trae el HTML, asi el banner nunca aparece mudo.
+    var titulo = $('banner-titulo');
+    if (titulo && config.banner_titulo) titulo.textContent = config.banner_titulo;
+
     if ($('remito-linea')) $('remito-linea').textContent = nombre;
     $('pie-nota').textContent = config.nota_precios || '';
 
@@ -380,6 +385,123 @@
     $('grilla').innerHTML = estado.visibles.map(pieza).join('');
   }
 
+  // -------------------------------------------------------------------------
+  // Banner: el recorrido del dia
+  // -------------------------------------------------------------------------
+
+  /**
+   * Dibuja las paradas del banner. Cada una se completa a su paso, con el
+   * escalonado en el animation-delay: los porcentajes de @keyframes no
+   * admiten variables de CSS.
+   */
+  function dibujarParadas() {
+    var svg = $('paradas');
+    if (!svg) return;
+
+    var puntos = [[26, 74], [124, 44], [214, 68], [302, 38], [394, 60]];
+    var ruta = 'M26 74 C 70 74 84 44 124 44 S 178 68 214 68 S 268 38 302 38 S 358 60 394 60';
+
+    var nodos = puntos.map(function (pt, i) {
+      var d = (0.5 + i * 0.85).toFixed(2) + 's';
+      return '' +
+        '<g>' +
+          '<circle class="anillo" cx="' + pt[0] + '" cy="' + pt[1] + '" r="9"/>' +
+          '<circle class="relleno" cx="' + pt[0] + '" cy="' + pt[1] + '" r="9" style="--d:' + d + '"/>' +
+          '<path class="tilde" d="M' + (pt[0] - 4) + ' ' + pt[1] + ' l3 3.2 l5.4 -6.2" style="--d:' + d + '"/>' +
+        '</g>';
+    }).join('');
+
+    svg.innerHTML =
+      '<path class="ruta-base" d="' + ruta + '"/>' +
+      '<path class="ruta-viva" d="' + ruta + '"/>' + nodos;
+  }
+
+  /**
+   * El unico dato duro del banner: cuantos productos hay. Se saca del catalogo
+   * ya cargado, asi que si todavia no llego, el marcador queda oculto en vez de
+   * mostrar un cero.
+   */
+  function dibujarMarcador() {
+    var caja = $('marcador');
+    if (!caja) return;
+    var cuantos = ((estado.datos && estado.datos.productos) || []).length;
+    caja.hidden = !cuantos;
+    if (!cuantos) return;
+    $('marcador-num').textContent = cuantos;
+    $('marcador-txt').textContent = cuantos === 1 ? 'producto' : 'productos';
+  }
+
+  // -------------------------------------------------------------------------
+  // Destacados
+  // -------------------------------------------------------------------------
+
+  var CUANTOS_DESTACADOS = 8;
+
+  /**
+   * El carrusel toma los primeros productos tal como los manda el servidor,
+   * que ya vienen ordenados por lo mas pedido. No cambia al filtrar: son los
+   * destacados del catalogo entero, no del filtro.
+   */
+  function dibujarDestacados() {
+    var seccion = $('destacados');
+    if (!seccion) return;
+
+    var todos = (estado.datos && estado.datos.productos) || [];
+    var lista = todos.filter(function (p) { return !p.sinStock; }).slice(0, CUANTOS_DESTACADOS);
+
+    seccion.hidden = lista.length < 3;   // con menos de 3 no vale la pena el carrusel
+    if (seccion.hidden) return;
+
+    $('destacados-pista').innerHTML = lista.map(function (p, i) {
+      var foto = p.imagenes && p.imagenes.length
+        ? '<img src="' + urlImagen(p.imagenes[0], 360) + '" alt="' + escapar(p.nombre) +
+          '" loading="lazy" data-alterna="' + urlImagenAlterna(p.imagenes[0], 360) + '">'
+        : '';
+      var precio = mostrarPrecios() && p.precio !== null && p.precio !== undefined && p.precio !== ''
+        ? escapar(formatearPrecio(p.precio, p.moneda)) : '';
+
+      return '' +
+        '<article class="dest" data-id="' + escapar(p.id) + '">' +
+          '<div class="dest-foto' + (foto ? '' : ' sin-foto') + '">' + foto + '</div>' +
+          '<span class="dest-orden">' + (i + 1 < 10 ? '0' : '') + (i + 1) + '</span>' +
+          (pedidosActivos() ? '<div class="dest-sumar">' + mando(p) + '</div>' : '') +
+          '<div class="dest-cuerpo">' +
+            '<button class="dest-nom" type="button">' + escapar(p.nombre) + '</button>' +
+            '<div class="dest-precio">' + precio + '</div>' +
+          '</div>' +
+        '</article>';
+    }).join('');
+  }
+
+  /** Abrir la ficha o sumar al pedido desde el carrusel. */
+  $('destacados-pista').addEventListener('click', function (evento) {
+    var tarjeta = evento.target.closest('.dest');
+    if (!tarjeta) return;
+    var id = tarjeta.dataset.id;
+
+    var control = evento.target.closest('[data-accion]');
+    if (control) {
+      if (control.dataset.accion === 'sumar') cambiarCantidad(id, 1);
+      if (control.dataset.accion === 'restar') cambiarCantidad(id, -1);
+      return;
+    }
+    abrirFicha(id);
+  });
+
+  $('destacados-pista').addEventListener('change', function (evento) {
+    var campo = evento.target.closest('[data-accion="fijar"]');
+    if (!campo) return;
+    fijarCantidad(campo.closest('.dest').dataset.id, campo.value);
+  });
+
+  /** El fallback de imagen tambien aplica al carrusel. */
+  $('destacados-pista').addEventListener('error', function (evento) {
+    var img = evento.target;
+    if (img.tagName !== 'IMG' || !img.dataset.alterna) return;
+    img.src = img.dataset.alterna;
+    delete img.dataset.alterna;
+  }, true);
+
   /**
    * Una pieza del catalogo. A proposito muestra solo foto, nombre y precio:
    * el resto de los datos vive en la ficha.
@@ -398,16 +520,27 @@
     var precio = mostrarPrecios() && p.precio !== null && p.precio !== undefined && p.precio !== ''
       ? escapar(formatearPrecio(p.precio, p.moneda)) : '';
 
+    var meta = [];
+    if (p.marca) meta.push(escapar(p.marca));
+    else if (p.categoria) meta.push(escapar(p.categoria));
+    if (p.presentacion) meta.push(escapar(p.presentacion));
+
+    // El nombre va sobre la foto, en un degrade: la imagen ocupa toda la pieza
+    // y el texto no le roba lugar.
     return '' +
       '<article class="pieza" data-id="' + escapar(p.id) + '">' +
         '<div class="pieza-losa' + (foto ? '' : ' sin-foto') + '">' +
           foto +
           (senias ? '<div class="senias pieza-senias">' + senias + '</div>' : '') +
+          '<div class="pieza-sobre">' +
+            '<button class="pieza-nombre" type="button">' + escapar(p.nombre) + '</button>' +
+            (meta.length ? '<div class="pieza-meta">' + meta.join(' &middot; ') + '</div>' : '') +
+          '</div>' +
           (pedidosActivos() ? mando(p) : '') +
         '</div>' +
         '<div class="pieza-pie">' +
-          '<button class="pieza-nombre" type="button">' + escapar(p.nombre) + '</button>' +
           '<span class="pieza-precio">' + precio + '</span>' +
+          (precio ? '<span class="pieza-unit">por ' + escapar(unidadDe(p, 1)) + '</span>' : '') +
         '</div>' +
       '</article>';
   }
@@ -440,12 +573,20 @@
 
   /** Redibuja solo el mando de una pieza, sin rehacer la grilla. */
   function refrescarPieza(id) {
-    var el = $('grilla').querySelector('.pieza[data-id="' + idSeguro(id) + '"] .pieza-losa');
     var producto = buscarProducto(id);
-    if (!el || !producto || !pedidosActivos()) return;
-    var viejo = el.querySelector('.mas, .pieza-paso');
-    if (viejo) viejo.remove();
-    el.insertAdjacentHTML('beforeend', mando(producto));
+    if (!producto || !pedidosActivos()) return;
+
+    // El mismo producto puede estar en la grilla y en el carrusel: los dos
+    // mandos tienen que quedar contando lo mismo.
+    var cual = '[data-id="' + idSeguro(id) + '"]';
+    [$('grilla').querySelector('.pieza' + cual + ' .pieza-losa'),
+     $('destacados-pista').querySelector('.dest' + cual + ' .dest-sumar')]
+      .forEach(function (caja) {
+        if (!caja) return;
+        var viejo = caja.querySelector('.mas, .pieza-paso');
+        if (viejo) viejo.remove();
+        caja.insertAdjacentHTML('beforeend', mando(producto));
+      });
   }
 
   // Fallback de imagen: si el enlace de Drive falla, se prueba el alternativo
@@ -1148,6 +1289,7 @@
   // Arranque
   // -------------------------------------------------------------------------
 
+  dibujarParadas();
   recuperarPedido();
   recordarCliente();
   iniciar();

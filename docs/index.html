@@ -21,7 +21,7 @@
 <!-- El ?v=N obliga al navegador a bajar los archivos nuevos. Subilo cada vez
      que actualices el sitio: si no, alguien que ya entro puede quedarse con
      el HTML nuevo y el JavaScript viejo, y la pagina se rompe. -->
-<link rel="stylesheet" href="assets/css/styles.css?v=8">
+<link rel="stylesheet" href="assets/css/styles.css?v=9">
 </head>
 <body>
 
@@ -48,13 +48,24 @@
 </header>
 
 <!-- ===================== Portada ===================== -->
-<section class="portada" id="inicio">
-  <span class="portada-firma">
-    <h1 id="portada-titulo">Marcial</h1>
-    <p class="portada-sub" id="portada-sub">Distribuidora</p>
-  </span>
-  <div class="portada-regla" aria-hidden="true"></div>
-  <p class="portada-bajada" id="portada-bajada"></p>
+<section class="banner" id="inicio">
+  <h1 class="banner-tit" id="banner-titulo">Tu pedido, en camino</h1>
+
+  <!-- El recorrido del dia: cada parada se completa a su paso -->
+  <svg class="paradas" id="paradas" viewBox="0 0 420 110" fill="none" aria-hidden="true"></svg>
+
+  <div class="marcador" id="marcador" hidden>
+    <b id="marcador-num"></b><span id="marcador-txt"></span>
+  </div>
+</section>
+
+<!-- Los destacados suben y se montan sobre el azul del banner -->
+<section class="destacados" id="destacados" hidden aria-label="Los mas pedidos">
+  <div class="destacados-cab">
+    <h2 class="destacados-tit">Los más pedidos</h2>
+    <span class="destacados-nota">Deslizá &rarr;</span>
+  </div>
+  <div class="destacados-pista" id="destacados-pista"></div>
 </section>
 
 <!-- ===================== Filtros ===================== -->
@@ -211,7 +222,7 @@
 
 <div class="nota" id="aviso" hidden></div>
 
-<script src="config.js?v=8"></script>
-<script src="assets/js/app.js?v=8"></script>
+<script src="config.js?v=9"></script>
+<script src="assets/js/app.js?v=9"></script>
 </body>
 </html>

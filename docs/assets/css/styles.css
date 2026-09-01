@@ -16,8 +16,8 @@
 
 :root {
   /* --- Colores de la marca --- */
-  --marino:       #1b3a5c;
-  --marino-hondo: #12293f;
+  --marino:       #1b3252;
+  --marino-hondo: #122238;
   --marino-claro: #2b5580;
   --beige:        #d6d3ca;
   --beige-claro:  #e6e3dc;
@@ -216,26 +216,7 @@ body.scrolleado .barra::before { opacity: .97; box-shadow: var(--flota-2); }
 #buscar:focus { outline: none; background: var(--losa); box-shadow: var(--flota-1), 0 0 0 2px var(--marca); }
 
 /* ---------- Portada ---------- */
-.portada { max-width: var(--ancho); margin: 0 auto; padding: 52px 36px 28px; text-align: center; }
 
-.portada-firma { display: inline-flex; flex-direction: column; align-items: center; }
-.portada h1 {
-  font-family: var(--display); font-weight: 700;
-  font-size: clamp(30px, 6.5vw, 62px); line-height: 1; letter-spacing: .09em;
-  text-transform: uppercase; margin: 0; color: var(--tinta); text-wrap: balance;
-}
-.portada-sub {
-  font-family: var(--display); font-weight: 500;
-  font-size: clamp(9px, 1.6vw, 14px); letter-spacing: .52em; text-transform: uppercase;
-  color: var(--tinta-2); margin: 10px 0 0; padding-left: .52em;
-}
-.portada-regla {
-  width: 54px; height: 3px; background: var(--marca); margin: 22px auto 0; border-radius: 2px;
-}
-.portada-bajada {
-  margin: 20px auto 0; max-width: 48ch; color: var(--tinta-2); font-size: 15.5px;
-}
-.portada-bajada:empty { display: none; }
 
 /* ---------- Rail de filtros ---------- */
 .rail {
@@ -630,9 +611,6 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
   #buscar { font-size: 16px; padding: 8px 12px 8px 32px; }  /* 16px evita el zoom de iOS */
   .lupa { left: 11px; width: 14px; height: 14px; }
 
-  .portada { padding: 30px 20px 18px; }
-  .portada-regla { margin-top: 16px; width: 44px; }
-  .portada-bajada { margin-top: 14px; font-size: 14.5px; }
 
   .rail { top: 52px; padding: 8px 10px 12px; gap: 8px; flex-wrap: wrap; }
   .rail-pistas { width: 100%; flex: 1 1 100%; }
@@ -758,16 +736,155 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 
 /* ---------- La diagonal del isotipo ---------- */
 /* Los dos trazos del logo estan inclinados. Ese mismo angulo marca el filtro
-   activo y la regla de la portada, en vez de sumar otro color. */
+   activo y los detalles del banner, en vez de sumar otro color. */
 .pista.viva { position: relative; overflow: hidden; }
 .pista.viva::after {
   content: ''; position: absolute; left: -14%; bottom: 0; width: 128%; height: 3px;
   background: var(--marca-tinta); opacity: .55; transform: skewX(-18deg);
 }
-.portada-regla { transform: skewX(-18deg); }
 
 @media (max-width: 620px) {
   .pieza-precio { font-size: 13.5px; }
   .remito-linea { font-size: 9px; }
   .pedido-total { padding-top: 10px; }
+}
+
+/* ===========================================================================
+   Banner, destacados y vitrina
+   ---------------------------------------------------------------------------
+   El banner y el carrusel no se tocan: se entrelazan. Los destacados suben con
+   un margen negativo y quedan mitad sobre el azul, mitad sobre el beige, asi
+   no hay una costura que disimular entre las dos secciones.
+   =========================================================================== */
+
+/* ---------- Banner ---------- */
+.banner {
+  position: relative; overflow: hidden; color: #fff; background: var(--marino);
+  padding: 48px 44px 116px; min-height: 320px; display: flex; flex-direction: column;
+}
+.banner-tit {
+  font-family: var(--display); font-weight: 800;
+  font-size: clamp(30px, 5vw, 58px); line-height: .98; letter-spacing: -.02em;
+  text-transform: uppercase; margin: 0; max-width: 12ch; position: relative; z-index: 3;
+}
+
+/* El recorrido del dia. Cada parada se completa a su paso, queda marcada casi
+   todo el ciclo y se limpia al final para volver a empezar. */
+.paradas { position: absolute; right: 4%; bottom: 132px; width: min(430px, 52vw); z-index: 1; opacity: .95; }
+.paradas .ruta-base { stroke: rgba(214, 211, 202, .3); stroke-width: 2; fill: none; stroke-linecap: round; }
+.paradas .ruta-viva {
+  stroke: var(--beige); stroke-width: 2; fill: none; stroke-linecap: round;
+  stroke-dasharray: 520; stroke-dashoffset: 520;
+  animation: trazar 7s linear infinite;
+}
+@keyframes trazar { 0% { stroke-dashoffset: 520; } 72%, 100% { stroke-dashoffset: 0; } }
+.paradas .anillo { fill: none; stroke: rgba(214, 211, 202, .4); stroke-width: 2; }
+.paradas .relleno,
+.paradas .tilde {
+  transform-box: fill-box; transform-origin: center;
+  animation: completar 7s linear infinite both; animation-delay: var(--d, 0s);
+}
+.paradas .relleno { fill: var(--beige); }
+.paradas .tilde { stroke: var(--marino); stroke-width: 2.4; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+/* Los porcentajes de @keyframes no admiten variables: el escalonado va por delay */
+@keyframes completar {
+  0%   { opacity: 0; transform: scale(.3); }
+  5%   { opacity: 1; transform: scale(1); }
+  88%  { opacity: 1; transform: scale(1); }
+  96%, 100% { opacity: 0; transform: scale(.3); }
+}
+
+.marcador { position: relative; z-index: 2; margin-top: 20px; align-self: flex-start; display: flex; align-items: baseline; gap: 8px; }
+.marcador b { font-family: var(--datos); font-size: 22px; font-weight: 600; color: var(--beige); letter-spacing: -.02em; }
+.marcador span { font-family: var(--datos); font-size: 9.5px; letter-spacing: .18em; text-transform: uppercase; color: rgba(255, 255, 255, .5); }
+
+/* ---------- Destacados, montados sobre el banner ---------- */
+.destacados { max-width: var(--ancho); margin: -104px auto 0; padding: 22px 0 8px; position: relative; z-index: 3; }
+.destacados-cab { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; padding: 0 24px 14px; }
+.destacados-tit {
+  font-family: var(--display); font-weight: 700; font-size: 13px;
+  letter-spacing: .16em; text-transform: uppercase; margin: 0; color: #fff;
+}
+.destacados-nota { font-family: var(--datos); font-size: 10.5px; color: rgba(255, 255, 255, .6); letter-spacing: .04em; }
+.destacados-pista {
+  display: flex; gap: 14px; overflow-x: auto; scroll-snap-type: x mandatory;
+  padding: 4px 24px 18px; scroll-padding-left: 24px;
+  scrollbar-width: none; -webkit-overflow-scrolling: touch;
+}
+.destacados-pista::-webkit-scrollbar { display: none; }
+
+.dest {
+  flex: 0 0 226px; scroll-snap-align: start; position: relative;
+  border-radius: var(--r-medio); overflow: hidden; background: var(--losa);
+  box-shadow: var(--flota-2);
+  transition: transform .24s var(--curva), box-shadow .24s var(--curva);
+}
+.dest:hover { transform: translateY(-4px); box-shadow: var(--flota-3); }
+.dest-foto { aspect-ratio: 4/3; display: grid; place-items: center; background: var(--losa-2); }
+.dest-foto img { width: 100%; height: 100%; object-fit: cover; }
+.dest-foto.sin-foto::after {
+  content: 'Sin foto'; font-family: var(--datos); font-size: 9.5px;
+  letter-spacing: .18em; text-transform: uppercase; color: var(--tinta-3);
+}
+.dest-orden {
+  position: absolute; top: 10px; left: 10px; background: var(--marino); color: #fff;
+  font-family: var(--datos); font-size: 10px; font-weight: 600;
+  padding: 4px 8px; border-radius: 6px; letter-spacing: .04em; z-index: 2;
+}
+.dest-cuerpo { padding: 11px 13px 13px; }
+.dest-nom {
+  appearance: none; background: none; border: 0; padding: 0; cursor: pointer; text-align: left;
+  font: inherit; font-size: 13.5px; font-weight: 500; line-height: 1.25; color: var(--tinta);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.5em;
+}
+.dest-nom::after { content: ''; position: absolute; inset: 0; z-index: 1; }
+.dest-precio { font-family: var(--datos); font-size: 15px; font-weight: 600; margin-top: 7px; }
+.dest-precio:empty { display: none; }
+.dest-sumar { position: absolute; right: 10px; top: 10px; z-index: 3; }
+.dest-sumar .mas { position: static; width: 34px; height: 34px; transform: none; }
+.dest-sumar .mas:hover { transform: scale(1.08); }
+.dest-sumar .pieza-paso { position: static; transform: none; }
+
+/* ---------- Vitrina: la foto manda ---------- */
+.grilla { gap: 26px 20px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.pieza-losa { aspect-ratio: 4/5; }
+.pieza-sobre {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 2;
+  padding: 44px 16px 14px; color: #fff;
+  background: linear-gradient(to top, rgba(18, 34, 56, .92) 12%, rgba(18, 34, 56, 0));
+}
+.pieza-sobre .pieza-nombre { color: #fff; font-size: 14.5px; }
+.pieza-meta { font-family: var(--datos); font-size: 10.5px; opacity: .75; margin-top: 3px; }
+.pieza-pie { padding: 0 3px; }
+.pieza-unit { font-family: var(--datos); font-size: 10.5px; color: var(--tinta-3); }
+.mas { border-radius: var(--r-medio); }
+
+@media (max-width: 620px) {
+  .banner { padding: 32px 18px 104px; min-height: 280px; }
+  .paradas { width: 64vw; right: -2%; bottom: 100px; opacity: .5; }
+  .marcador { margin-top: 14px; }
+  .marcador b { font-size: 17px; }
+
+  .destacados { margin-top: -92px; padding: 18px 0 4px; }
+  .destacados-cab { padding: 0 14px 12px; }
+  .destacados-pista { padding: 4px 14px 16px; scroll-padding-left: 14px; gap: 11px; }
+  .dest { flex: 0 0 168px; }
+
+  /* Un producto por fila. La foto pasa a panoramica: se ve grande igual, pero
+     cada producto ocupa unos 272px en vez de 444px, que con 322 seria eterno. */
+  .grilla { gap: 22px; grid-template-columns: 1fr; }
+  .pieza-losa { aspect-ratio: 3/2; }
+  .pieza-sobre { padding: 52px 18px 16px; }
+  .pieza-sobre .pieza-nombre { font-size: 16px; }
+  .pieza-meta { font-size: 11px; }
+  .pieza-precio { font-size: 18px; }
+  .mas { width: 44px; height: 44px; }
+  .mas svg { width: 20px; height: 20px; }
+}
+
+/* El dibujo es decorativo: sin animacion queda completo y se ve igual */
+@media (prefers-reduced-motion: reduce) {
+  .paradas .ruta-viva, .paradas .relleno, .paradas .tilde { animation: none; }
+  .paradas .ruta-viva { stroke-dashoffset: 0; }
+  .paradas .relleno, .paradas .tilde { opacity: 1; transform: none; }
 }
