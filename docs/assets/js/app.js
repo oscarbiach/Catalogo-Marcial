@@ -33,6 +33,10 @@
     // precio viejo ni un producto que ya se dio de baja.
     pedido: {},
     enviadoEn: null,
+    // Que hay abierto. No se deduce del DOM: mientras un panel se esta
+    // cerrando todavia no esta oculto, y quien pregunte se lleva la respuesta
+    // de hace un momento.
+    pedidoAbierto: false,
   };
 
   var $ = function (id) { return document.getElementById(id); };
@@ -77,13 +81,66 @@
     }
   }
 
+  /**
+   * Oculta un elemento dejandolo salir. La clase dispara la transicion y el
+   * plazo la respalda: si la transicion no corre — navegador viejo, pestania
+   * en segundo plano, movimiento reducido — el elemento se oculta igual. La
+   * animacion nunca decide si algo termina oculto o no.
+   */
+  function ocultarSuave(el, ms) {
+    if (!el || el.hidden) return;
+    clearTimeout(el._entrada);
+    el.classList.remove('entrando');
+    el.classList.add('saliendo');
+    clearTimeout(el._salida);
+    el._salida = setTimeout(function () {
+      el.hidden = true;
+      el.classList.remove('saliendo');
+    }, ms || 240);
+  }
+
+  /**
+   * Muestra un elemento haciendolo entrar. La clase con el estado inicial se
+   * pone y se saca en el mismo tick, con un recalculo forzado en el medio para
+   * que el navegador registre el punto de partida.
+   *
+   * Que se saque en la misma linea es lo que hace segura la entrada: el estado
+   * en reposo del CSS es el visible, asi que si la transicion no llega a
+   * correr, el elemento aparece sin animacion. La unica forma de que quede
+   * invisible seria que el JS no llegara a la linea de abajo.
+   */
+  function mostrarSuave(el) {
+    if (!el) return;
+    clearTimeout(el._salida);
+    el.classList.remove('saliendo');
+    var estaba = el.hidden;
+    el.hidden = false;
+    if (!estaba) return;                 // ya estaba a la vista: no rearrancar
+    el.classList.add('entrando');
+    void el.offsetWidth;                 // recalculo forzado: fija el punto de partida
+    el.classList.remove('entrando');
+
+    // Red de seguridad. Sacar la clase fija el destino, pero una transicion
+    // igual necesita fotogramas para llegar: si el navegador no los compone
+    // — pestania en segundo plano, maquina saturada — el elemento se queda en
+    // el valor inicial, que es invisible. Pasado el tiempo de la transicion se
+    // apaga un instante y el valor salta al de reposo. Si la transicion si
+    // corrio, esto no cambia nada porque ya estaba ahi.
+    clearTimeout(el._entrada);
+    el._entrada = setTimeout(function () {
+      el.classList.add('llego');
+      void el.offsetWidth;
+      el.classList.remove('llego');
+    }, 500);
+  }
+
   var avisoTimer = null;
   function avisar(texto) {
     var caja = $('aviso');
     caja.textContent = texto;
-    caja.hidden = false;
+    mostrarSuave(caja);
     clearTimeout(avisoTimer);
-    avisoTimer = setTimeout(function () { caja.hidden = true; }, 2800);
+    avisoTimer = setTimeout(function () { ocultarSuave(caja, 200); }, 2800);
   }
 
   function idSeguro(id) {
@@ -452,7 +509,7 @@
     seccion.hidden = lista.length < 3;   // con menos de 3 no vale la pena el carrusel
     if (seccion.hidden) return;
 
-    $('destacados-pista').innerHTML = lista.map(function (p, i) {
+    function tarjeta(p, i) {
       var foto = p.imagenes && p.imagenes.length
         ? '<img src="' + urlImagen(p.imagenes[0], 360) + '" alt="' + escapar(p.nombre) +
           '" loading="lazy" data-alterna="' + urlImagenAlterna(p.imagenes[0], 360) + '">'
@@ -470,7 +527,93 @@
             '<div class="dest-precio">' + precio + '</div>' +
           '</div>' +
         '</article>';
-    }).join('');
+    }
+
+    // La lista va dos veces. El carrusel avanza solo y al llegar a la mitad
+    // vuelve al principio: como lo que se ve ahi es identico a lo que hay al
+    // principio, el salto no se nota. La segunda copia queda fuera del alcance
+    // del teclado y de los lectores de pantalla, que no tienen por que
+    // recorrer dos veces los mismos ocho productos.
+    var pista = $('destacados-pista');
+    pista.innerHTML = lista.map(tarjeta).join('');
+    var copia = document.createElement('div');
+    copia.innerHTML = lista.map(tarjeta).join('');
+    Array.prototype.forEach.call(copia.children, function (nodo) {
+      nodo.setAttribute('aria-hidden', 'true');
+      nodo.classList.add('dest-copia');
+      Array.prototype.forEach.call(nodo.querySelectorAll('button, input'), function (control) {
+        control.tabIndex = -1;
+      });
+    });
+    while (copia.firstChild) pista.appendChild(copia.firstChild);
+  }
+
+  /**
+   * El carrusel avanza solo, despacio y en linea recta: es movimiento
+   * constante, no una entrada ni una salida.
+   *
+   * Va por requestAnimationFrame y no por una animacion CSS porque tiene que
+   * compartir la posicion con el arrastre a mano y con la rueda, que trabajan
+   * sobre scrollLeft. Si el navegador no compone frames el carrusel se queda
+   * quieto y se sigue pudiendo arrastrar: la falla es que no se mueve, nunca
+   * que se rompe.
+   */
+  var PIXELES_POR_SEGUNDO = 22;
+
+  function marquesina(el) {
+    if (!el || quietud.matches) return;   // con movimiento reducido, quieto
+
+    var pos = 0, puesto = 0, ultimo = 0;
+    var motivos = Object.create(null);
+    var soltarRueda = null;
+
+    function frenar(motivo) { motivos[motivo] = true; }
+    function soltar(motivo) { delete motivos[motivo]; }
+
+    function quieto() {
+      if (document.hidden) return true;
+      // Mirar un producto es motivo suficiente para que nada se mueva
+      if (estado.fichaActual || estado.pedidoAbierto) return true;
+      for (var k in motivos) return true;
+      return false;
+    }
+
+    el.addEventListener('pointerenter', function () { frenar('puntero'); });
+    el.addEventListener('pointerleave', function () { soltar('puntero'); });
+    el.addEventListener('pointerdown', function () { frenar('toque'); });
+    window.addEventListener('pointerup', function () { soltar('toque'); });
+    window.addEventListener('pointercancel', function () { soltar('toque'); });
+    el.addEventListener('focusin', function () { frenar('foco'); });
+    el.addEventListener('focusout', function () { soltar('foco'); });
+    el.addEventListener('arrastre:inicio', function () { frenar('arrastre'); });
+    el.addEventListener('arrastre:fin', function () { soltar('arrastre'); });
+    el.addEventListener('wheel', function () {
+      frenar('rueda');
+      clearTimeout(soltarRueda);
+      soltarRueda = setTimeout(function () { soltar('rueda'); }, 900);
+    }, { passive: true });
+
+    function paso(ahora) {
+      requestAnimationFrame(paso);
+
+      var dt = ultimo ? Math.min(ahora - ultimo, 50) : 0;   // pestania dormida: no saltar
+      ultimo = ahora;
+      if (!dt || quieto()) return;
+
+      var mitad = el.scrollWidth / 2;
+      if (mitad <= 0) return;
+
+      // Si la posicion real se aparto de la ultima que dejamos, la movio el
+      // usuario: se retoma desde donde la dejo.
+      if (Math.abs(el.scrollLeft - puesto) > 1) pos = el.scrollLeft;
+
+      pos += PIXELES_POR_SEGUNDO * dt / 1000;
+      if (pos >= mitad) pos -= mitad;
+      el.scrollLeft = pos;
+      puesto = el.scrollLeft;
+    }
+
+    requestAnimationFrame(paso);
   }
 
   /** Abrir la ficha o sumar al pedido desde el carrusel. */
@@ -525,18 +668,20 @@
     else if (p.categoria) meta.push(escapar(p.categoria));
     if (p.presentacion) meta.push(escapar(p.presentacion));
 
-    // El nombre va sobre la foto, en un degrade: la imagen ocupa toda la pieza
-    // y el texto no le roba lugar.
+    // El producto se apoya sobre el fondo de la pagina y el texto va debajo.
+    // Antes el nombre iba encima de la foto, en un degrade: eso pedia que la
+    // foto fuera un rectangulo con fondo. Con PNG recortados no hay
+    // rectangulo sobre el que poner el degrade.
     return '' +
       '<article class="pieza" data-id="' + escapar(p.id) + '">' +
         '<div class="pieza-losa' + (foto ? '' : ' sin-foto') + '">' +
           foto +
           (senias ? '<div class="senias pieza-senias">' + senias + '</div>' : '') +
-          '<div class="pieza-sobre">' +
-            '<button class="pieza-nombre" type="button">' + escapar(p.nombre) + '</button>' +
-            (meta.length ? '<div class="pieza-meta">' + meta.join(' &middot; ') + '</div>' : '') +
-          '</div>' +
           (pedidosActivos() ? mando(p) : '') +
+        '</div>' +
+        '<div class="pieza-cuerpo">' +
+          '<button class="pieza-nombre" type="button">' + escapar(p.nombre) + '</button>' +
+          '<div class="pieza-meta">' + (meta.length ? meta.join(' &middot; ') : '') + '</div>' +
         '</div>' +
         '<div class="pieza-pie">' +
           '<span class="pieza-precio">' + precio + '</span>' +
@@ -576,17 +721,19 @@
     var producto = buscarProducto(id);
     if (!producto || !pedidosActivos()) return;
 
-    // El mismo producto puede estar en la grilla y en el carrusel: los dos
-    // mandos tienen que quedar contando lo mismo.
+    // El carrusel dibuja la lista dos veces, asi que un producto puede tener
+    // hasta tres mandos en pantalla y los tres tienen que contar lo mismo.
     var cual = '[data-id="' + idSeguro(id) + '"]';
-    [$('grilla').querySelector('.pieza' + cual + ' .pieza-losa'),
-     $('destacados-pista').querySelector('.dest' + cual + ' .dest-sumar')]
-      .forEach(function (caja) {
-        if (!caja) return;
-        var viejo = caja.querySelector('.mas, .pieza-paso');
-        if (viejo) viejo.remove();
-        caja.insertAdjacentHTML('beforeend', mando(producto));
-      });
+    var cajas = [$('grilla').querySelector('.pieza' + cual + ' .pieza-losa')];
+    Array.prototype.push.apply(cajas,
+      $('destacados-pista').querySelectorAll('.dest' + cual + ' .dest-sumar'));
+
+    cajas.forEach(function (caja) {
+      if (!caja) return;
+      var viejo = caja.querySelector('.mas, .pieza-paso');
+      if (viejo) viejo.remove();
+      caja.insertAdjacentHTML('beforeend', mando(producto));
+    });
   }
 
   // Fallback de imagen: si el enlace de Drive falla, se prueba el alternativo
@@ -620,28 +767,10 @@
   });
 
   // -------------------------------------------------------------------------
-  // Movimiento: aparicion e inclinacion
+  // Movimiento: arrastre de las tiras
   // -------------------------------------------------------------------------
 
   var quietud = window.matchMedia('(prefers-reduced-motion: reduce)');
-  var punteroFino = window.matchMedia('(hover: hover) and (pointer: fine)');
-
-  /** Inclina la losa hacia el puntero. Solo con mouse y sin quietud pedida. */
-  $('grilla').addEventListener('pointermove', function (evento) {
-    if (quietud.matches || !punteroFino.matches) return;
-    var losa = evento.target.closest('.pieza-losa');
-    if (!losa) return;
-    var caja = losa.getBoundingClientRect();
-    var x = (evento.clientX - caja.left) / caja.width - 0.5;
-    var y = (evento.clientY - caja.top) / caja.height - 0.5;
-    losa.style.transform =
-      'rotateY(' + (x * 7).toFixed(2) + 'deg) rotateX(' + (-y * 7).toFixed(2) + 'deg) translateZ(10px)';
-  });
-
-  $('grilla').addEventListener('pointerout', function (evento) {
-    var losa = evento.target.closest('.pieza-losa');
-    if (losa && !losa.contains(evento.relatedTarget)) losa.style.transform = '';
-  });
 
   /**
    * Deja correr una tira horizontal arrastrandola con el mouse. En el telefono
@@ -671,6 +800,7 @@
       // soltar, asi el carrusel se acomoda solo al final.
       snapPrevio = el.style.scrollSnapType;
       el.style.scrollSnapType = 'none';
+      el.dispatchEvent(new CustomEvent('arrastre:inicio'));
     });
 
     function mover(evento) {
@@ -689,6 +819,7 @@
       el.classList.remove('agarrando');
       el.style.scrollSnapType = snapPrevio;
       if (corrio > 3) terminoEn = Date.now();
+      el.dispatchEvent(new CustomEvent('arrastre:fin'));
     }
 
     window.addEventListener('pointermove', mover);
@@ -785,8 +916,8 @@
 
     sincronizarFicha(p.id);
 
-    $('ficha-velo').hidden = false;
-    ficha.hidden = false;
+    mostrarSuave($('ficha-velo'));
+    mostrarSuave(ficha);
     document.body.style.overflow = 'hidden';
     $('ficha-cerrar').focus();
     if (location.hash !== '#p=' + p.id) history.replaceState(null, '', '#p=' + p.id);
@@ -889,10 +1020,10 @@
   });
 
   function cerrarFicha() {
-    ficha.hidden = true;
-    $('ficha-velo').hidden = true;
+    ocultarSuave(ficha, 240);
+    ocultarSuave($('ficha-velo'), 240);
     estado.fichaActual = null;
-    if ($('pedido').hidden) document.body.style.overflow = '';
+    if (!estado.pedidoAbierto) document.body.style.overflow = '';
     if (location.hash.indexOf('#p=') === 0) history.replaceState(null, '', location.pathname);
   }
 
@@ -920,14 +1051,14 @@
 
   window.addEventListener('hashchange', function () {
     if (location.hash.indexOf('#p=') === 0) abrirDesdeUrl();
-    else if (!ficha.hidden) cerrarFicha();
+    else if (estado.fichaActual) cerrarFicha();
   });
 
   // Escape cierra lo que este abierto, primero el pedido y despues la ficha
   document.addEventListener('keydown', function (evento) {
     if (evento.key !== 'Escape') return;
-    if (!$('pedido').hidden) cerrarPedido();
-    else if (!ficha.hidden) cerrarFicha();
+    if (estado.pedidoAbierto) cerrarPedido();
+    else if (estado.fichaActual) cerrarFicha();
   });
 
   // -------------------------------------------------------------------------
@@ -1145,7 +1276,8 @@
     var config = (estado.datos && estado.datos.config) || {};
 
     // El dock solo aparece con algo adentro y mientras el panel este cerrado
-    $('dock').hidden = !activo || !hay || !$('pedido').hidden;
+    if (!activo || !hay || estado.pedidoAbierto) ocultarSuave($('dock'), 200);
+    else mostrarSuave($('dock'));
     $('dock-cuenta').textContent = cantidadTotal(lineas);
     $('dock-total').textContent = mostrarPrecios() && hay
       ? formatearPrecio(totalPedido(lineas), lineas[0].producto.moneda) : '';
@@ -1164,19 +1296,21 @@
   function abrirPedido() {
     dibujarPedido();
     mostrarVista(estado.enviadoEn ? 'enviado' : 'lista');
-    $('pedido-velo').hidden = false;
-    $('pedido').hidden = false;
-    $('dock').hidden = true;
+    estado.pedidoAbierto = true;
+    mostrarSuave($('pedido-velo'));
+    mostrarSuave($('pedido'));
+    ocultarSuave($('dock'), 200);
     $('dock').setAttribute('aria-expanded', 'true');
     document.body.style.overflow = 'hidden';
     $('pedido-cerrar').focus();
   }
 
   function cerrarPedido() {
-    $('pedido').hidden = true;
-    $('pedido-velo').hidden = true;
+    estado.pedidoAbierto = false;
+    ocultarSuave($('pedido'), 260);
+    ocultarSuave($('pedido-velo'), 260);
     $('dock').setAttribute('aria-expanded', 'false');
-    if (ficha.hidden) document.body.style.overflow = '';
+    if (!estado.fichaActual) document.body.style.overflow = '';
     cerrarConfirmacion();
     dibujarPedido();   // vuelve a mostrar el dock si sigue habiendo pedido
   }
@@ -1364,6 +1498,7 @@
 
   dibujarParadas();
   arrastrable($('destacados-pista'), true);
+  marquesina($('destacados-pista'));
   arrastrable($('chips'), false);
   recuperarPedido();
   recordarCliente();

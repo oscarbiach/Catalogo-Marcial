@@ -51,7 +51,11 @@
   --texto:   'Archivo', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 
   --ancho: 1240px;
+  /* --curva queda para hovers y cambios de color. Para lo que entra, sale o
+     se desplaza en pantalla, las built-in de CSS son demasiado flojas. */
   --curva: cubic-bezier(.22, .61, .36, 1);
+  --curva-fuerte: cubic-bezier(.23, 1, .32, 1);      /* entra y sale */
+  --curva-vaiven: cubic-bezier(.77, 0, .175, 1);     /* se mueve en pantalla */
 }
 
 @media (prefers-color-scheme: dark) {
@@ -666,9 +670,12 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  /* Se cortan las animaciones en bucle y se acortan las transiciones, pero no
+     se llevan a cero: el fundido de un panel que aparece ayuda a entender que
+     aparecio. Lo que se saca abajo es el desplazamiento. */
   *, *::before, *::after {
     animation-duration: .01ms !important; animation-iteration-count: 1 !important;
-    transition-duration: .01ms !important;
+    transition-duration: .12s !important;
   }
   html { scroll-behavior: auto; }
 }
@@ -808,21 +815,21 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 }
 .destacados-nota { font-family: var(--datos); font-size: 10.5px; color: rgba(255, 255, 255, .6); letter-spacing: .04em; }
 .destacados-pista {
-  display: flex; gap: 14px; overflow-x: auto; scroll-snap-type: x mandatory;
-  padding: 4px 24px 18px; scroll-padding-left: 24px;
+  display: flex; gap: 14px; overflow-x: auto;
+  padding: 4px 24px 18px;
   scrollbar-width: none; -webkit-overflow-scrolling: touch;
 }
 .destacados-pista::-webkit-scrollbar { display: none; }
 
 .dest {
-  flex: 0 0 226px; scroll-snap-align: start; position: relative;
+  flex: 0 0 226px; position: relative;
   border-radius: var(--r-medio); overflow: hidden; background: var(--losa);
   box-shadow: var(--flota-2);
   transition: transform .24s var(--curva), box-shadow .24s var(--curva);
 }
 .dest:hover { transform: translateY(-4px); box-shadow: var(--flota-3); }
 .dest-foto { aspect-ratio: 4/3; display: grid; place-items: center; background: var(--losa-2); }
-.dest-foto img { width: 100%; height: 100%; object-fit: cover; }
+.dest-foto img { width: 100%; height: 100%; object-fit: contain; padding: 9%; }
 .dest-foto.sin-foto::after {
   content: 'Sin foto'; font-family: var(--datos); font-size: 9.5px;
   letter-spacing: .18em; text-transform: uppercase; color: var(--tinta-3);
@@ -846,19 +853,70 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 .dest-sumar .mas:hover { transform: scale(1.08); }
 .dest-sumar .pieza-paso { position: static; transform: none; }
 
-/* ---------- Vitrina: la foto manda ---------- */
-.grilla { gap: 26px 20px; grid-template-columns: repeat(auto-fill, 272px); justify-content: center; }
-.pieza-losa { aspect-ratio: 4/5; }
-.pieza-sobre {
-  position: absolute; left: 0; right: 0; bottom: 0; z-index: 2;
-  padding: 44px 16px 14px; color: #fff;
-  background: linear-gradient(to top, rgba(18, 34, 56, .92) 12%, rgba(18, 34, 56, 0));
+/* ---------- Vitrina: el producto apoyado sobre el papel ----------
+   Las fotos van en PNG sin fondo, asi que la pieza no lleva tarjeta: el
+   producto se apoya directo sobre el fondo de la pagina y lo unico que le da
+   volumen es una sombra de piso.
+
+   La clave del tamanio parejo esta en `object-fit: contain` con relleno fijo:
+   todos los productos entran en el mismo cuadrado sin importar como este
+   encuadrada la foto. Con `cover` el que salio chico en su foto se veia chico.
+   Una foto que igual traiga fondo no queda rota, pero se nota: se ve como una
+   lamina rectangular apoyada donde deberia haber solo producto. */
+.grilla {
+  gap: 30px 20px; grid-template-columns: repeat(auto-fill, 272px);
+  justify-content: center; perspective: none;
 }
-.pieza-sobre .pieza-nombre { color: #fff; font-size: 14.5px; }
-.pieza-meta { font-family: var(--datos); font-size: 10.5px; opacity: .75; margin-top: 3px; }
+
+.pieza-losa {
+  aspect-ratio: 1 / 1;
+  background: none; box-shadow: none; border-radius: 0;
+  transform-style: flat; will-change: auto; transform: none;
+  transition: none;
+}
+
+/* La sombra de piso no se mueve con el producto: se queda en el suelo y se
+   ensancha cuando el producto se levanta. Es lo que vende el volumen. */
+.pieza-losa:not(.sin-foto)::before {
+  content: ''; position: absolute; z-index: 0;
+  left: 20%; right: 20%; bottom: 7%; height: 7%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(18, 34, 56, .22), rgba(18, 34, 56, 0) 70%);
+  transition: transform .26s var(--curva-fuerte), opacity .26s var(--curva-fuerte);
+}
+
+.pieza-losa img {
+  position: relative; z-index: 1;
+  width: 100%; height: 100%; object-fit: contain; padding: 11%;
+  border-radius: 0; transform: none;
+  transition: transform .26s var(--curva-fuerte);
+}
+
+/* Sin foto no hay producto que levantar: queda una placa sobria que mantiene
+   la grilla armada en vez de un hueco. */
+.pieza-losa.sin-foto {
+  border-radius: var(--r-medio); background: var(--losa-2);
+  box-shadow: inset 0 0 0 1px var(--linea);
+}
+
+.pieza-cuerpo { padding: 0 3px; }
+.pieza-cuerpo .pieza-nombre { font-size: 14.5px; min-height: 2.7em; }
+.pieza-meta {
+  font-family: var(--datos); font-size: 10.5px; color: var(--tinta-3);
+  margin-top: 2px; min-height: 1.4em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .pieza-pie { padding: 0 3px; min-height: 20px; }
 .pieza-unit { font-family: var(--datos); font-size: 10.5px; color: var(--tinta-3); }
-.mas { border-radius: var(--r-medio); }
+
+.mas { border-radius: var(--r-medio); transform: none; }
+
+@media (hover: hover) and (pointer: fine) {
+  .pieza:hover .pieza-losa img { transform: translateY(-8px) scale(1.03); }
+  .pieza:hover .pieza-losa:not(.sin-foto)::before { transform: scaleX(1.18); opacity: .55; }
+  .mas:hover { transform: scale(1.08); }
+}
+.mas:active { transform: scale(.94); }
 
 @media (max-width: 620px) {
   .banner { padding: 32px 18px 104px; min-height: 280px; }
@@ -868,15 +926,14 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 
   .destacados { margin-top: -92px; padding: 18px 0 4px; }
   .destacados-cab { padding: 0 14px 12px; }
-  .destacados-pista { padding: 4px 14px 16px; scroll-padding-left: 14px; gap: 11px; }
+  .destacados-pista { padding: 4px 14px 16px; gap: 11px; }
   .dest { flex: 0 0 168px; }
 
-  /* Un producto por fila. La foto pasa a panoramica: se ve grande igual, pero
-     cada producto ocupa unos 272px en vez de 444px, que con 322 seria eterno. */
+  /* Un producto por fila, con tope de ancho para que no se estire de mas. */
   .grilla { gap: 22px; grid-template-columns: 1fr; max-width: 460px; margin: 0 auto; }
-  .pieza-losa { aspect-ratio: 3/2; }
-  .pieza-sobre { padding: 52px 18px 16px; }
-  .pieza-sobre .pieza-nombre { font-size: 16px; }
+  .pieza-losa { aspect-ratio: 4/3; }
+  .pieza-losa img { padding: 8%; }
+  .pieza-cuerpo .pieza-nombre { font-size: 16px; }
   .pieza-meta { font-size: 11px; }
   .pieza-precio { font-size: 18px; }
   .mas { width: 44px; height: 44px; }
@@ -895,3 +952,80 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 .arrastrable { cursor: grab; }
 .arrastrable.agarrando { cursor: grabbing; user-select: none; }
 .arrastrable.agarrando * { cursor: grabbing; }
+
+/* ===========================================================================
+   Entradas, salidas y respuesta al toque
+   ---------------------------------------------------------------------------
+   El estado en reposo de cada panel es el visible. El estado inicial de la
+   entrada vive en la clase .entrando, que el JS pone y saca en el mismo tick;
+   la salida vive en .saliendo, que el JS saca con un plazo maximo.
+
+   Se probo con @starting-style y se descarto: deja al elemento en su estado
+   inicial mientras la transicion no avance, y si no avanza nunca — pestania en
+   segundo plano, navegador que no compone — el panel queda invisible pero
+   ocupando lugar. Aca la unica forma de quedar invisible es que el JS no
+   llegue a sacar la clase, y la saca dos lineas despues de ponerla.
+   =========================================================================== */
+
+/* Apagar la transicion un instante hace que el valor salte al de reposo. El JS
+   la usa como red por si la transicion de entrada no llega a correr. */
+.llego { transition: none !important; }
+
+.velo { opacity: 1; transition: opacity .22s var(--curva-fuerte); }
+.velo.entrando, .velo.saliendo { opacity: 0; }
+
+/* La ficha no cuelga de ningun disparador: aparece centrada, y por eso escala
+   desde el centro. */
+.ficha { opacity: 1; transition: opacity .24s var(--curva-fuerte), transform .24s var(--curva-fuerte); }
+.ficha.entrando, .ficha.saliendo { opacity: 0; transform: translate(-50%, -48%) scale(.97); }
+
+/* El pedido si cuelga de algo: sale del boton flotante de abajo a la derecha,
+   asi que crece desde esa esquina. */
+.pedido {
+  opacity: 1; transform: none; transform-origin: bottom right;
+  transition: opacity .26s var(--curva-fuerte), transform .26s var(--curva-fuerte);
+}
+.pedido.entrando, .pedido.saliendo { opacity: 0; transform: translateY(14px) scale(.96); }
+
+.dock {
+  opacity: 1;
+  transition: transform .2s var(--curva), box-shadow .2s var(--curva),
+              opacity .22s var(--curva-fuerte);
+}
+.dock.entrando, .dock.saliendo { opacity: 0; transform: translateY(10px) scale(.96); }
+
+/* El aviso se dispara seguido, asi que va por transicion y no por keyframes:
+   una transicion retoma desde donde esta, un keyframe vuelve a empezar. */
+.nota { opacity: 1; transition: opacity .2s var(--curva-fuerte), transform .2s var(--curva-fuerte); }
+.nota.entrando, .nota.saliendo { opacity: 0; transform: translate(-50%, 10px); }
+
+/* Respuesta al toque: sin esto los botones se sienten muertos al hacer clic.
+   Va despues de `.boton:active { transform: translateY(0) }`, que era un
+   apagado y no una respuesta. */
+.boton, .boton-fantasma, .pista, .cerrar, .paso-btn, .ficha-tira {
+  transition: transform .16s var(--curva-fuerte), box-shadow .18s var(--curva),
+              background .18s var(--curva), color .18s var(--curva);
+}
+.boton:active, .boton-fantasma:active, .pista:active,
+.cerrar:active, .paso-btn:active, .ficha-tira:active { transform: scale(.96); }
+.dock:active { transform: translateY(-1px) scale(.97); }
+.dest:active { transform: translateY(-2px) scale(.99); }
+
+/* En pantallas tactiles el hover se queda pegado despues de tocar: el color
+   puede quedarse (sirve de feedback), el movimiento no. */
+@media (hover: none) {
+  .pista:hover, .dest:hover, .ficha-tira:hover, .dock:hover,
+  .cerrar:hover, .mas:hover, .boton:hover, .boton-fantasma:hover { transform: none; }
+  .pieza:hover .pieza-losa img { transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Las entradas y salidas quedan en puro fundido: se saca el desplazamiento. */
+  .ficha.entrando, .ficha.saliendo { transform: translate(-50%, -50%); }
+  .pedido.entrando, .pedido.saliendo,
+  .dock.entrando, .dock.saliendo { transform: none; }
+  .nota.entrando, .nota.saliendo { transform: translateX(-50%); }
+  .boton:active, .boton-fantasma:active, .pista:active,
+  .cerrar:active, .paso-btn:active, .ficha-tira:active,
+  .dock:active, .dest:active { transform: none; }
+}
