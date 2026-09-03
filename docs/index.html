@@ -21,7 +21,18 @@
 <!-- El ?v=N obliga al navegador a bajar los archivos nuevos. Subilo cada vez
      que actualices el sitio: si no, alguien que ya entro puede quedarse con
      el HTML nuevo y el JavaScript viejo, y la pagina se rompe. -->
-<link rel="stylesheet" href="assets/css/styles.css?v=12">
+<link rel="stylesheet" href="assets/css/styles.css?v=13">
+
+<!-- Antes del primer pintado, para que no se vea el salto de claro a oscuro. -->
+<script>
+(function () {
+  try {
+    var g = localStorage.getItem('catalogo_tema_v1');
+    var oscuro = g ? g === 'oscuro' : matchMedia('(prefers-color-scheme: dark)').matches;
+    document.documentElement.setAttribute('data-theme', oscuro ? 'dark' : 'light');
+  } catch (e) { /* sin localStorage: manda la preferencia del sistema */ }
+})();
+</script>
 </head>
 <body>
 
@@ -29,6 +40,10 @@
 
 <!-- ===================== Barra superior ===================== -->
 <header class="barra">
+  <button class="hamburguesa" id="abrir-rubros" type="button" aria-label="Rubros" aria-expanded="false" aria-controls="rubros">
+    <span></span><span></span><span></span>
+  </button>
+
   <a class="marca" href="#inicio" aria-label="Inicio">
     <img id="logo-img" alt="" hidden>
     <span class="firma">
@@ -45,7 +60,25 @@
   </div>
 
   <a class="boton-fantasma" id="cta-whatsapp" hidden target="_blank" rel="noopener">Consultar</a>
+
+  <button class="tema" id="tema" type="button" role="switch" aria-checked="false" aria-label="Modo oscuro">
+    <span class="tema-pista"><span class="tema-bola"></span></span>
+  </button>
 </header>
+
+<!-- ===================== Menu de rubros ===================== -->
+<div class="velo" id="rubros-velo" hidden></div>
+
+<aside class="cajon" id="rubros" hidden role="dialog" aria-modal="true" aria-labelledby="rubros-titulo">
+  <div class="cajon-cabeza">
+    <h2 class="cajon-titulo" id="rubros-titulo">Rubros</h2>
+    <button class="cerrar" id="rubros-cerrar" type="button" aria-label="Cerrar">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
+  <p class="cajon-bajada">Mostra solo lo que le sirve a tu comercio.</p>
+  <nav class="cajon-lista" id="rubros-lista"></nav>
+</aside>
 
 <!-- ===================== Portada ===================== -->
 <section class="banner" id="inicio">
@@ -222,7 +255,7 @@
 
 <div class="nota" id="aviso" hidden></div>
 
-<script src="config.js?v=12"></script>
-<script src="assets/js/app.js?v=12"></script>
+<script src="config.js?v=13"></script>
+<script src="assets/js/app.js?v=13"></script>
 </body>
 </html>

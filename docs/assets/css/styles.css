@@ -15,23 +15,29 @@
 [hidden] { display: none !important; }
 
 :root {
-  /* --- Colores de la marca --- */
-  --marino:       #1b3252;
-  --marino-hondo: #122238;
-  --marino-claro: #2b5580;
-  --beige:        #d6d3ca;
-  --beige-claro:  #e6e3dc;
-  --gris:         #ababab;
+  /* --- Los cinco colores de la marca, y nada mas ---
+     Azul marino, beige, gris, blanco y negro. Todo lo demas de la hoja sale de
+     estos: los tonos con sufijo son el mismo color aclarado u oscurecido, no
+     colores nuevos. */
+  --marino:       #17294a;
+  --marino-hondo: #0f1c33;
+  --marino-claro: #2a4a78;
+  --beige:        #d2cfc6;
+  --beige-claro:  #e3e0d8;
+  --gris:         #b0b0b0;
+  --gris-hondo:   #6f7276;
+  --blanco:       #ffffff;
+  --negro:        #000000;
 
   /* --- Roles --- */
-  --piso:      #e4e1d9;   /* el beige de la marca, apenas aclarado */
-  --piso-alto: #eceae4;
-  --losa:      #ffffff;
-  --losa-2:    #f4f2ed;
-  --tinta:     #16283c;   /* casi el marino: el texto es de la marca */
-  --tinta-2:   #4f5f6f;
-  --tinta-3:   #8b96a2;
-  --linea:     rgba(27, 58, 92, .13);
+  --piso:      #e3e0d8;   /* el beige de la marca */
+  --piso-alto: #edebe5;
+  --losa:      var(--blanco);
+  --losa-2:    #f5f3ef;
+  --tinta:     #14243d;   /* casi el marino: el texto es de la marca */
+  --tinta-2:   #4d5c6d;
+  --tinta-3:   #8a939d;   /* el gris de la marca, tenido de marino */
+  --linea:     rgba(23, 41, 74, .14);
 
   --marca:       var(--marino);
   --marca-tinta: #ffffff;
@@ -58,47 +64,57 @@
   --curva-vaiven: cubic-bezier(.77, 0, .175, 1);     /* se mueve en pantalla */
 }
 
+/* ---------- Modo oscuro ----------
+   Se enciende de dos maneras y las dos tienen que dar el mismo resultado: por
+   preferencia del sistema, y por el interruptor de la barra. El cuerpo esta
+   duplicado a proposito — CSS no deja compartirlo entre una regla dentro de
+   @media y una de primer nivel — y hay una prueba que verifica que los dos
+   digan exactamente lo mismo. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --piso:      #0f1d2c;
-    --piso-alto: #142434;
-    --losa:      #18293c;
-    --losa-2:    #1f3349;
-    --tinta:     #e9e6df;
-    --tinta-2:   #9fb0c0;
-    --tinta-3:   #6d8095;
-    --linea:     rgba(214, 211, 202, .14);
+    /* El negro de la marca es el piso del modo oscuro; el marino queda para
+       las superficies y el beige pasa a ser el color que resalta. */
+    --piso:      #0c0e12;
+    --piso-alto: #14171d;
+    --losa:      #191d24;
+    --losa-2:    #222732;
+    --tinta:     #eceae4;
+    --tinta-2:   #a8b2bd;
+    --tinta-3:   #78828e;
+    --linea:     rgba(210, 207, 198, .15);
 
-    /* Invertido: sobre marino, el que resalta es el beige */
+    /* Invertido: sobre negro, el que resalta es el beige */
     --marca:       var(--beige);
-    --marca-tinta: #12293f;
+    --marca-tinta: var(--marino-hondo);
 
-    --flota-0: 0 1px 1px rgba(0, 0, 0, .35);
-    --flota-1: 0 1px 2px rgba(0, 0, 0, .45), 0 4px 10px rgba(0, 0, 0, .32);
-    --flota-2: 0 2px 4px rgba(0, 0, 0, .5), 0 12px 26px rgba(0, 0, 0, .42);
-    --flota-3: 0 4px 8px rgba(0, 0, 0, .55), 0 24px 50px rgba(0, 0, 0, .5);
-    --flota-4: 0 8px 16px rgba(0, 0, 0, .6), 0 42px 84px rgba(0, 0, 0, .6);
+    --flota-0: 0 1px 1px rgba(0, 0, 0, .4);
+    --flota-1: 0 1px 2px rgba(0, 0, 0, .5), 0 4px 10px rgba(0, 0, 0, .38);
+    --flota-2: 0 2px 4px rgba(0, 0, 0, .55), 0 12px 26px rgba(0, 0, 0, .46);
+    --flota-3: 0 4px 8px rgba(0, 0, 0, .6), 0 24px 50px rgba(0, 0, 0, .54);
+    --flota-4: 0 8px 16px rgba(0, 0, 0, .66), 0 42px 84px rgba(0, 0, 0, .64);
   }
 }
-
 :root[data-theme="dark"] {
-  --piso:      #0f1d2c;
-  --piso-alto: #142434;
-  --losa:      #18293c;
-  --losa-2:    #1f3349;
-  --tinta:     #e9e6df;
-  --tinta-2:   #9fb0c0;
-  --tinta-3:   #6d8095;
-  --linea:     rgba(214, 211, 202, .14);
+  /* El negro de la marca es el piso del modo oscuro; el marino queda para
+     las superficies y el beige pasa a ser el color que resalta. */
+  --piso:      #0c0e12;
+  --piso-alto: #14171d;
+  --losa:      #191d24;
+  --losa-2:    #222732;
+  --tinta:     #eceae4;
+  --tinta-2:   #a8b2bd;
+  --tinta-3:   #78828e;
+  --linea:     rgba(210, 207, 198, .15);
 
+  /* Invertido: sobre negro, el que resalta es el beige */
   --marca:       var(--beige);
-  --marca-tinta: #12293f;
+  --marca-tinta: var(--marino-hondo);
 
-  --flota-0: 0 1px 1px rgba(0, 0, 0, .35);
-  --flota-1: 0 1px 2px rgba(0, 0, 0, .45), 0 4px 10px rgba(0, 0, 0, .32);
-  --flota-2: 0 2px 4px rgba(0, 0, 0, .5), 0 12px 26px rgba(0, 0, 0, .42);
-  --flota-3: 0 4px 8px rgba(0, 0, 0, .55), 0 24px 50px rgba(0, 0, 0, .5);
-  --flota-4: 0 8px 16px rgba(0, 0, 0, .6), 0 42px 84px rgba(0, 0, 0, .6);
+  --flota-0: 0 1px 1px rgba(0, 0, 0, .4);
+  --flota-1: 0 1px 2px rgba(0, 0, 0, .5), 0 4px 10px rgba(0, 0, 0, .38);
+  --flota-2: 0 2px 4px rgba(0, 0, 0, .55), 0 12px 26px rgba(0, 0, 0, .46);
+  --flota-3: 0 4px 8px rgba(0, 0, 0, .6), 0 24px 50px rgba(0, 0, 0, .54);
+  --flota-4: 0 8px 16px rgba(0, 0, 0, .66), 0 42px 84px rgba(0, 0, 0, .64);
 }
 
 * { box-sizing: border-box; }
@@ -588,13 +604,22 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
   :root:not([data-theme="light"]) .senia-nuevo { color: #52c3a4; }
   :root:not([data-theme="light"]) .senia-sin-stock { color: #e08c84; }
   :root:not([data-theme="light"]) .nota { background: var(--beige); color: var(--marino-hondo); }
-  :root:not([data-theme="light"]) .paso-btn:hover { background: rgba(233, 230, 223, .14); }
+  :root:not([data-theme="light"]) .paso-btn:hover { background: rgba(236, 234, 228, .14); }
+  :root:not([data-theme="light"]) .banner { background: var(--marino-hondo); }
+  :root:not([data-theme="light"]) .pieza-losa.sin-foto { background: var(--losa-2); }
+  :root:not([data-theme="light"]) .pieza-losa:not(.sin-foto)::before { background: radial-gradient(ellipse at center, rgba(0, 0, 0, .5), rgba(0, 0, 0, 0) 70%); }
+  :root:not([data-theme="light"]) .cajon { background: var(--piso-alto); }
 }
+
 :root[data-theme="dark"] .mas { color: var(--beige); }
 :root[data-theme="dark"] .senia-nuevo { color: #52c3a4; }
 :root[data-theme="dark"] .senia-sin-stock { color: #e08c84; }
 :root[data-theme="dark"] .nota { background: var(--beige); color: var(--marino-hondo); }
-:root[data-theme="dark"] .paso-btn:hover { background: rgba(233, 230, 223, .14); }
+:root[data-theme="dark"] .paso-btn:hover { background: rgba(236, 234, 228, .14); }
+:root[data-theme="dark"] .banner { background: var(--marino-hondo); }
+:root[data-theme="dark"] .pieza-losa.sin-foto { background: var(--losa-2); }
+:root[data-theme="dark"] .pieza-losa:not(.sin-foto)::before { background: radial-gradient(ellipse at center, rgba(0, 0, 0, .5), rgba(0, 0, 0, 0) 70%); }
+:root[data-theme="dark"] .cajon { background: var(--piso-alto); }
 
 /* ---------- Responsive ---------- */
 @media (max-width: 900px) {
@@ -1028,4 +1053,95 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
   .boton:active, .boton-fantasma:active, .pista:active,
   .cerrar:active, .paso-btn:active, .ficha-tira:active,
   .dock:active, .dest:active { transform: none; }
+}
+
+/* ===========================================================================
+   Hamburguesa, cajon de rubros e interruptor de tema
+   =========================================================================== */
+
+.hamburguesa {
+  flex: 0 0 auto; width: 40px; height: 40px; padding: 0;
+  appearance: none; border: 0; cursor: pointer; border-radius: var(--r-chico);
+  background: transparent; color: var(--tinta);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  transition: background 160ms var(--curva), transform 160ms var(--curva-fuerte);
+}
+.hamburguesa span {
+  display: block; width: 18px; height: 1.8px; border-radius: 2px; background: currentColor;
+}
+.hamburguesa:active { transform: scale(.94); }
+@media (hover: hover) and (pointer: fine) {
+  .hamburguesa:hover { background: rgba(23, 41, 74, .07); }
+}
+
+/* El cajon entra desde la izquierda porque de ahi sale el boton: el movimiento
+   explica de donde vino. */
+.cajon {
+  position: fixed; z-index: 60; left: 0; top: 0; bottom: 0;
+  width: min(320px, 86vw);
+  background: var(--losa); box-shadow: var(--flota-4);
+  display: flex; flex-direction: column;
+  padding: 20px 18px 24px;
+  opacity: 1; transform: none;
+  transition: opacity .24s var(--curva-fuerte), transform .26s var(--curva-fuerte);
+}
+.cajon.entrando, .cajon.saliendo { opacity: 0; transform: translateX(-100%); }
+
+.cajon-cabeza { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.cajon-titulo {
+  margin: 0; font-family: var(--display); font-weight: 700; font-size: 13px;
+  letter-spacing: .16em; text-transform: uppercase;
+}
+.cajon-bajada { margin: 6px 0 18px; font-size: 13px; color: var(--tinta-2); }
+.cajon-lista { display: flex; flex-direction: column; gap: 4px; overflow-y: auto; }
+
+.rubro {
+  appearance: none; border: 0; cursor: pointer; text-align: left;
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 14px; border-radius: var(--r-chico);
+  background: transparent; color: var(--tinta);
+  font-family: var(--display); font-size: 13px; font-weight: 600; letter-spacing: .04em;
+  transition: background 160ms var(--curva), color 160ms var(--curva), transform 160ms var(--curva-fuerte);
+}
+.rubro-cuenta {
+  margin-left: auto; font-family: var(--datos); font-size: 10.5px; font-weight: 400;
+  color: var(--tinta-3); letter-spacing: 0;
+}
+.rubro.viva { background: var(--marca); color: var(--marca-tinta); }
+.rubro.viva .rubro-cuenta { color: inherit; opacity: .65; }
+.rubro:active { transform: scale(.98); }
+@media (hover: hover) and (pointer: fine) {
+  .rubro:hover { background: rgba(23, 41, 74, .07); }
+  .rubro.viva:hover { background: var(--marca); }
+}
+
+/* Interruptor claro / oscuro. La bola se mueve con transform, nunca con left. */
+.tema {
+  flex: 0 0 auto; appearance: none; border: 0; padding: 6px; cursor: pointer;
+  background: transparent; border-radius: 999px;
+  transition: transform 160ms var(--curva-fuerte);
+}
+.tema:active { transform: scale(.94); }
+.tema-pista {
+  display: block; width: 42px; height: 24px; border-radius: 999px;
+  background: var(--gris); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .06);
+  transition: background 200ms var(--curva);
+}
+.tema-bola {
+  display: block; width: 18px; height: 18px; margin: 3px; border-radius: 50%;
+  background: var(--blanco); box-shadow: 0 1px 3px rgba(0, 0, 0, .3);
+  transition: transform 220ms var(--curva-fuerte);
+}
+.tema[aria-checked="true"] .tema-pista { background: var(--marino); }
+.tema[aria-checked="true"] .tema-bola { transform: translateX(18px); }
+
+@media (max-width: 620px) {
+  .cajon { width: min(300px, 88vw); padding: 18px 14px 20px; }
+  .tema-pista { width: 38px; height: 22px; }
+  .tema-bola { width: 16px; height: 16px; }
+  .tema[aria-checked="true"] .tema-bola { transform: translateX(16px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cajon.entrando, .cajon.saliendo { transform: none; }
 }

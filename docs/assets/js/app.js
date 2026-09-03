@@ -15,6 +15,7 @@
   var CLAVE_PEDIDO = 'catalogo_pedido_v1';
   var CLAVE_CLIENTE = 'catalogo_cliente_v1';
   var CLAVE_ENVIADO = 'catalogo_enviado_v1';
+  var CLAVE_TEMA = 'catalogo_tema_v1';
 
   // Un pedido ya enviado se descarta solo pasado este tiempo. Antes de eso
   // sigue disponible, para que tocar "Enviar" por error no cueste rehacerlo.
@@ -24,7 +25,7 @@
 
   var estado = {
     datos: null,
-    filtro: { texto: '', categoria: '', marca: '' },
+    filtro: { texto: '', categoria: '', marca: '', rubro: '' },
     orden: 'destacados',
     visibles: [],
     fichaActual: null,
@@ -37,6 +38,7 @@
     // cerrando todavia no esta oculto, y quien pregunte se lleva la respuesta
     // de hace un momento.
     pedidoAbierto: false,
+    rubrosAbierto: false,
   };
 
   var $ = function (id) { return document.getElementById(id); };
@@ -213,6 +215,7 @@
     aplicarConfig(datos.config || {});
     llenarCategorias(datos.categorias || []);
     llenarMarcas(datos.marcas || []);
+    llenarRubros(datos.rubros || []);
     dibujar();
     dibujarDestacados();
     dibujarMarcador();
@@ -363,7 +366,8 @@
   });
 
   $('limpiar-filtros').addEventListener('click', function () {
-    estado.filtro = { texto: '', categoria: '', marca: '' };
+    estado.filtro = { texto: '', categoria: '', marca: '', rubro: '' };
+    marcarRubro('');
     $('buscar').value = '';
     $('filtro-marca').value = '';
     Array.prototype.forEach.call($('chips').querySelectorAll('.pista'), function (p, i) {
@@ -386,6 +390,9 @@
     var lista = productos.filter(function (p) {
       if (estado.filtro.categoria && p.categoria !== estado.filtro.categoria) return false;
       if (estado.filtro.marca && p.marca !== estado.filtro.marca) return false;
+      // Un producto puede servirle a varios rubros: alcanza con que este el
+      // elegido. Sin rubros cargados solo aparece en 'Todo el catalogo'.
+      if (estado.filtro.rubro && (p.rubros || []).indexOf(estado.filtro.rubro) === -1) return false;
       if (!palabras.length) return true;
       var heno = normalizar([p.nombre, p.sku, p.marca, p.categoria, p.presentacion, p.descripcion].join(' '));
       return palabras.every(function (palabra) { return heno.indexOf(palabra) > -1; });
@@ -1057,7 +1064,8 @@
   // Escape cierra lo que este abierto, primero el pedido y despues la ficha
   document.addEventListener('keydown', function (evento) {
     if (evento.key !== 'Escape') return;
-    if (estado.pedidoAbierto) cerrarPedido();
+    if (estado.rubrosAbierto) cerrarRubros();
+    else if (estado.pedidoAbierto) cerrarPedido();
     else if (estado.fichaActual) cerrarFicha();
   });
 
@@ -1493,9 +1501,120 @@
   });
 
   // -------------------------------------------------------------------------
+  // Tema claro / oscuro
+  // -------------------------------------------------------------------------
+
+  /**
+   * Tres estados posibles: 'claro', 'oscuro' o nada guardado, que significa
+   * seguir al sistema. El interruptor solo alterna entre los dos primeros; la
+   * primera vez arranca en lo que prefiera el sistema operativo.
+   */
+  function temaGuardado() {
+    try { return localStorage.getItem(CLAVE_TEMA) || ''; } catch (err) { return ''; }
+  }
+
+  function esOscuro() {
+    var guardado = temaGuardado();
+    if (guardado) return guardado === 'oscuro';
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  }
+
+  function aplicarTema(oscuro) {
+    document.documentElement.setAttribute('data-theme', oscuro ? 'dark' : 'light');
+    var boton = $('tema');
+    if (boton) {
+      boton.setAttribute('aria-checked', oscuro ? 'true' : 'false');
+      boton.setAttribute('aria-label', oscuro ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro');
+    }
+  }
+
+  if ($('tema')) {
+    $('tema').addEventListener('click', function () {
+      var ahora = !esOscuro();
+      try { localStorage.setItem(CLAVE_TEMA, ahora ? 'oscuro' : 'claro'); } catch (err) { /* sin espacio: igual cambia */ }
+      aplicarTema(ahora);
+    });
+  }
+
+  // Mientras el usuario no haya elegido, el sitio sigue al sistema en vivo.
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function (e) {
+    if (!temaGuardado()) aplicarTema(e.matches);
+  });
+
+  // -------------------------------------------------------------------------
+  // Cajon de rubros
+  // -------------------------------------------------------------------------
+
+  /** Cuantos productos activos le sirven a cada rubro. */
+  function contarRubro(rubro) {
+    var productos = (estado.datos && estado.datos.productos) || [];
+    if (!rubro) return productos.length;
+    return productos.filter(function (p) { return (p.rubros || []).indexOf(rubro) > -1; }).length;
+  }
+
+  function llenarRubros(rubros) {
+    var lista = $('rubros-lista');
+    if (!lista) return;
+
+    var botones = [{ valor: '', etiqueta: 'Todo el catalogo' }].concat(
+      rubros.map(function (r) { return { valor: r, etiqueta: r }; }));
+
+    lista.innerHTML = botones.map(function (b) {
+      return '<button class="rubro" type="button" data-rubro="' + escapar(b.valor) + '">' +
+        '<span>' + escapar(b.etiqueta) + '</span>' +
+        '<span class="rubro-cuenta">' + contarRubro(b.valor) + '</span>' +
+      '</button>';
+    }).join('');
+
+    marcarRubro(estado.filtro.rubro);
+    // Sin rubros cargados el boton no tiene para que estar.
+    if ($('abrir-rubros')) $('abrir-rubros').hidden = rubros.length === 0;
+  }
+
+  function marcarRubro(rubro) {
+    var lista = $('rubros-lista');
+    if (!lista) return;
+    Array.prototype.forEach.call(lista.querySelectorAll('.rubro'), function (b) {
+      b.classList.toggle('viva', b.dataset.rubro === (rubro || ''));
+    });
+  }
+
+  function abrirRubros() {
+    mostrarSuave($('rubros-velo'));
+    mostrarSuave($('rubros'));
+    estado.rubrosAbierto = true;
+    $('abrir-rubros').setAttribute('aria-expanded', 'true');
+    $('rubros-cerrar').focus();
+  }
+
+  function cerrarRubros() {
+    estado.rubrosAbierto = false;
+    ocultarSuave($('rubros'), 260);
+    ocultarSuave($('rubros-velo'), 260);
+    $('abrir-rubros').setAttribute('aria-expanded', 'false');
+  }
+
+  if ($('abrir-rubros')) {
+    $('abrir-rubros').addEventListener('click', abrirRubros);
+    $('rubros-cerrar').addEventListener('click', cerrarRubros);
+    $('rubros-velo').addEventListener('click', cerrarRubros);
+
+    $('rubros-lista').addEventListener('click', function (evento) {
+      var boton = evento.target.closest('.rubro');
+      if (!boton) return;
+      estado.filtro.rubro = boton.dataset.rubro || '';
+      marcarRubro(estado.filtro.rubro);
+      dibujar();
+      cerrarRubros();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  }
+
+  // -------------------------------------------------------------------------
   // Arranque
   // -------------------------------------------------------------------------
 
+  aplicarTema(esOscuro());
   dibujarParadas();
   arrastrable($('destacados-pista'), true);
   marquesina($('destacados-pista'));
