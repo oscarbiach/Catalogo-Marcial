@@ -1145,3 +1145,49 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 @media (prefers-reduced-motion: reduce) {
   .cajon.entrando, .cajon.saliendo { transform: none; }
 }
+
+/* ===========================================================================
+   Boton flotante de WhatsApp
+   ---------------------------------------------------------------------------
+   Abajo a la izquierda, en la esquina que queda libre: el boton del pedido y el
+   panel viven a la derecha, y encimarlos taparia el carrito.
+   El verde es el de WhatsApp y no sale de la paleta de la marca a proposito —
+   es un logo ajeno y tenirlo de marino lo volveria irreconocible.
+   =========================================================================== */
+.wasap {
+  position: fixed; left: 24px; bottom: 24px; z-index: 45;
+  width: 52px; height: 52px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: #25d366; color: #fff;
+  box-shadow: var(--flota-3);
+  transition: transform .2s var(--curva-fuerte), box-shadow .2s var(--curva);
+}
+.wasap svg { width: 30px; height: 30px; fill: currentColor; }
+
+/* Con la ficha, el pedido o el cajon abiertos el boton queda debajo del velo:
+   se ve como una mancha verde apagada y no se puede tocar. Mejor sacarlo. Los
+   tres velos estan antes en el HTML, por eso alcanza con el hermano. */
+.velo:not([hidden]) ~ .wasap { display: none; }
+.wasap:active { transform: scale(.94); }
+@media (hover: hover) and (pointer: fine) {
+  .wasap:hover { transform: translateY(-3px); box-shadow: var(--flota-4); }
+}
+
+@media (max-width: 620px) {
+  .wasap { left: 16px; bottom: 18px; width: 48px; height: 48px; }
+  .wasap svg { width: 27px; height: 27px; }
+
+  /* En el telefono el boton del pedido es una barra de lado a lado, asi que el
+     de WhatsApp se corre para arriba mientras haya algo en el carrito. El dock
+     esta antes en el HTML, por eso alcanza con el combinador de hermanos.
+
+     Se mueve con `bottom` y no con transform, y sin transicion: el salto se
+     nota un poco, pero correrlo con una transicion significaria que si los
+     fotogramas no corren los dos botones quedan encimados. Que no se pisen no
+     puede depender de que la animacion llegue. */
+  .dock:not([hidden]) ~ .wasap { bottom: calc(76px + env(safe-area-inset-bottom)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wasap { transition-duration: .12s; }
+}

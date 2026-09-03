@@ -297,6 +297,18 @@
     }).join('');
 
     if (config.whatsapp) $('cta-whatsapp').href = enlaceWhatsapp(null);
+
+    // El boton flotante lleva un saludo fijo, no el mensaje del pedido: es
+    // para una consulta suelta, no para mandar un pedido armado.
+    var wasap = $('wasap');
+    if (wasap) {
+      var numero = String(config.whatsapp || '').replace(/[^0-9]/g, '');
+      wasap.hidden = !numero;
+      if (numero) {
+        wasap.href = 'https://wa.me/' + numero +
+          '?text=' + encodeURIComponent('Hola me comunico desde la pagina!');
+      }
+    }
   }
 
   function enlaceWhatsapp(producto) {
