@@ -854,7 +854,14 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 }
 .dest:hover { transform: translateY(-4px); box-shadow: var(--flota-3); }
 .dest-foto { aspect-ratio: 4/3; display: grid; place-items: center; background: var(--losa-2); }
-.dest-foto img { width: 100%; height: 100%; object-fit: contain; padding: 9%; }
+.dest-foto { display: grid; align-items: end; justify-items: center; }
+.dest-foto img {
+  /* Mas angosta y mas abajo que en la grilla: aca el boton + esta arriba a la
+     derecha y una foto apaisada le llegaba encima. */
+  width: 76%; aspect-ratio: 5 / 3; height: auto;
+  object-fit: contain; object-position: center bottom;
+  margin-bottom: 7%;
+}
 .dest-foto.sin-foto::after {
   content: 'Sin foto'; font-family: var(--datos); font-size: 9.5px;
   letter-spacing: .18em; text-transform: uppercase; color: var(--tinta-3);
@@ -904,15 +911,37 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
    ensancha cuando el producto se levanta. Es lo que vende el volumen. */
 .pieza-losa:not(.sin-foto)::before {
   content: ''; position: absolute; z-index: 0;
-  left: 20%; right: 20%; bottom: 7%; height: 7%;
+  left: 20%; right: 20%; bottom: 17%; height: 7%;
   border-radius: 50%;
   background: radial-gradient(ellipse at center, rgba(18, 34, 56, .22), rgba(18, 34, 56, 0) 70%);
   transition: transform .26s var(--curva-fuerte), opacity .26s var(--curva-fuerte);
 }
 
+/* Todos los productos se ven del mismo tamanio y apoyados en la misma linea.
+
+   Lo que fallaba antes: con `contain` dentro de un cuadrado, lo que se iguala
+   es la caja, no lo pintado. Una foto vertical toca arriba y abajo y llena el
+   alto; una horizontal toca los costados y queda baja. Medido en la grilla
+   real: una panceta 3:4 salia de 210px de alto y un pan 4:3 de 123px.
+
+   La solucion es fijar el ALTO y sobrar ancho: asi la que manda es siempre la
+   altura y todas las fotos se pintan igual de altas, sea cual sea su
+   proporcion.
+
+   La banda se define con `aspect-ratio` y no con un alto en porcentaje: dentro
+   de un grid, un `height: 55%` no resuelve de forma fiable — medido, la misma
+   regla daba 150px en un momento y 364px en otro. Con el ancho definido y
+   `aspect-ratio`, el alto sale siempre igual.
+
+   5 a 3 significa que toda foto menos apaisada que eso entra por altura, que
+   son practicamente todas. Para la rarisima mas ancha, `object-position:
+   bottom` la deja apoyada en la misma linea que las demas. */
+.pieza-losa { display: grid; align-items: end; justify-items: center; }
 .pieza-losa img {
   position: relative; z-index: 1;
-  width: 100%; height: 100%; object-fit: contain; padding: 11%;
+  width: 90%; aspect-ratio: 5 / 3; height: auto;
+  object-fit: contain; object-position: center bottom;
+  padding: 0; margin-bottom: 21%;   /* deja libre la esquina del boton + */
   border-radius: 0; transform: none;
   transition: transform .26s var(--curva-fuerte);
 }
@@ -956,8 +985,11 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 
   /* Un producto por fila, con tope de ancho para que no se estire de mas. */
   .grilla { gap: 22px; grid-template-columns: 1fr; max-width: 460px; margin: 0 auto; }
+  /* La losa es mas apaisada aca, asi que la banda puede ser mas alta sin
+     perder el sobrante de ancho que hace que todas entren por altura. */
   .pieza-losa { aspect-ratio: 4/3; }
-  .pieza-losa img { padding: 8%; }
+  .pieza-losa img { width: 86%; margin-bottom: 20%; }   /* el boton + es mas alto aca */
+  .pieza-losa:not(.sin-foto)::before { bottom: 11%; }
   .pieza-cuerpo .pieza-nombre { font-size: 16px; }
   .pieza-meta { font-size: 11px; }
   .pieza-precio { font-size: 18px; }
