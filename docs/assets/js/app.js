@@ -150,6 +150,123 @@
   }
 
   // -------------------------------------------------------------------------
+  // Base de datos
+  // -------------------------------------------------------------------------
+
+  /**
+   * El catalogo vive en dos lados: la planilla, que es donde se edita, y una
+   * copia en la base de datos, que es la que lee el sitio. La planilla manda
+   * siempre; la copia se rehace sola.
+   *
+   * Si la base falla o esta apagada, se lee de Apps Script como antes. Por eso
+   * volver atras es poner `activo: false` en config.js y nada mas.
+   */
+  var BD = CFG.INSFORGE || {};
+
+  function baseActiva() {
+    return !!(BD.activo && BD.URL && BD.ANON);
+  }
+
+  function pedirABase(ruta) {
+    return fetch(BD.URL + ruta, { headers: { Authorization: 'Bearer ' + BD.ANON } })
+      .then(function (r) {
+        if (!r.ok) throw new Error('La base respondio ' + r.status + '.');
+        return r.json();
+      });
+  }
+
+  /**
+   * Arma, con lo que devuelve la base, el mismo objeto que devolvia Apps
+   * Script. Asi el resto de la pagina no se entera de donde salieron los datos.
+   */
+  function armarDesdeBase(filas, claves) {
+    var config = {};
+    var listas = {};
+    claves.forEach(function (c) {
+      // Las que empiezan con guion bajo no son textos del negocio: son las
+      // listas ya ordenadas por el servidor.
+      if (c.clave.charAt(0) === '_') {
+        try { listas[c.clave.slice(1)] = JSON.parse(c.valor); } catch (err) { /* se ignora */ }
+      } else {
+        config[c.clave] = c.valor;
+      }
+    });
+
+    return {
+      ok: true,
+      version: Date.now(),
+      config: config,
+      categorias: listas.categorias || [],
+      marcas: listas.marcas || [],
+      rubros: listas.rubros || [],
+      productos: filas.map(function (p) {
+        return {
+          id: String(p.id),
+          sku: p.sku || '',
+          nombre: p.nombre || '',
+          descripcion: p.descripcion || '',
+          categoria: p.categoria || '',
+          marca: p.marca || '',
+          precio: p.precio === null || p.precio === undefined ? null : Number(p.precio),
+          moneda: p.moneda || 'ARS',
+          unidadesCaja: p.unidades_caja || 0,
+          presentacion: p.presentacion || '',
+          imagenes: p.imagenes || [],
+          rubros: p.rubros || [],
+          destacado: !!p.destacado,
+          nuevo: !!p.nuevo,
+          sinStock: !!p.sin_stock,
+          orden: p.orden || 0,
+        };
+      }),
+    };
+  }
+
+  function pedirCatalogoABase() {
+    return Promise.all([
+      pedirABase('/api/database/records/productos?limit=5000&order=posicion.asc'),
+      pedirABase('/api/database/records/config?limit=200'),
+    ]).then(function (partes) {
+      var filas = partes[0], claves = partes[1];
+      if (!Array.isArray(filas) || !filas.length) throw new Error('La base devolvio el catalogo vacio.');
+      return armarDesdeBase(filas, Array.isArray(claves) ? claves : []);
+    });
+  }
+
+  /**
+   * Guarda el pedido que el cliente acaba de mandar por WhatsApp.
+   *
+   * Va suelto a proposito: no se espera la respuesta ni se muestra ningun
+   * error. Lo que le importa al cliente es que se abra WhatsApp; que el pedido
+   * quede anotado es cosa nuestra, y si falla no puede estorbar la venta.
+   *
+   * Solo se mandan los ids y las cantidades: el precio y el total los pone el
+   * servidor con los suyos.
+   */
+  function anotarPedido(lineas) {
+    if (!baseActiva() || !BD.guardarPedidos || !lineas.length) return;
+
+    var cuerpo = {
+      cliente: ($('pedido-nombre').value || '').slice(0, 300),
+      nota: ($('pedido-nota').value || '').slice(0, 300),
+      items: lineas.map(function (l) {
+        return { id: String(l.producto.id), cantidad: l.cantidad };
+      }),
+    };
+
+    try {
+      fetch(BD.URL + '/functions/pedido', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + BD.ANON, 'Content-Type': 'application/json' },
+        body: JSON.stringify(cuerpo),
+        keepalive: true,   // el navegador lo termina aunque la pestania se vaya a WhatsApp
+      }).catch(function () { /* que no se guarde no es problema del cliente */ });
+    } catch (err) {
+      /* idem */
+    }
+  }
+
+  // -------------------------------------------------------------------------
   // Carga de datos
   // -------------------------------------------------------------------------
 
@@ -170,7 +287,19 @@
     } catch (err) { /* sin espacio o modo privado: funciona igual, sin cache */ }
   }
 
+  /**
+   * Pide el catalogo a la base y, si no se puede, a Apps Script. El respaldo no
+   * es adorno: es lo que hace que apagar la base sea inofensivo.
+   */
   function pedirCatalogo() {
+    if (!baseActiva()) return pedirCatalogoAAppsScript();
+    return pedirCatalogoABase().catch(function (err) {
+      if (window.console) console.warn('La base no respondio, se usa Apps Script:', err.message);
+      return pedirCatalogoAAppsScript();
+    });
+  }
+
+  function pedirCatalogoAAppsScript() {
     if (!CFG.API || CFG.API.indexOf('PEGAR_ACA') === 0) {
       return Promise.reject(new Error(
         'Falta configurar la URL del catalogo. Edita docs/config.js y pega ahi la URL del Web App.'));
@@ -1480,6 +1609,7 @@
     var lineas = lineasDelPedido();
     if (!lineas.length) return;
 
+    anotarPedido(lineas);
     marcarEnviado(Date.now());
     $('enviado-detalle').textContent = mostrarPrecios()
       ? lineas.length + ' productos por ' + formatearPrecio(totalPedido(lineas), lineas[0].producto.moneda) + '.'
