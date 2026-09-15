@@ -401,12 +401,21 @@
     if ($('remito-linea')) $('remito-linea').textContent = nombre;
     $('pie-nota').textContent = config.nota_precios || '';
 
-    if (config.negocio_logo_url) {
+    // El logo sale de un archivo llamado "logo" en la carpeta de imagenes de
+    // Drive: el servidor lo encuentra y manda su id. La URL del panel queda como
+    // respaldo, y si es un enlace de Drive se usa igual que el archivo.
+    var enlaceDrive = /drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?id=)([\w-]+)/.exec(config.negocio_logo_url || '');
+    var logoId = config.negocio_logo_id || (enlaceDrive && enlaceDrive[1]);
+    if (logoId || config.negocio_logo_url) {
       var logo = $('logo-img');
-      logo.src = config.negocio_logo_url;
+      var alterna = logoId ? urlImagenAlterna(logoId, 240) : '';
+      logo.onerror = function () {
+        if (alterna) { logo.src = alterna; alterna = ''; return; }
+        logo.hidden = true;
+      };
+      logo.src = logoId ? urlImagen(logoId, 240) : config.negocio_logo_url;
       logo.alt = nombre;
       logo.hidden = false;
-      logo.onerror = function () { logo.hidden = true; };
     }
 
     // El color NO se toma de la configuracion: la identidad de marca (azul
