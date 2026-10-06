@@ -1,13 +1,13 @@
 /* ===========================================================================
-   Distribuidora Marcial — sistema visual
+   Distribuidora Marcial - catalogo
    ---------------------------------------------------------------------------
-   Toma la identidad de la marca: azul marino sobre beige, gris para lo
-   secundario. Las piezas flotan sobre el beige y se separan por sombra, no por
-   lineas.
+   Usa la identidad visual de Marcial (guia: marcial-prototipo,
+   coordinacion/IDENTIDAD-VISUAL.md). Los valores crudos viven en
+   ../marca/tokens.css (variables --m-*); aca solo se les da el nombre que
+   usa esta hoja. Si hace falta un color nuevo, se agrega alla, no suelto aca.
 
-   En claro el acento es el azul marino sobre beige; en oscuro se invierte y el
-   acento pasa a ser el beige sobre azul marino. Son los dos colores de la
-   marca en las dos direcciones.
+   En claro: marino sobre gris azulado, tarjetas blancas. En oscuro la marca
+   se invierte: el azul claro de la identidad resalta sobre el marino hondo.
    =========================================================================== */
 
 /* El atributo hidden tiene que ganarle a cualquier display que pongamos
@@ -15,46 +15,53 @@
 [hidden] { display: none !important; }
 
 :root {
-  /* --- Los cinco colores de la marca, y nada mas ---
-     Azul marino, beige, gris, blanco y negro. Todo lo demas de la hoja sale de
-     estos: los tonos con sufijo son el mismo color aclarado u oscurecido, no
-     colores nuevos. */
-  --marino:       #17294a;
-  --marino-hondo: #0f1c33;
-  --marino-claro: #2a4a78;
-  --beige:        #d2cfc6;
-  --beige-claro:  #e3e0d8;
-  --gris:         #b0b0b0;
-  --gris-hondo:   #6f7276;
+  /* --- Marca (de tokens.css) --- */
+  --marino:       var(--m-marino-800);
+  --marino-hondo: var(--m-marino-900);
+  --marino-claro: var(--m-marino-600);
+  --azul:         var(--m-azul-500);
+  /* Los acentos que sobre marino van claros (banner, modo oscuro). Se llaman
+     --beige por historia: la marca anterior era beige y el nombre esta usado
+     en toda la hoja. Hoy son los azules claros de la identidad. */
+  --beige:        var(--m-azul-200);
+  --beige-claro:  var(--m-azul-100);
+  --gris:         var(--m-linea-2);
+  --gris-hondo:   var(--m-tinta-3);
   --blanco:       #ffffff;
   --negro:        #000000;
 
   /* --- Roles --- */
-  --piso:      #e3e0d8;   /* el beige de la marca */
-  --piso-alto: #edebe5;
-  --losa:      var(--blanco);
-  --losa-2:    #f5f3ef;
-  --tinta:     #14243d;   /* casi el marino: el texto es de la marca */
-  --tinta-2:   #4d5c6d;
-  --tinta-3:   #8a939d;   /* el gris de la marca, tenido de marino */
-  --linea:     rgba(23, 41, 74, .14);
+  --piso:      var(--m-fondo);
+  --piso-alto: var(--m-superficie-2);
+  --losa:      var(--m-superficie);
+  --losa-2:    var(--m-superficie-2);
+  --tinta:     var(--m-tinta);
+  --tinta-2:   var(--m-tinta-2);
+  --tinta-3:   var(--m-tinta-3);
+  --linea:     var(--m-linea);
 
-  --marca:       var(--marino);
+  --marca:       var(--m-marino-800);
   --marca-tinta: #ffffff;
 
-  /* Sombras en dos capas, tenidas de azul en vez de gris neutro */
-  --flota-0: 0 1px 1px rgba(18, 41, 63, .05);
-  --flota-1: 0 1px 2px rgba(18, 41, 63, .06), 0 4px 10px rgba(18, 41, 63, .06);
-  --flota-2: 0 2px 4px rgba(18, 41, 63, .07), 0 12px 26px rgba(18, 41, 63, .10);
-  --flota-3: 0 4px 8px rgba(18, 41, 63, .09), 0 24px 50px rgba(18, 41, 63, .15);
-  --flota-4: 0 8px 16px rgba(18, 41, 63, .12), 0 42px 84px rgba(18, 41, 63, .22);
+  /* Estados */
+  --ok:     var(--m-ok-tinta);
+  --error:  var(--m-error-tinta);
 
-  --r-chico:  8px;
-  --r-medio:  14px;
-  --r-grande: 20px;
+  /* Sombras: las de la identidad, teñidas de marino */
+  --flota-0: var(--m-sombra-1);
+  --flota-1: var(--m-sombra-1);
+  --flota-2: var(--m-sombra-2);
+  --flota-3: var(--m-sombra-3);
+  --flota-4: 0 8px 16px rgba(14, 34, 64, .12), 0 36px 72px -16px rgba(14, 34, 64, .32);
 
-  --display: 'Montserrat', 'Trebuchet MS', sans-serif;
-  --texto:   'Archivo', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --r-chico:  var(--m-r-md);
+  --r-medio:  var(--m-r-lg);
+  --r-grande: var(--m-r-xl);
+
+  /* Una sola familia (Manrope); los importes llevan cifras tabulares */
+  --display: var(--m-fuente);
+  --texto:   var(--m-fuente);
+  --datos:   var(--m-fuente);
 
   --ancho: 1240px;
   /* --curva queda para hovers y cambios de color. Para lo que entra, sale o
@@ -67,25 +74,26 @@
 /* ---------- Modo oscuro ----------
    Se enciende de dos maneras y las dos tienen que dar el mismo resultado: por
    preferencia del sistema, y por el interruptor de la barra. El cuerpo esta
-   duplicado a proposito — CSS no deja compartirlo entre una regla dentro de
-   @media y una de primer nivel — y hay una prueba que verifica que los dos
+   duplicado a proposito - CSS no deja compartirlo entre una regla dentro de
+   @media y una de primer nivel - y hay una prueba que verifica que los dos
    digan exactamente lo mismo. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    /* El negro de la marca es el piso del modo oscuro; el marino queda para
-       las superficies y el beige pasa a ser el color que resalta. */
-    --piso:      #0c0e12;
-    --piso-alto: #14171d;
-    --losa:      #191d24;
-    --losa-2:    #222732;
-    --tinta:     #eceae4;
-    --tinta-2:   #a8b2bd;
-    --tinta-3:   #78828e;
-    --linea:     rgba(210, 207, 198, .15);
+    --piso:      var(--m-marino-950);
+    --piso-alto: var(--m-marino-900);
+    --losa:      var(--m-marino-800);
+    --losa-2:    var(--m-marino-700);
+    --tinta:     #E8EEF6;
+    --tinta-2:   var(--m-sobre-marino-2);
+    --tinta-3:   #8196B2;
+    --linea:     rgba(147, 178, 217, .18);
 
-    /* Invertido: sobre negro, el que resalta es el beige */
-    --marca:       var(--beige);
-    --marca-tinta: var(--marino-hondo);
+    /* Invertido: sobre marino, el que resalta es el azul claro */
+    --marca:       var(--m-azul-200);
+    --marca-tinta: var(--m-marino-900);
+
+    --ok:     #6FD3A0;
+    --error:  #F29AA5;
 
     --flota-0: 0 1px 1px rgba(0, 0, 0, .4);
     --flota-1: 0 1px 2px rgba(0, 0, 0, .5), 0 4px 10px rgba(0, 0, 0, .38);
@@ -95,20 +103,21 @@
   }
 }
 :root[data-theme="dark"] {
-  /* El negro de la marca es el piso del modo oscuro; el marino queda para
-     las superficies y el beige pasa a ser el color que resalta. */
-  --piso:      #0c0e12;
-  --piso-alto: #14171d;
-  --losa:      #191d24;
-  --losa-2:    #222732;
-  --tinta:     #eceae4;
-  --tinta-2:   #a8b2bd;
-  --tinta-3:   #78828e;
-  --linea:     rgba(210, 207, 198, .15);
+  --piso:      var(--m-marino-950);
+  --piso-alto: var(--m-marino-900);
+  --losa:      var(--m-marino-800);
+  --losa-2:    var(--m-marino-700);
+  --tinta:     #E8EEF6;
+  --tinta-2:   var(--m-sobre-marino-2);
+  --tinta-3:   #8196B2;
+  --linea:     rgba(147, 178, 217, .18);
 
-  /* Invertido: sobre negro, el que resalta es el beige */
-  --marca:       var(--beige);
-  --marca-tinta: var(--marino-hondo);
+  /* Invertido: sobre marino, el que resalta es el azul claro */
+  --marca:       var(--m-azul-200);
+  --marca-tinta: var(--m-marino-900);
+
+  --ok:     #6FD3A0;
+  --error:  #F29AA5;
 
   --flota-0: 0 1px 1px rgba(0, 0, 0, .4);
   --flota-1: 0 1px 2px rgba(0, 0, 0, .5), 0 4px 10px rgba(0, 0, 0, .38);
@@ -138,8 +147,8 @@ img { max-width: 100%; display: block; }
 
 /* Los titulos siguen al logotipo: caja alta, geometrica, con aire entre letras */
 .display {
-  font-family: var(--display); font-weight: 700;
-  letter-spacing: .02em; text-transform: uppercase;
+  font-family: var(--display); font-weight: 800;
+  letter-spacing: -.02em; text-transform: none;
 }
 
 .saltar {
@@ -151,39 +160,37 @@ img { max-width: 100%; display: block; }
 
 :focus-visible { outline: 2px solid var(--marca); outline-offset: 3px; }
 
-/* ---------- Logotipo ---------- */
+/* ---------- Logotipo ----------
+   SVG de la marca (assets/marca/logo/). Sobre claro va el azul, sobre marino el
+   blanco; en modo oscuro la barra es marino, asi que se cambia de version. Los
+   dos <img> estan en el HTML y solo se ve uno. */
 .marca {
-  display: flex; align-items: center; gap: 10px; text-decoration: none;
+  display: flex; align-items: center; text-decoration: none;
   color: inherit; flex: 0 0 auto; padding-left: 14px; min-width: 0;
 }
-.marca img { height: 30px; width: auto; object-fit: contain; }
-
-.firma { display: flex; flex-direction: column; line-height: 1; min-width: 0; }
-.firma-nombre {
-  font-family: var(--display); font-weight: 700; font-size: 15px;
-  letter-spacing: .14em; text-transform: uppercase; color: var(--tinta);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+.marca img { height: 30px; width: auto; }
+.logo-oscuro { display: none; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .logo-claro { display: none; }
+  :root:not([data-theme="light"]) .logo-oscuro { display: block; }
 }
-.firma-bajo {
-  font-family: var(--display); font-weight: 500; font-size: 8px;
-  letter-spacing: .38em; text-transform: uppercase; color: var(--tinta-3);
-  margin-top: 3px; white-space: nowrap; overflow: hidden;
-}
+:root[data-theme="dark"] .logo-claro { display: none; }
+:root[data-theme="dark"] .logo-oscuro { display: block; }
 
 /* ---------- Botones ---------- */
 .boton, .boton-fantasma {
-  appearance: none; cursor: pointer; border: 0; font: inherit; font-weight: 600;
-  font-size: 13.5px; padding: 11px 20px; border-radius: var(--r-chico);
-  text-decoration: none; letter-spacing: .04em; text-transform: uppercase;
+  appearance: none; cursor: pointer; border: 1px solid transparent; font: inherit; font-weight: 700;
+  font-size: 14px; min-height: 40px; padding: 0 18px; border-radius: var(--r-chico);
+  text-decoration: none; letter-spacing: -.005em; text-transform: none;
   font-family: var(--display);
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   transition: transform .18s var(--curva), box-shadow .18s var(--curva), background .18s var(--curva);
 }
-.boton { background: var(--marca); color: var(--marca-tinta); box-shadow: var(--flota-1); }
+.boton { background: var(--marca); color: var(--marca-tinta); box-shadow: 0 1px 2px rgba(8, 22, 41, .25); }
 .boton:hover { transform: translateY(-1px); box-shadow: var(--flota-2); }
 .boton:active { transform: translateY(0); }
 
-.boton-fantasma { background: var(--losa); color: var(--tinta); box-shadow: var(--flota-1); }
+.boton-fantasma { background: var(--losa); color: var(--tinta); border-color: var(--m-linea-2); }
 .boton-fantasma:hover { transform: translateY(-1px); box-shadow: var(--flota-2); }
 
 .boton-ancho { width: 100%; }
@@ -195,12 +202,12 @@ img { max-width: 100%; display: block; }
 .enlace:hover { text-decoration: underline; }
 .enlace-apagado { color: var(--tinta-3); }
 .enlace-apagado:hover { color: var(--tinta-2); }
-.enlace-peligro { color: #c0392b; }
+.enlace-peligro { color: var(--error); }
 
 .cerrar {
   appearance: none; border: 0; cursor: pointer; padding: 0;
   width: 34px; height: 34px; border-radius: var(--r-chico);
-  background: var(--losa); color: var(--tinta); box-shadow: var(--flota-1);
+  background: var(--losa); color: var(--tinta); border: 1px solid var(--linea);
   display: grid; place-items: center; flex: 0 0 auto;
   transition: transform .18s var(--curva), box-shadow .18s var(--curva);
 }
@@ -215,11 +222,11 @@ img { max-width: 100%; display: block; }
 }
 .barra::before {
   content: ''; position: absolute; inset: 6px 16px;
-  background: var(--losa); opacity: .86; border-radius: var(--r-medio);
-  box-shadow: var(--flota-1); backdrop-filter: saturate(180%) blur(14px);
+  background: var(--losa); opacity: .92; border-radius: var(--r-medio);
+  border: 1px solid var(--linea); backdrop-filter: saturate(180%) blur(14px);
   z-index: -1; transition: opacity .2s var(--curva), box-shadow .2s var(--curva);
 }
-body.scrolleado .barra::before { opacity: .97; box-shadow: var(--flota-2); }
+body.scrolleado .barra::before { opacity: .98; box-shadow: var(--flota-2); }
 
 .barra-buscar { position: relative; flex: 1 1 auto; min-width: 0; }
 .lupa {
@@ -228,12 +235,13 @@ body.scrolleado .barra::before { opacity: .97; box-shadow: var(--flota-2); }
   stroke-width: 2; stroke-linecap: round; pointer-events: none;
 }
 #buscar {
-  width: 100%; border: 0; background: var(--losa-2); color: var(--tinta);
-  font: inherit; font-size: 14px; padding: 9px 14px 9px 34px; border-radius: var(--r-chico);
+  width: 100%; border: 1px solid var(--m-linea-2); background: var(--losa); color: var(--tinta);
+  font: inherit; font-size: 14px; font-weight: 500; min-height: 40px; padding: 0 14px 0 36px; border-radius: var(--m-r-pill);
   transition: background .18s var(--curva), box-shadow .18s var(--curva);
 }
 #buscar::placeholder { color: var(--tinta-3); }
-#buscar:focus { outline: none; background: var(--losa); box-shadow: var(--flota-1), 0 0 0 2px var(--marca); }
+#buscar:hover { border-color: var(--m-azul-300); }
+#buscar:focus { outline: none; border-color: var(--m-azul-500); box-shadow: var(--m-foco); }
 
 /* ---------- Portada ---------- */
 
@@ -254,23 +262,25 @@ body.scrolleado .barra::before { opacity: .97; box-shadow: var(--flota-2); }
 
 .pista {
   appearance: none; border: 0; cursor: pointer; white-space: nowrap;
-  font-family: var(--display); font-size: 11.5px; font-weight: 600;
-  letter-spacing: .07em; text-transform: uppercase;
-  padding: 9px 16px; border-radius: var(--r-chico);
-  background: var(--losa); color: var(--tinta-2); box-shadow: var(--flota-0);
+  font-family: var(--display); font-size: 13px; font-weight: 600;
+  letter-spacing: 0; text-transform: none;
+  min-height: 36px; padding: 0 16px; border-radius: var(--m-r-pill);
+  border: 1px solid var(--m-linea-2);
+  background: var(--losa); color: var(--tinta-2);
   transition: transform .18s var(--curva), box-shadow .18s var(--curva),
               background .18s var(--curva), color .18s var(--curva);
 }
-.pista:hover { transform: translateY(-1px); box-shadow: var(--flota-1); color: var(--tinta); }
-.pista.viva { background: var(--marca); color: var(--marca-tinta); box-shadow: var(--flota-2); }
+.pista:hover { border-color: var(--m-azul-300); color: var(--tinta); }
+.pista.viva { background: var(--marca); border-color: var(--marca); color: var(--marca-tinta); }
 
 .rail-fin { display: flex; gap: 7px; flex: 0 0 auto; }
 .menu {
   appearance: none; border: 0; cursor: pointer;
-  font-family: var(--display); font-size: 11.5px; font-weight: 600;
-  letter-spacing: .06em; text-transform: uppercase;
-  padding: 9px 30px 9px 14px; border-radius: var(--r-chico);
-  background: var(--losa); color: var(--tinta-2); box-shadow: var(--flota-0);
+  font-family: var(--display); font-size: 13px; font-weight: 600;
+  letter-spacing: 0; text-transform: none;
+  min-height: 36px; padding: 0 30px 0 14px; border-radius: var(--m-r-pill);
+  border: 1px solid var(--m-linea-2);
+  background: var(--losa); color: var(--tinta-2);
   background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
                     linear-gradient(135deg, currentColor 50%, transparent 50%);
   background-position: calc(100% - 16px) 50%, calc(100% - 11px) 50%;
@@ -304,15 +314,15 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 .mas {
   position: absolute; right: 10px; bottom: 10px; z-index: 3;
   appearance: none; border: 0; cursor: pointer; padding: 0;
-  width: 42px; height: 42px; border-radius: var(--r-medio);
-  background: var(--losa); color: var(--marino); box-shadow: var(--flota-2);
+  width: 42px; height: 42px; border-radius: var(--r-chico);
+  background: var(--marca); color: var(--marca-tinta); box-shadow: 0 1px 2px rgba(8, 22, 41, .25);
   display: grid; place-items: center;
   transition: transform .2s var(--curva), background .2s var(--curva), color .2s var(--curva);
 }
 .mas svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.1; stroke-linecap: round; }
-.mas:hover { background: var(--marca); color: var(--marca-tinta); transform: translateZ(28px) scale(1.08); }
+.mas:hover { box-shadow: var(--flota-2); transform: translateZ(28px) scale(1.08); }
 .mas[disabled] { opacity: .4; cursor: default; }
-.mas[disabled]:hover { background: var(--losa); color: var(--tinta); transform: translateZ(28px); }
+.mas[disabled]:hover { background: var(--marca); color: var(--marca-tinta); transform: translateZ(28px); }
 
 .pieza-paso {
   position: absolute; right: 10px; bottom: 10px; z-index: 3;
@@ -332,8 +342,8 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
   letter-spacing: .14em; text-transform: uppercase; color: var(--tinta-2);
 }
 .senia-destacado { color: var(--marca); }
-.senia-nuevo { color: #17795f; }
-.senia-sin-stock { color: #a8382f; }
+.senia-nuevo { color: var(--ok); }
+.senia-sin-stock { color: var(--error); }
 
 .pieza-pie { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .pieza-nombre {
@@ -592,10 +602,7 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
    ':root:not([data-theme="light"])' suelta se aplica tambien en modo claro,
    y eso dejaba el icono + en beige sobre blanco, invisible. */
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .mas { color: var(--beige); }
-  :root:not([data-theme="light"]) .senia-nuevo { color: #52c3a4; }
-  :root:not([data-theme="light"]) .senia-sin-stock { color: #e08c84; }
-  :root:not([data-theme="light"]) .nota { background: var(--beige); color: var(--marino-hondo); }
+  :root:not([data-theme="light"]) .nota { background: var(--m-azul-200); color: var(--marino-hondo); }
   :root:not([data-theme="light"]) .paso-btn:hover { background: rgba(236, 234, 228, .14); }
   :root:not([data-theme="light"]) .banner { background: var(--marino-hondo); }
   :root:not([data-theme="light"]) .pieza-losa.sin-foto { background: var(--losa-2); }
@@ -603,10 +610,7 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
   :root:not([data-theme="light"]) .cajon { background: var(--piso-alto); }
 }
 
-:root[data-theme="dark"] .mas { color: var(--beige); }
-:root[data-theme="dark"] .senia-nuevo { color: #52c3a4; }
-:root[data-theme="dark"] .senia-sin-stock { color: #e08c84; }
-:root[data-theme="dark"] .nota { background: var(--beige); color: var(--marino-hondo); }
+:root[data-theme="dark"] .nota { background: var(--m-azul-200); color: var(--marino-hondo); }
 :root[data-theme="dark"] .paso-btn:hover { background: rgba(236, 234, 228, .14); }
 :root[data-theme="dark"] .banner { background: var(--marino-hondo); }
 :root[data-theme="dark"] .pieza-losa.sin-foto { background: var(--losa-2); }
@@ -698,26 +702,19 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 }
 
 /* ===========================================================================
-   Capa de identidad
+   Numeros y pedido
    ---------------------------------------------------------------------------
-   Dos decisiones sacadas del oficio, no del gusto:
+   Los importes llevan cifras tabulares (los digitos alinean en columna) y el
+   pedido se lee como una lista de comprobante. La tipografia es Manrope, la de
+   la identidad; mas abajo, en "Capa de identidad Marcial", se ajustan pesos y
+   tamanios.
 
-   1. Los numeros van en monoespaciada. Una lista de precios mayorista ES un
-      documento monoespaciado: con los digitos alineados el cliente compara
-      precios bajando la vista por la columna, sin leer.
-
-   2. El pedido se lee como un remito. Es donde el cliente pasa mas tiempo y lo
-      unico que despues manda por WhatsApp; darle la forma del comprobante que
-      ya usa todos los dias lo hace entendible sin explicacion.
-
-   Ninguna de las dos depende de animaciones: los paneles aparecen y ya. Tres
-   veces una animacion congelada dejo contenido invisible o corrido, asi que
-   solo queda el pulso de los placeholders de carga, que no oculta nada real.
+   Nada de esto depende de animaciones: los paneles aparecen y ya. Tres veces
+   una animacion congelada dejo contenido invisible o corrido, asi que solo
+   queda el pulso de los placeholders de carga, que no oculta nada real.
    =========================================================================== */
 
-:root { --datos: 'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace; }
-
-/* ---------- Los numeros, en monoespaciada ---------- */
+/* ---------- Los numeros, con cifras tabulares ---------- */
 .pieza-precio,
 .ficha-precio,
 .pedido-subtotal,
@@ -757,15 +754,6 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 .pedido-total span:first-child {
   font-family: var(--datos); font-size: 10px; font-weight: 400;
   letter-spacing: .1em; text-transform: uppercase; color: var(--tinta-2);
-}
-
-/* ---------- La diagonal del isotipo ---------- */
-/* Los dos trazos del logo estan inclinados. Ese mismo angulo marca el filtro
-   activo y los detalles del banner, en vez de sumar otro color. */
-.pista.viva { position: relative; overflow: hidden; }
-.pista.viva::after {
-  content: ''; position: absolute; left: -14%; bottom: 0; width: 128%; height: 3px;
-  background: var(--marca-tinta); opacity: .55; transform: skewX(-18deg);
 }
 
 @media (max-width: 620px) {
@@ -1205,4 +1193,123 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 
 @media (prefers-reduced-motion: reduce) {
   .wasap { transition-duration: .12s; }
+}
+
+/* ===========================================================================
+   Capa de identidad Marcial
+   ---------------------------------------------------------------------------
+   Lo que la identidad cambia en la forma de las piezas, no solo en el color:
+   tarjetas blancas con borde fino, precios en Manrope pesado con cifras
+   tabulares, titulares en minuscula normal, el bloque marino de portada y el
+   pie con el logo. Va al final para ganarle a las reglas de arriba con el
+   mismo peso; los valores salen de assets/marca/tokens.css.
+   =========================================================================== */
+
+/* ---------- Numeros: Manrope con cifras tabulares ---------- */
+.pieza-precio, .ficha-precio, .pedido-subtotal, .pedido-total,
+.dock-total, .dock-cuenta, .paso-valor, .dest-precio {
+  font-family: var(--datos); font-variant-numeric: tabular-nums; letter-spacing: -.02em;
+}
+.pieza-precio { font-weight: 800; font-size: 17px; }
+.dest-precio { font-weight: 800; font-size: 15px; }
+.ficha-precio { font-weight: 800; font-size: 30px; letter-spacing: -.03em; }
+.pedido-subtotal { font-weight: 700; }
+.pedido-total { font-weight: 800; }
+.pieza-meta, .pieza-unit, .remito-linea, .marcador span, .destacados-nota, .rubro-cuenta {
+  font-family: var(--texto); letter-spacing: 0;
+}
+.pieza-meta { font-size: 12.5px; font-weight: 500; }
+.pieza-unit { font-size: 12px; }
+.remito-linea { font-size: 11.5px; text-transform: none; }
+.pedido-total span:first-child {
+  font-family: var(--texto); font-size: 12px; font-weight: 700; letter-spacing: .01em; text-transform: none;
+}
+.pedido-total { border-top: 1px solid var(--linea); }
+.pedido-fila::before { display: none; }
+.pedido-linea + .pedido-linea { border-top: 1px solid var(--linea); }
+
+/* ---------- Tarjeta de producto ----------
+   Borde fino O sombra ancha, nunca las dos (regla de la identidad): aca va el
+   borde, y la sombra aparece solo al pasar el mouse. */
+.pieza {
+  padding: 10px 10px 14px; gap: 10px;
+  background: var(--losa); border: 1px solid var(--linea); border-radius: var(--m-r-lg);
+  transition: box-shadow .2s var(--curva), border-color .2s var(--curva);
+}
+@media (hover: hover) and (pointer: fine) {
+  .pieza:hover { border-color: transparent; box-shadow: var(--flota-2); }
+}
+.pieza-losa { border-radius: var(--m-r-md); background: var(--losa-2); }
+.pieza:hover .pieza-losa { box-shadow: none; }
+.pieza-losa.sin-foto { border-radius: var(--m-r-md); background: var(--losa-2); box-shadow: none; }
+.pieza-losa.sin-foto::after, .dest-foto.sin-foto::after, .ficha-marco.sin-foto::after {
+  font-family: var(--texto); font-size: 12px; font-weight: 600; letter-spacing: 0; text-transform: none;
+}
+.pieza-pie { padding: 0 3px; align-items: baseline; justify-content: flex-start; gap: 8px; }
+.pieza-cuerpo .pieza-nombre { font-weight: 700; letter-spacing: -.01em; }
+.senia {
+  font-family: var(--texto); font-size: 11px; font-weight: 700;
+  letter-spacing: .01em; text-transform: none; padding: 3px 9px; border-radius: var(--m-r-pill);
+  background: var(--m-superficie-3); color: var(--tinta-2);
+}
+.senia-destacado { background: var(--m-info-fondo); color: var(--m-info-tinta); }
+.senia-nuevo { background: var(--m-ok-fondo); color: var(--m-ok-tinta); }
+.senia-sin-stock { background: var(--m-error-fondo); color: var(--m-error-tinta); }
+.pieza-senias { top: 10px; left: 10px; }
+.hueso-losa { border-radius: var(--m-r-lg); }
+
+/* ---------- Portada: el bloque marino ---------- */
+.banner { background: var(--marino); border-radius: 0 0 var(--m-r-xl) var(--m-r-xl); }
+.banner-tit {
+  text-transform: none; font-weight: 800; letter-spacing: -.03em;
+  font-size: clamp(30px, 4.6vw, 52px); line-height: 1.04; max-width: 16ch;
+}
+.destacados-tit { text-transform: none; letter-spacing: -.01em; font-size: 16px; font-weight: 800; }
+.destacados-nota { font-size: 12px; font-weight: 600; }
+.marcador b { font-size: 24px; font-weight: 800; }
+.marcador span { font-size: 12px; font-weight: 600; letter-spacing: .02em; text-transform: none; }
+.paradas .ruta-base { stroke: rgba(197, 214, 236, .3); }
+.paradas .anillo { stroke: rgba(197, 214, 236, .45); }
+.dest { border: 1px solid var(--linea); border-radius: var(--m-r-lg); box-shadow: none; }
+.dest:hover { box-shadow: var(--flota-3); border-color: transparent; }
+.dest-orden {
+  font-family: var(--texto); font-weight: 700; border-radius: var(--m-r-pill);
+  background: var(--marino); letter-spacing: 0;
+}
+.dest-nom { font-weight: 700; letter-spacing: -.01em; }
+
+/* ---------- Ficha, cajon y pedido ---------- */
+.ficha-texto h2 { text-transform: none; letter-spacing: -.025em; font-size: 26px; font-weight: 800; }
+.ficha-visual { background: var(--losa-2); }
+.ficha-marco { box-shadow: none; border: 1px solid var(--linea); }
+.specs dt { font-family: var(--texto); font-size: 12px; font-weight: 700; letter-spacing: .01em; text-transform: none; }
+.pedido-cabeza h2 { font-size: 19px; letter-spacing: -.02em; }
+.cajon-titulo { text-transform: none; letter-spacing: -.01em; font-size: 17px; font-weight: 800; }
+.rubro { font-size: 14px; font-weight: 600; letter-spacing: 0; border-radius: var(--m-r-md); }
+.enviado h3 { letter-spacing: -.01em; font-size: 20px; }
+.campo { border: 1px solid var(--m-linea-2); box-shadow: none; border-radius: var(--m-r-md); min-height: 40px; }
+.campo:focus { border-color: var(--m-azul-500); box-shadow: var(--m-foco); }
+.alerta, .pedido-largo { box-shadow: none; border: 1px solid var(--linea); border-left: 3px solid var(--azul); }
+.paso { border: 1px solid var(--linea); background: var(--losa); }
+.pieza-paso.paso { border: 0; background: var(--marca); }
+.dock { border-radius: var(--m-r-md); font-family: var(--texto); font-size: 14px; letter-spacing: -.005em; text-transform: none; }
+.dock-cuenta { border-radius: var(--m-r-pill); }
+.tema[aria-checked="true"] .tema-pista { background: var(--m-azul-500); }
+
+/* ---------- Pie con el logo ---------- */
+.pie {
+  max-width: none; margin: 40px 0 0; padding: 36px 24px 56px;
+  background: var(--losa); border-top: 1px solid var(--linea);
+  gap: 16px; color: var(--tinta-2); font-size: 14px;
+}
+.pie-logo { height: 34px; width: auto; }
+.pie-contacto a { color: var(--tinta-2); font-weight: 600; }
+.pie-contacto a:hover { color: var(--azul); }
+.pie-nota { font-size: 13px; }
+
+@media (max-width: 620px) {
+  .pieza { padding: 8px 8px 12px; }
+  .pieza-precio { font-size: 18px; }
+  .banner { border-radius: 0 0 var(--m-r-lg) var(--m-r-lg); }
+  .pie { padding: 28px 18px 44px; }
 }

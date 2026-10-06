@@ -356,42 +356,12 @@
   // Marca y textos del negocio
   // -------------------------------------------------------------------------
 
-  /**
-   * Parte el nombre del negocio en las dos lineas del logotipo: el nombre
-   * propio arriba y el rubro abajo, espaciado. "Distribuidora Marcial" se
-   * muestra como MARCIAL / DISTRIBUIDORA, igual que la marca.
-   */
-  var RUBROS = /^(distribuidora|distribuidor|mayorista|almacen|deposito)$/i;
-
-  function partirNombre(nombre) {
-    var palabras = String(nombre || '').trim().split(/\s+/).filter(Boolean);
-    if (palabras.length < 2) return { nombre: nombre || 'Catalogo', rubro: '' };
-
-    if (RUBROS.test(palabras[0])) {
-      return { nombre: palabras.slice(1).join(' '), rubro: palabras[0] };
-    }
-    if (RUBROS.test(palabras[palabras.length - 1])) {
-      return { nombre: palabras.slice(0, -1).join(' '), rubro: palabras[palabras.length - 1] };
-    }
-    return { nombre: nombre, rubro: '' };
-  }
-
   function aplicarConfig(config) {
     var nombre = config.negocio_nombre || 'Catalogo';
-    var firma = partirNombre(nombre);
 
+    // El logo es el de la identidad de Marcial (assets/marca/logo/), fijo en
+    // el HTML: no se toma de Drive ni del panel, igual que los colores.
     document.title = nombre;
-    $('logo-texto').textContent = firma.nombre;
-    $('pie-nombre').textContent = firma.nombre;
-
-    // Si el nombre no trae rubro, la segunda linea sobra
-    [['logo-bajo', firma.rubro], ['pie-bajo', firma.rubro]]
-      .forEach(function (par) {
-        var el = $(par[0]);
-        if (!el) return;
-        el.textContent = par[1];
-        el.hidden = !par[1];
-      });
 
     // El titulo del banner se edita desde el panel. Si viene vacio queda el
     // que ya trae el HTML, asi el banner nunca aparece mudo.
@@ -401,25 +371,8 @@
     if ($('remito-linea')) $('remito-linea').textContent = nombre;
     $('pie-nota').textContent = config.nota_precios || '';
 
-    // El logo sale de un archivo llamado "logo" en la carpeta de imagenes de
-    // Drive: el servidor lo encuentra y manda su id. La URL del panel queda como
-    // respaldo, y si es un enlace de Drive se usa igual que el archivo.
-    var enlaceDrive = /drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?id=)([\w-]+)/.exec(config.negocio_logo_url || '');
-    var logoId = config.negocio_logo_id || (enlaceDrive && enlaceDrive[1]);
-    if (logoId || config.negocio_logo_url) {
-      var logo = $('logo-img');
-      var alterna = logoId ? urlImagenAlterna(logoId, 240) : '';
-      logo.onerror = function () {
-        if (alterna) { logo.src = alterna; alterna = ''; return; }
-        logo.hidden = true;
-      };
-      logo.src = logoId ? urlImagen(logoId, 240) : config.negocio_logo_url;
-      logo.alt = nombre;
-      logo.hidden = false;
-    }
-
     // El color NO se toma de la configuracion: la identidad de marca (azul
-    // marino sobre beige) esta fijada en el CSS. Dejarlo configurable invitaba
+    // marino de Marcial) esta fijada en el CSS. Dejarlo configurable invitaba
     // a romperla desde el panel sin querer.
 
     var contactos = [];

@@ -3,25 +3,27 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Catalogo</title>
+<title>Marcial Distribuidora</title>
 <meta name="description" content="Catalogo de productos con fotos y precios.">
-<meta name="theme-color" content="#e4e1d9" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0c0e12" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F2F5F9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#081629" media="(prefers-color-scheme: dark)">
 
 <meta property="og:type" content="website">
-<meta property="og:title" content="Catalogo">
+<meta property="og:title" content="Marcial Distribuidora">
 <meta property="og:description" content="Mira todo el catalogo con fotos y precios.">
 
 <link rel="preconnect" href="https://script.google.com">
 <link rel="preconnect" href="https://drive.google.com">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700&family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="preload" href="assets/marca/fuentes/manrope-latin-var.woff2" as="font" type="font/woff2" crossorigin>
 
 <!-- El ?v=N obliga al navegador a bajar los archivos nuevos. Subilo cada vez
      que actualices el sitio: si no, alguien que ya entro puede quedarse con
      el HTML nuevo y el JavaScript viejo, y la pagina se rompe. -->
-<link rel="stylesheet" href="assets/css/styles.css?v=18">
+<!-- Identidad visual de Marcial: tokens (unico lugar con valores) y componentes
+     base. Van antes que styles.css, que usa sus variables. -->
+<link rel="stylesheet" href="assets/marca/tokens.css?v=19">
+<link rel="stylesheet" href="assets/marca/marcial.css?v=19">
+<link rel="stylesheet" href="assets/css/styles.css?v=19">
 
 <!-- Antes del primer pintado, para que no se vea el salto de claro a oscuro. -->
 <script>
@@ -45,11 +47,8 @@
   </button>
 
   <a class="marca" href="#inicio" aria-label="Inicio">
-    <img id="logo-img" alt="" hidden>
-    <span class="firma">
-      <span class="firma-nombre" id="logo-texto">Marcial</span>
-      <span class="firma-bajo" id="logo-bajo">Distribuidora</span>
-    </span>
+    <img class="logo-claro" src="assets/marca/logo/logo-horizontal.svg" alt="Marcial Distribuidora" width="164" height="30">
+    <img class="logo-oscuro" src="assets/marca/logo/logo-horizontal-blanco.svg" alt="" aria-hidden="true" width="164" height="30">
   </a>
 
   <div class="barra-buscar">
@@ -134,10 +133,8 @@
 
 <!-- ===================== Pie ===================== -->
 <footer class="pie">
-  <span class="pie-firma">
-    <span class="pie-nombre" id="pie-nombre">Marcial</span>
-    <span class="pie-bajo" id="pie-bajo">Distribuidora</span>
-  </span>
+  <img class="pie-logo logo-claro" src="assets/marca/logo/logo-horizontal.svg" alt="Marcial Distribuidora" width="186" height="34">
+  <img class="pie-logo logo-oscuro" src="assets/marca/logo/logo-horizontal-blanco.svg" alt="" aria-hidden="true" width="186" height="34">
   <ul class="pie-contacto" id="pie-contacto"></ul>
   <p class="pie-nota" id="pie-nota"></p>
 </footer>
@@ -264,7 +261,7 @@
 
 <div class="nota" id="aviso" hidden></div>
 
-<script src="config.js?v=18"></script>
-<script src="assets/js/app.js?v=18"></script>
+<script src="config.js?v=19"></script>
+<script src="assets/js/app.js?v=19"></script>
 </body>
 </html>
