@@ -21,9 +21,9 @@
      el HTML nuevo y el JavaScript viejo, y la pagina se rompe. -->
 <!-- Identidad visual de Marcial: tokens (unico lugar con valores) y componentes
      base. Van antes que styles.css, que usa sus variables. -->
-<link rel="stylesheet" href="assets/marca/tokens.css?v=19">
-<link rel="stylesheet" href="assets/marca/marcial.css?v=19">
-<link rel="stylesheet" href="assets/css/styles.css?v=19">
+<link rel="stylesheet" href="assets/marca/tokens.css?v=20">
+<link rel="stylesheet" href="assets/marca/marcial.css?v=20">
+<link rel="stylesheet" href="assets/css/styles.css?v=20">
 
 <!-- Antes del primer pintado, para que no se vea el salto de claro a oscuro. -->
 <script>
@@ -43,7 +43,8 @@
 <!-- ===================== Barra superior ===================== -->
 <header class="barra">
   <button class="hamburguesa" id="abrir-rubros" type="button" aria-label="Rubros" aria-expanded="false" aria-controls="rubros">
-    <span></span><span></span><span></span>
+    <span class="hamburguesa-rayas" aria-hidden="true"><span></span><span></span><span></span></span>
+    <span class="hamburguesa-txt">Rubros</span>
   </button>
 
   <a class="marca" href="#inicio" aria-label="Inicio">
@@ -59,6 +60,11 @@
   </div>
 
   <a class="boton-fantasma" id="cta-whatsapp" hidden target="_blank" rel="noopener">Consultar</a>
+
+  <button class="carrito" id="carrito" type="button" hidden aria-label="Ver mi pedido" aria-expanded="false" aria-controls="pedido">
+    <svg class="ico" aria-hidden="true"><use href="assets/marca/iconos.svg#i-shopping-cart"/></svg>
+    <span class="carrito-cuenta" id="carrito-cuenta" hidden>0</span>
+  </button>
 
   <button class="tema" id="tema" type="button" role="switch" aria-checked="false" aria-label="Modo oscuro">
     <span class="tema-pista"><span class="tema-bola"></span></span>
@@ -82,13 +88,11 @@
 <!-- ===================== Portada ===================== -->
 <section class="banner" id="inicio">
   <h1 class="banner-tit" id="banner-titulo">Tu pedido, en camino</h1>
-
-  <!-- El recorrido del dia: cada parada se completa a su paso -->
-  <svg class="paradas" id="paradas" viewBox="0 0 420 110" fill="none" aria-hidden="true"></svg>
-
-  <div class="marcador" id="marcador" hidden>
-    <b id="marcador-num"></b><span id="marcador-txt"></span>
-  </div>
+  <p class="banner-sub" id="banner-sub">Mirá el catálogo completo, con fotos y precios.</p>
+  <a class="boton boton-claro" href="#catalogo">
+    Ver catálogo
+    <svg class="ico" aria-hidden="true"><use href="assets/marca/iconos.svg#i-arrow-right"/></svg>
+  </a>
 </section>
 
 <!-- Los destacados suben y se montan sobre el azul del banner -->
@@ -130,6 +134,20 @@
     <button class="boton-fantasma" id="reintentar" type="button">Reintentar</button>
   </div>
 </main>
+
+<!-- ===================== Contacto ===================== -->
+<section class="contacto" id="contacto" hidden aria-labelledby="contacto-tit">
+  <div class="contacto-caja">
+    <div class="contacto-texto">
+      <h2 class="contacto-tit" id="contacto-tit">¿Necesitás algo en particular?</h2>
+      <p>Escribinos y te ayudamos.</p>
+    </div>
+    <a class="boton boton-claro" id="contacto-wasap" target="_blank" rel="noopener">
+      <svg class="ico" aria-hidden="true"><use href="assets/marca/iconos.svg#i-message-circle"/></svg>
+      Contactar
+    </a>
+  </div>
+</section>
 
 <!-- ===================== Pie ===================== -->
 <footer class="pie">
@@ -184,14 +202,6 @@
 
 <!-- ===================== Pedido ===================== -->
 <div class="velo" id="pedido-velo" hidden></div>
-
-<button class="dock" id="dock" hidden type="button" aria-expanded="false" aria-controls="pedido">
-  <svg class="dock-icono" viewBox="0 0 24 24" aria-hidden="true">
-    <path d="M6 8h12l-1 12H7L6 8z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>
-  </svg>
-  <span class="dock-cuenta" id="dock-cuenta">0</span>
-  <span class="dock-total" id="dock-total"></span>
-</button>
 
 <section class="pedido" id="pedido" hidden role="dialog" aria-modal="true" aria-labelledby="pedido-titulo">
   <header class="pedido-cabeza">
@@ -259,9 +269,31 @@
   </svg>
 </a>
 
+<!-- Barra inferior del celular. El pedido y el contacto viven aca, asi que en
+     el telefono no hay boton flotante de WhatsApp ni barra de pedido. -->
+<nav class="barra-inferior" id="barra-inferior" aria-label="Secciones">
+  <a class="bi-item activo" href="#inicio" data-seccion="inicio">
+    <svg class="ico" aria-hidden="true"><use href="assets/marca/iconos.svg#i-house"/></svg>
+    <span>Inicio</span>
+  </a>
+  <a class="bi-item" href="#catalogo" data-seccion="catalogo">
+    <svg class="ico" aria-hidden="true"><use href="assets/marca/iconos.svg#i-package"/></svg>
+    <span>Catálogo</span>
+  </a>
+  <button class="bi-item" id="nav-pedido" type="button" hidden aria-expanded="false" aria-controls="pedido">
+    <svg class="ico" aria-hidden="true"><use href="assets/marca/iconos.svg#i-shopping-cart"/></svg>
+    <span>Pedido</span>
+    <span class="bi-cuenta" id="nav-cuenta" hidden>0</span>
+  </button>
+  <a class="bi-item" id="nav-contacto" hidden target="_blank" rel="noopener">
+    <svg class="ico" aria-hidden="true"><use href="assets/marca/iconos.svg#i-message-circle"/></svg>
+    <span>Contactar</span>
+  </a>
+</nav>
+
 <div class="nota" id="aviso" hidden></div>
 
-<script src="config.js?v=19"></script>
-<script src="assets/js/app.js?v=19"></script>
+<script src="config.js?v=20"></script>
+<script src="assets/js/app.js?v=20"></script>
 </body>
 </html>

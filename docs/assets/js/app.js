@@ -347,7 +347,6 @@
     llenarRubros(datos.rubros || []);
     dibujar();
     dibujarDestacados();
-    dibujarMarcador();
     dibujarPedido();   // el pedido guardado se resuelve contra el catalogo nuevo
     abrirDesdeUrl();
   }
@@ -391,15 +390,18 @@
 
     // El boton flotante lleva un saludo fijo, no el mensaje del pedido: es
     // para una consulta suelta, no para mandar un pedido armado.
-    var wasap = $('wasap');
-    if (wasap) {
-      var numero = String(config.whatsapp || '').replace(/[^0-9]/g, '');
-      wasap.hidden = !numero;
-      if (numero) {
-        wasap.href = 'https://wa.me/' + numero +
-          '?text=' + encodeURIComponent('Hola me comunico desde la pagina!');
-      }
-    }
+    var numero = String(config.whatsapp || '').replace(/[^0-9]/g, '');
+    var enlaceContacto = numero
+      ? 'https://wa.me/' + numero + '?text=' + encodeURIComponent('Hola me comunico desde la pagina!')
+      : '';
+    ['wasap', 'contacto-wasap', 'nav-contacto'].forEach(function (id) {
+      var el = $(id);
+      if (!el) return;
+      el.hidden = !numero;
+      if (numero) el.href = enlaceContacto;
+    });
+    // El bloque entero se va si no hay a donde escribir
+    if ($('contacto')) $('contacto').hidden = !numero;
   }
 
   function enlaceWhatsapp(producto) {
@@ -550,52 +552,6 @@
     estado.visibles = filtrar();
     $('estado-vacio').hidden = estado.visibles.length > 0;
     $('grilla').innerHTML = estado.visibles.map(pieza).join('');
-  }
-
-  // -------------------------------------------------------------------------
-  // Banner: el recorrido del dia
-  // -------------------------------------------------------------------------
-
-  /**
-   * Dibuja las paradas del banner. Cada una se completa a su paso, con el
-   * escalonado en el animation-delay: los porcentajes de @keyframes no
-   * admiten variables de CSS.
-   */
-  function dibujarParadas() {
-    var svg = $('paradas');
-    if (!svg) return;
-
-    var puntos = [[26, 74], [124, 44], [214, 68], [302, 38], [394, 60]];
-    var ruta = 'M26 74 C 70 74 84 44 124 44 S 178 68 214 68 S 268 38 302 38 S 358 60 394 60';
-
-    var nodos = puntos.map(function (pt, i) {
-      var d = (0.5 + i * 0.85).toFixed(2) + 's';
-      return '' +
-        '<g>' +
-          '<circle class="anillo" cx="' + pt[0] + '" cy="' + pt[1] + '" r="9"/>' +
-          '<circle class="relleno" cx="' + pt[0] + '" cy="' + pt[1] + '" r="9" style="--d:' + d + '"/>' +
-          '<path class="tilde" d="M' + (pt[0] - 4) + ' ' + pt[1] + ' l3 3.2 l5.4 -6.2" style="--d:' + d + '"/>' +
-        '</g>';
-    }).join('');
-
-    svg.innerHTML =
-      '<path class="ruta-base" d="' + ruta + '"/>' +
-      '<path class="ruta-viva" d="' + ruta + '"/>' + nodos;
-  }
-
-  /**
-   * El unico dato duro del banner: cuantos productos hay. Se saca del catalogo
-   * ya cargado, asi que si todavia no llego, el marcador queda oculto en vez de
-   * mostrar un cero.
-   */
-  function dibujarMarcador() {
-    var caja = $('marcador');
-    if (!caja) return;
-    var cuantos = ((estado.datos && estado.datos.productos) || []).length;
-    caja.hidden = !cuantos;
-    if (!cuantos) return;
-    $('marcador-num').textContent = cuantos;
-    $('marcador-txt').textContent = cuantos === 1 ? 'producto' : 'productos';
   }
 
   // -------------------------------------------------------------------------
@@ -787,15 +743,18 @@
         '<div class="pieza-losa' + (foto ? '' : ' sin-foto') + '">' +
           foto +
           (senias ? '<div class="senias pieza-senias">' + senias + '</div>' : '') +
-          (pedidosActivos() ? mando(p) : '') +
         '</div>' +
         '<div class="pieza-cuerpo">' +
           '<button class="pieza-nombre" type="button">' + escapar(p.nombre) + '</button>' +
           '<div class="pieza-meta">' + (meta.length ? meta.join(' &middot; ') : '') + '</div>' +
         '</div>' +
+        // Precio y boton en la misma fila: el ojo baja una sola vez
         '<div class="pieza-pie">' +
-          '<span class="pieza-precio">' + precio + '</span>' +
-          (precio ? '<span class="pieza-unit">por ' + escapar(unidadDe(p, 1)) + '</span>' : '') +
+          '<div class="pieza-precios">' +
+            '<span class="pieza-precio">' + precio + '</span>' +
+            (precio ? '<span class="pieza-unit">por ' + escapar(unidadDe(p, 1)) + '</span>' : '') +
+          '</div>' +
+          (pedidosActivos() ? '<div class="pieza-mando">' + mando(p) + '</div>' : '') +
         '</div>' +
       '</article>';
   }
@@ -834,7 +793,7 @@
     // El carrusel dibuja la lista dos veces, asi que un producto puede tener
     // hasta tres mandos en pantalla y los tres tienen que contar lo mismo.
     var cual = '[data-id="' + idSeguro(id) + '"]';
-    var cajas = [$('grilla').querySelector('.pieza' + cual + ' .pieza-losa')];
+    var cajas = [$('grilla').querySelector('.pieza' + cual + ' .pieza-mando')];
     Array.prototype.push.apply(cajas,
       $('destacados-pista').querySelectorAll('.dest' + cual + ' .dest-sumar'));
 
@@ -1377,21 +1336,32 @@
     }
 
     prepararEnvio(lineas);
-    actualizarDock(lineas);
+    actualizarCarrito(lineas);
     cerrarConfirmacion();
   }
 
-  function actualizarDock(lineas) {
+  /** Cuentas del carrito (encabezado) y del item Pedido (barra inferior). */
+  function actualizarCarrito(lineas) {
     var activo = pedidosActivos();
-    var hay = lineas.length > 0;
     var config = (estado.datos && estado.datos.config) || {};
+    var cuantos = cantidadTotal(lineas);
 
-    // El dock solo aparece con algo adentro y mientras el panel este cerrado
-    if (!activo || !hay || estado.pedidoAbierto) ocultarSuave($('dock'), 200);
-    else mostrarSuave($('dock'));
-    $('dock-cuenta').textContent = cantidadTotal(lineas);
-    $('dock-total').textContent = mostrarPrecios() && hay
-      ? formatearPrecio(totalPedido(lineas), lineas[0].producto.moneda) : '';
+    ['carrito', 'nav-pedido'].forEach(function (id) {
+      if ($(id)) $(id).hidden = !activo;
+    });
+    ['carrito-cuenta', 'nav-cuenta'].forEach(function (id) {
+      var el = $(id);
+      if (!el) return;
+      var cambio = el.textContent !== String(cuantos);
+      el.textContent = cuantos;
+      el.hidden = !cuantos;
+      // Un golpe corto cuando suma o resta: confirma que el toque llego
+      if (cambio && cuantos) {
+        el.classList.remove('salta');
+        void el.offsetWidth;
+        el.classList.add('salta');
+      }
+    });
 
     // La consulta suelta solo tiene sentido si no hay pedidos
     $('cta-whatsapp').hidden = !config.whatsapp || activo;
@@ -1410,8 +1380,7 @@
     estado.pedidoAbierto = true;
     mostrarSuave($('pedido-velo'));
     mostrarSuave($('pedido'));
-    ocultarSuave($('dock'), 200);
-    $('dock').setAttribute('aria-expanded', 'true');
+    marcarPedidoAbierto(true);
     document.body.style.overflow = 'hidden';
     $('pedido-cerrar').focus();
   }
@@ -1420,13 +1389,20 @@
     estado.pedidoAbierto = false;
     ocultarSuave($('pedido'), 260);
     ocultarSuave($('pedido-velo'), 260);
-    $('dock').setAttribute('aria-expanded', 'false');
+    marcarPedidoAbierto(false);
     if (!estado.fichaActual) document.body.style.overflow = '';
     cerrarConfirmacion();
-    dibujarPedido();   // vuelve a mostrar el dock si sigue habiendo pedido
+    dibujarPedido();
   }
 
-  $('dock').addEventListener('click', abrirPedido);
+  function marcarPedidoAbierto(abierto) {
+    ['carrito', 'nav-pedido'].forEach(function (id) {
+      if ($(id)) $(id).setAttribute('aria-expanded', abierto ? 'true' : 'false');
+    });
+  }
+
+  $('carrito').addEventListener('click', abrirPedido);
+  $('nav-pedido').addEventListener('click', abrirPedido);
   $('pedido-cerrar').addEventListener('click', cerrarPedido);
   $('pedido-velo').addEventListener('click', cerrarPedido);
 
@@ -1681,6 +1657,15 @@
     Array.prototype.forEach.call(lista.querySelectorAll('.rubro'), function (b) {
       b.classList.toggle('viva', b.dataset.rubro === (rubro || ''));
     });
+
+    // El boton de la barra dice el rubro elegido, asi el filtro no queda escondido
+    var boton = $('abrir-rubros');
+    if (boton) {
+      var texto = boton.querySelector('.hamburguesa-txt');
+      if (texto) texto.textContent = rubro || 'Rubros';
+      boton.classList.toggle('activo', !!rubro);
+      boton.setAttribute('aria-label', rubro ? 'Rubro: ' + rubro : 'Rubros');
+    }
   }
 
   function abrirRubros() {
@@ -1715,11 +1700,38 @@
   }
 
   // -------------------------------------------------------------------------
+  // Barra inferior: que item corresponde a lo que se ve
+  // -------------------------------------------------------------------------
+
+  /**
+   * Inicio queda marcado hasta que el catalogo llega a la mitad de arriba de la
+   * pantalla; ahi pasa a Catalogo. Va con IntersectionObserver, sin escuchar el
+   * scroll. Si el navegador no lo tiene, queda marcado Inicio y nada se rompe.
+   */
+  function seguirSeccion() {
+    var items = document.querySelectorAll('.bi-item[data-seccion]');
+    var catalogo = $('catalogo');
+    if (!items.length || !catalogo || !('IntersectionObserver' in window)) return;
+
+    function marcar(seccion) {
+      Array.prototype.forEach.call(items, function (a) {
+        a.classList.toggle('activo', a.dataset.seccion === seccion);
+      });
+    }
+    new IntersectionObserver(function (entradas) {
+      entradas.forEach(function (e) {
+        // Pasado el catalogo (pie de pagina) sigue valiendo Catalogo
+        marcar(e.isIntersecting || e.boundingClientRect.bottom < 0 ? 'catalogo' : 'inicio');
+      });
+    }, { rootMargin: '0px 0px -60% 0px' }).observe(catalogo);
+  }
+
+  // -------------------------------------------------------------------------
   // Arranque
   // -------------------------------------------------------------------------
 
   aplicarTema(esOscuro());
-  dibujarParadas();
+  seguirSeccion();
   arrastrable($('destacados-pista'), true);
   marquesina($('destacados-pista'));
   arrastrable($('chips'), false);

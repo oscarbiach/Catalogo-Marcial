@@ -39,6 +39,7 @@
   --tinta-2:   var(--m-tinta-2);
   --tinta-3:   var(--m-tinta-3);
   --linea:     var(--m-linea);
+  --borde:     var(--m-linea-2);
 
   --marca:       var(--m-marino-800);
   --marca-tinta: #ffffff;
@@ -87,6 +88,7 @@
     --tinta-2:   var(--m-sobre-marino-2);
     --tinta-3:   #8196B2;
     --linea:     rgba(147, 178, 217, .18);
+    --borde:     rgba(147, 178, 217, .34);
 
     /* Invertido: sobre marino, el que resalta es el azul claro */
     --marca:       var(--m-azul-200);
@@ -111,6 +113,7 @@
   --tinta-2:   var(--m-sobre-marino-2);
   --tinta-3:   #8196B2;
   --linea:     rgba(147, 178, 217, .18);
+  --borde:     rgba(147, 178, 217, .34);
 
   /* Invertido: sobre marino, el que resalta es el azul claro */
   --marca:       var(--m-azul-200);
@@ -190,7 +193,7 @@ img { max-width: 100%; display: block; }
 .boton:hover { transform: translateY(-1px); box-shadow: var(--flota-2); }
 .boton:active { transform: translateY(0); }
 
-.boton-fantasma { background: var(--losa); color: var(--tinta); border-color: var(--m-linea-2); }
+.boton-fantasma { background: var(--losa); color: var(--tinta); border-color: var(--borde); }
 .boton-fantasma:hover { transform: translateY(-1px); box-shadow: var(--flota-2); }
 
 .boton-ancho { width: 100%; }
@@ -235,7 +238,7 @@ body.scrolleado .barra::before { opacity: .98; box-shadow: var(--flota-2); }
   stroke-width: 2; stroke-linecap: round; pointer-events: none;
 }
 #buscar {
-  width: 100%; border: 1px solid var(--m-linea-2); background: var(--losa); color: var(--tinta);
+  width: 100%; border: 1px solid var(--borde); background: var(--losa); color: var(--tinta);
   font: inherit; font-size: 14px; font-weight: 500; min-height: 40px; padding: 0 14px 0 36px; border-radius: var(--m-r-pill);
   transition: background .18s var(--curva), box-shadow .18s var(--curva);
 }
@@ -249,6 +252,7 @@ body.scrolleado .barra::before { opacity: .98; box-shadow: var(--flota-2); }
 /* ---------- Rail de filtros ---------- */
 .rail {
   position: sticky; top: 62px; z-index: 30;
+  background: var(--piso);   /* sin esto, lo que pasa por debajo se asoma entre los chips */
   max-width: var(--ancho); margin: 0 auto; padding: 10px 24px 14px;
   display: flex; align-items: center; gap: 12px;
 }
@@ -265,7 +269,7 @@ body.scrolleado .barra::before { opacity: .98; box-shadow: var(--flota-2); }
   font-family: var(--display); font-size: 13px; font-weight: 600;
   letter-spacing: 0; text-transform: none;
   min-height: 36px; padding: 0 16px; border-radius: var(--m-r-pill);
-  border: 1px solid var(--m-linea-2);
+  border: 1px solid var(--borde);
   background: var(--losa); color: var(--tinta-2);
   transition: transform .18s var(--curva), box-shadow .18s var(--curva),
               background .18s var(--curva), color .18s var(--curva);
@@ -279,7 +283,7 @@ body.scrolleado .barra::before { opacity: .98; box-shadow: var(--flota-2); }
   font-family: var(--display); font-size: 13px; font-weight: 600;
   letter-spacing: 0; text-transform: none;
   min-height: 36px; padding: 0 30px 0 14px; border-radius: var(--m-r-pill);
-  border: 1px solid var(--m-linea-2);
+  border: 1px solid var(--borde);
   background: var(--losa); color: var(--tinta-2);
   background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
                     linear-gradient(135deg, currentColor 50%, transparent 50%);
@@ -462,29 +466,6 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
   font-variant-numeric: tabular-nums;
 }
 .paso-valor:focus { outline: none; }
-
-/* ---------- Dock del pedido ---------- */
-.dock {
-  position: fixed; right: 24px; bottom: 24px; z-index: 45;
-  appearance: none; border: 0; cursor: pointer;
-  display: flex; align-items: center; gap: 10px;
-  padding: 13px 20px 13px 17px; border-radius: var(--r-medio);
-  background: var(--marca); color: var(--marca-tinta);
-  font-family: var(--display); font-size: 13px; font-weight: 700;
-  letter-spacing: .05em; text-transform: uppercase;
-  box-shadow: var(--flota-3);
-  transition: transform .2s var(--curva), box-shadow .2s var(--curva);
-}
-.dock:hover { transform: translateY(-2px); box-shadow: var(--flota-4); }
-.dock-icono { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.dock-cuenta {
-  min-width: 21px; height: 21px; padding: 0 6px; border-radius: 5px;
-  background: var(--marca-tinta); color: var(--marca);
-  font-size: 12px; font-weight: 700; line-height: 21px; text-align: center;
-  font-variant-numeric: tabular-nums;
-}
-.dock-total { font-variant-numeric: tabular-nums; letter-spacing: .02em; }
-.dock-total:empty { display: none; }
 
 /* ---------- Panel del pedido ---------- */
 .pedido {
@@ -680,11 +661,6 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
   .campo { font-size: 16px; }   /* evita el zoom al enfocar en iOS */
   .boton, .boton-fantasma { min-height: 44px; }
 
-  .dock {
-    left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom));
-    justify-content: center; padding: 14px 18px;
-  }
-  .dock-total { margin-left: auto; }
 
   .pie { padding: 0 18px 40px; }
   .nota { bottom: 84px; font-size: 12.5px; }
@@ -719,8 +695,6 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 .ficha-precio,
 .pedido-subtotal,
 .pedido-total,
-.dock-total,
-.dock-cuenta,
 .paso-valor {
   font-family: var(--datos);
   font-variant-numeric: tabular-nums;
@@ -729,7 +703,7 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 .pieza-precio { font-weight: 500; font-size: 14.5px; }
 .ficha-precio { font-weight: 600; letter-spacing: -.03em; }
 .ficha-precio small { font-family: var(--texto); letter-spacing: 0; }
-.pedido-total, .dock-cuenta { font-weight: 600; }
+.pedido-total { font-weight: 600; }
 
 /* ---------- El pedido como remito ---------- */
 .remito-sello { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
@@ -783,34 +757,6 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 
 /* El recorrido del dia. Cada parada se completa a su paso, queda marcada casi
    todo el ciclo y se limpia al final para volver a empezar. */
-.paradas { position: absolute; right: 4%; bottom: 132px; width: min(430px, 42vw); z-index: 1; opacity: .95; }
-.paradas .ruta-base { stroke: rgba(214, 211, 202, .3); stroke-width: 2; fill: none; stroke-linecap: round; }
-.paradas .ruta-viva {
-  stroke: var(--beige); stroke-width: 2; fill: none; stroke-linecap: round;
-  stroke-dasharray: 520; stroke-dashoffset: 520;
-  animation: trazar 7s linear infinite;
-}
-@keyframes trazar { 0% { stroke-dashoffset: 520; } 72%, 100% { stroke-dashoffset: 0; } }
-.paradas .anillo { fill: none; stroke: rgba(214, 211, 202, .4); stroke-width: 2; }
-.paradas .relleno,
-.paradas .tilde {
-  transform-box: fill-box; transform-origin: center;
-  animation: completar 7s linear infinite both; animation-delay: var(--d, 0s);
-}
-.paradas .relleno { fill: var(--beige); }
-.paradas .tilde { stroke: var(--marino); stroke-width: 2.4; fill: none; stroke-linecap: round; stroke-linejoin: round; }
-/* Los porcentajes de @keyframes no admiten variables: el escalonado va por delay */
-@keyframes completar {
-  0%   { opacity: 0; transform: scale(.3); }
-  5%   { opacity: 1; transform: scale(1); }
-  88%  { opacity: 1; transform: scale(1); }
-  96%, 100% { opacity: 0; transform: scale(.3); }
-}
-
-.marcador { position: relative; z-index: 2; margin-top: 20px; align-self: flex-start; display: flex; align-items: baseline; gap: 8px; }
-.marcador b { font-family: var(--datos); font-size: 22px; font-weight: 600; color: var(--beige); letter-spacing: -.02em; }
-.marcador span { font-family: var(--datos); font-size: 9.5px; letter-spacing: .18em; text-transform: uppercase; color: rgba(255, 255, 255, .5); }
-
 /* ---------- Destacados, montados sobre el banner ---------- */
 .destacados { max-width: var(--ancho); margin: -104px auto 0; padding: 22px 0 8px; position: relative; z-index: 3; }
 .destacados-cab { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; padding: 0 24px 14px; }
@@ -945,10 +891,6 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 
 @media (max-width: 620px) {
   .banner { padding: 32px 18px 104px; min-height: 280px; }
-  .paradas { width: min(280px, 60vw); right: -2%; bottom: 100px; opacity: .5; }
-  .marcador { margin-top: 14px; }
-  .marcador b { font-size: 17px; }
-
   .destacados { margin-top: -92px; padding: 18px 0 4px; }
   .destacados-cab { padding: 0 14px 12px; }
   .destacados-pista { padding: 4px 14px 16px; gap: 11px; }
@@ -966,13 +908,6 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
   .pieza-precio { font-size: 18px; }
   .mas { width: 44px; height: 44px; }
   .mas svg { width: 20px; height: 20px; }
-}
-
-/* El dibujo es decorativo: sin animacion queda completo y se ve igual */
-@media (prefers-reduced-motion: reduce) {
-  .paradas .ruta-viva, .paradas .relleno, .paradas .tilde { animation: none; }
-  .paradas .ruta-viva { stroke-dashoffset: 0; }
-  .paradas .relleno, .paradas .tilde { opacity: 1; transform: none; }
 }
 
 /* Tiras que se arrastran con el mouse. La clase la pone el JS, asi que si no
@@ -1015,12 +950,6 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 }
 .pedido.entrando, .pedido.saliendo { opacity: 0; transform: translateY(14px) scale(.96); }
 
-.dock {
-  opacity: 1;
-  transition: transform .2s var(--curva), box-shadow .2s var(--curva),
-              opacity .22s var(--curva-fuerte);
-}
-.dock.entrando, .dock.saliendo { opacity: 0; transform: translateY(10px) scale(.96); }
 
 /* El aviso se dispara seguido, asi que va por transicion y no por keyframes:
    una transicion retoma desde donde esta, un keyframe vuelve a empezar. */
@@ -1036,13 +965,12 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 }
 .boton:active, .boton-fantasma:active, .pista:active,
 .cerrar:active, .paso-btn:active, .ficha-tira:active { transform: scale(.96); }
-.dock:active { transform: translateY(-1px) scale(.97); }
 .dest:active { transform: translateY(-2px) scale(.99); }
 
 /* En pantallas tactiles el hover se queda pegado despues de tocar: el color
    puede quedarse (sirve de feedback), el movimiento no. */
 @media (hover: none) {
-  .pista:hover, .dest:hover, .ficha-tira:hover, .dock:hover,
+  .pista:hover, .dest:hover, .ficha-tira:hover,
   .cerrar:hover, .mas:hover, .boton:hover, .boton-fantasma:hover { transform: none; }
   .pieza:hover .pieza-losa img { transform: none; }
 }
@@ -1050,12 +978,11 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 @media (prefers-reduced-motion: reduce) {
   /* Las entradas y salidas quedan en puro fundido: se saca el desplazamiento. */
   .ficha.entrando, .ficha.saliendo { transform: translate(-50%, -50%); }
-  .pedido.entrando, .pedido.saliendo,
-  .dock.entrando, .dock.saliendo { transform: none; }
+  .pedido.entrando, .pedido.saliendo { transform: none; }
   .nota.entrando, .nota.saliendo { transform: translateX(-50%); }
   .boton:active, .boton-fantasma:active, .pista:active,
   .cerrar:active, .paso-btn:active, .ficha-tira:active,
-  .dock:active, .dest:active { transform: none; }
+  .dest:active { transform: none; }
 }
 
 /* ===========================================================================
@@ -1179,16 +1106,6 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 @media (max-width: 620px) {
   .wasap { left: 16px; bottom: 18px; width: 48px; height: 48px; }
   .wasap svg { width: 27px; height: 27px; }
-
-  /* En el telefono el boton del pedido es una barra de lado a lado, asi que el
-     de WhatsApp se corre para arriba mientras haya algo en el carrito. El dock
-     esta antes en el HTML, por eso alcanza con el combinador de hermanos.
-
-     Se mueve con `bottom` y no con transform, y sin transicion: el salto se
-     nota un poco, pero correrlo con una transicion significaria que si los
-     fotogramas no corren los dos botones quedan encimados. Que no se pisen no
-     puede depender de que la animacion llegue. */
-  .dock:not([hidden]) ~ .wasap { bottom: calc(76px + env(safe-area-inset-bottom)); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1207,7 +1124,7 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 
 /* ---------- Numeros: Manrope con cifras tabulares ---------- */
 .pieza-precio, .ficha-precio, .pedido-subtotal, .pedido-total,
-.dock-total, .dock-cuenta, .paso-valor, .dest-precio {
+.paso-valor, .dest-precio {
   font-family: var(--datos); font-variant-numeric: tabular-nums; letter-spacing: -.02em;
 }
 .pieza-precio { font-weight: 800; font-size: 17px; }
@@ -1215,7 +1132,7 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 .ficha-precio { font-weight: 800; font-size: 30px; letter-spacing: -.03em; }
 .pedido-subtotal { font-weight: 700; }
 .pedido-total { font-weight: 800; }
-.pieza-meta, .pieza-unit, .remito-linea, .marcador span, .destacados-nota, .rubro-cuenta {
+.pieza-meta, .pieza-unit, .remito-linea, .destacados-nota, .rubro-cuenta {
   font-family: var(--texto); letter-spacing: 0;
 }
 .pieza-meta { font-size: 12.5px; font-weight: 500; }
@@ -1260,10 +1177,6 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 }
 .destacados-tit { text-transform: none; letter-spacing: -.01em; font-size: 16px; font-weight: 800; }
 .destacados-nota { font-size: 12px; font-weight: 600; }
-.marcador b { font-size: 24px; font-weight: 800; }
-.marcador span { font-size: 12px; font-weight: 600; letter-spacing: .02em; text-transform: none; }
-.paradas .ruta-base { stroke: rgba(197, 214, 236, .3); }
-.paradas .anillo { stroke: rgba(197, 214, 236, .45); }
 .dest { border: 1px solid var(--linea); border-radius: var(--m-r-lg); box-shadow: none; }
 .dest:hover { box-shadow: var(--flota-3); border-color: transparent; }
 .dest-orden {
@@ -1281,13 +1194,11 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 .cajon-titulo { text-transform: none; letter-spacing: -.01em; font-size: 17px; font-weight: 800; }
 .rubro { font-size: 14px; font-weight: 600; letter-spacing: 0; border-radius: var(--m-r-md); }
 .enviado h3 { letter-spacing: -.01em; font-size: 20px; }
-.campo { border: 1px solid var(--m-linea-2); box-shadow: none; border-radius: var(--m-r-md); min-height: 40px; }
+.campo { border: 1px solid var(--borde); box-shadow: none; border-radius: var(--m-r-md); min-height: 40px; }
 .campo:focus { border-color: var(--m-azul-500); box-shadow: var(--m-foco); }
 .alerta, .pedido-largo { box-shadow: none; border: 1px solid var(--linea); border-left: 3px solid var(--azul); }
 .paso { border: 1px solid var(--linea); background: var(--losa); }
 .pieza-paso.paso { border: 0; background: var(--marca); }
-.dock { border-radius: var(--m-r-md); font-family: var(--texto); font-size: 14px; letter-spacing: -.005em; text-transform: none; }
-.dock-cuenta { border-radius: var(--m-r-pill); }
 .tema[aria-checked="true"] .tema-pista { background: var(--m-azul-500); }
 
 /* ---------- Pie con el logo ---------- */
@@ -1305,4 +1216,130 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
   .pieza-precio { font-size: 18px; }
   .banner { border-radius: 0 0 var(--m-r-lg) var(--m-r-lg); }
   .pie { padding: 28px 18px 44px; }
+}
+
+/* ===========================================================================
+   Estructura: portada, carrito, precio con boton, contacto y barra inferior
+   ---------------------------------------------------------------------------
+   Seis ajustes de uso, no de estilo: el carrito se ve siempre arriba, la
+   portada tiene una sola llamada a la accion, el boton de sumar queda junto al
+   precio, el contacto tiene su bloque, el celular tiene barra inferior y el
+   filtro de rubros dice cual esta activo.
+   =========================================================================== */
+
+/* ---------- Portada: titulo, una linea y un boton ---------- */
+.banner { padding: 56px 44px 116px; min-height: 0; align-items: flex-start; }
+.banner-sub {
+  margin: 16px 0 28px; max-width: 46ch; position: relative; z-index: 3;
+  font-size: 17px; line-height: 1.5; color: rgba(255, 255, 255, .82);
+}
+.boton-claro {
+  position: relative; z-index: 3;
+  background: #fff; color: var(--m-marino-800); box-shadow: none;
+}
+.boton-claro:hover { background: var(--m-azul-100); box-shadow: none; }
+
+/* ---------- Carrito en el encabezado ---------- */
+.carrito {
+  position: relative; flex: 0 0 auto; width: 40px; height: 40px; padding: 0;
+  appearance: none; cursor: pointer; display: grid; place-items: center;
+  border: 1px solid var(--borde); border-radius: var(--m-r-md);
+  background: var(--losa); color: var(--tinta);
+  transition: transform .16s var(--curva-fuerte), border-color .16s var(--curva);
+}
+.carrito .ico { width: 20px; height: 20px; }
+.carrito:active { transform: scale(.96); }
+@media (hover: hover) and (pointer: fine) {
+  .carrito:hover { border-color: var(--m-azul-300); }
+}
+.carrito-cuenta, .bi-cuenta {
+  min-width: 18px; height: 18px; padding: 0 5px; border-radius: var(--m-r-pill);
+  background: var(--marca); color: var(--marca-tinta);
+  font: 800 11px/18px var(--texto); text-align: center; font-variant-numeric: tabular-nums;
+}
+.carrito-cuenta { position: absolute; top: -6px; right: -6px; box-shadow: 0 0 0 2px var(--losa); }
+.salta { animation: salta .22s var(--curva-fuerte); }
+@keyframes salta { 0% { transform: scale(.8); } 60% { transform: scale(1.15); } 100% { transform: scale(1); } }
+
+/* ---------- Rubros: boton con texto, dice cual esta activo ---------- */
+.hamburguesa {
+  width: auto; min-width: 40px; height: 40px; padding: 0 14px;
+  flex-direction: row; gap: 9px;
+  border: 1px solid var(--borde); background: var(--losa);
+  border-radius: var(--m-r-md);
+  font: 700 14px/1 var(--texto); letter-spacing: -.005em; color: var(--tinta);
+}
+.hamburguesa .hamburguesa-rayas { display: flex; flex-direction: column; gap: 4px; width: auto; height: auto; background: none; border-radius: 0; }
+.hamburguesa .hamburguesa-rayas span { display: block; width: 16px; height: 1.8px; border-radius: 2px; background: currentColor; }
+.hamburguesa .hamburguesa-txt { width: auto; height: auto; background: none; border-radius: 0; white-space: nowrap; }
+.hamburguesa.activo { background: var(--marca); border-color: var(--marca); color: var(--marca-tinta); }
+
+/* ---------- Precio y boton en la misma fila ---------- */
+.pieza-pie { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 3px; min-height: 44px; }
+.pieza-precios { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.pieza-mando { position: relative; z-index: 3; flex: 0 0 auto; }
+.pieza-mando .mas, .pieza-mando .pieza-paso { position: static; transform: none; }
+.pieza-mando .mas:hover { transform: scale(1.06); }
+.pieza-mando .pieza-paso { display: flex; }
+
+/* El boton ya no esta sobre la foto: el producto baja y se centra en su banda */
+.pieza-losa img { margin-bottom: 16%; }
+.pieza-losa:not(.sin-foto)::before { bottom: 12%; }
+
+/* ---------- Bloque de contacto ---------- */
+.contacto { max-width: var(--ancho); margin: 56px auto 0; padding: 0 24px; }
+.contacto-caja {
+  display: flex; align-items: center; justify-content: space-between; gap: 20px 32px; flex-wrap: wrap;
+  background: var(--marino); color: #fff; border-radius: var(--m-r-xl); padding: 32px 40px;
+}
+.contacto-tit { margin: 0; font: 800 clamp(20px, 2.4vw, 26px)/1.2 var(--display); letter-spacing: -.02em; }
+.contacto-texto p { margin: 6px 0 0; color: rgba(255, 255, 255, .78); font-size: 15px; }
+.pie { margin-top: 56px; }
+
+/* ---------- Barra inferior (solo celular) ---------- */
+.barra-inferior { display: none; }
+
+@media (max-width: 620px) {
+  .banner { padding: 36px 18px 104px; }
+  .banner-sub { font-size: 15.5px; margin: 12px 0 22px; }
+
+  .carrito { display: none; }           /* en el telefono el pedido vive abajo */
+  .hamburguesa { padding: 0; width: 40px; justify-content: center; }
+  .hamburguesa .hamburguesa-txt { display: none; }
+  .hamburguesa.activo { width: auto; padding: 0 12px; }
+  .hamburguesa.activo .hamburguesa-txt { display: inline; max-width: 12ch; overflow: hidden; text-overflow: ellipsis; }
+
+  .pieza-pie { flex-direction: row; align-items: center; gap: 10px; padding: 0 2px; }
+  .pieza-losa img { margin-bottom: 14%; }
+  .pieza-losa:not(.sin-foto)::before { bottom: 10%; }
+
+  .contacto { padding: 0 10px; margin-top: 40px; }
+  .contacto-caja { padding: 24px 20px; }
+  .contacto-caja .boton { width: 100%; }
+
+  body { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+  .wasap { display: none; }              /* el contacto esta en la barra de abajo */
+  .nota { bottom: calc(76px + env(safe-area-inset-bottom)); }
+
+  .barra-inferior {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 44;
+    display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
+    background: var(--losa); border-top: 1px solid var(--linea);
+    padding: 6px 6px calc(6px + env(safe-area-inset-bottom));
+  }
+  .bi-item {
+    position: relative; appearance: none; border: 0; background: none; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    min-height: 48px; border-radius: var(--m-r-md);
+    font: 600 11.5px/1.1 var(--texto); color: var(--tinta-3); text-decoration: none;
+    transition: color .16s var(--curva), transform .16s var(--curva-fuerte);
+  }
+  .bi-item .ico { width: 22px; height: 22px; }
+  .bi-item.activo { color: var(--marca); }
+  .bi-item:active { transform: scale(.96); }
+  .bi-cuenta { position: absolute; top: 2px; left: calc(50% + 6px); box-shadow: 0 0 0 2px var(--losa); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .salta { animation: none; }
 }
