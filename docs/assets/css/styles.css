@@ -739,9 +739,9 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 /* ===========================================================================
    Banner, destacados y vitrina
    ---------------------------------------------------------------------------
-   El banner y el carrusel no se tocan: se entrelazan. Los destacados suben con
-   un margen negativo y quedan mitad sobre el azul, mitad sobre el beige, asi
-   no hay una costura que disimular entre las dos secciones.
+   El banner lleva el titulo a la izquierda y el carrusel de los mas pedidos a
+   la derecha, dentro del mismo bloque marino. En celular el carrusel queda
+   debajo del boton.
    =========================================================================== */
 
 /* ---------- Banner ---------- */
@@ -749,6 +749,13 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
   position: relative; overflow: hidden; color: #fff; background: var(--marino);
   padding: 48px 44px 116px; min-height: 320px; display: flex; flex-direction: column;
 }
+/* Titulo a la izquierda, carrusel a la derecha. Sin carrusel queda solo el texto. */
+.banner-in {
+  max-width: var(--ancho); width: 100%; margin: 0 auto;
+  display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr); gap: 40px; align-items: center;
+}
+.banner-in:has(.destacados[hidden]) { grid-template-columns: 1fr; }
+.banner-texto { min-width: 0; }
 .banner-tit {
   font-family: var(--display); font-weight: 800;
   font-size: clamp(30px, 5vw, 58px); line-height: .98; letter-spacing: -.02em;
@@ -757,9 +764,9 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 
 /* El recorrido del dia. Cada parada se completa a su paso, queda marcada casi
    todo el ciclo y se limpia al final para volver a empezar. */
-/* ---------- Destacados, montados sobre el banner ---------- */
-.destacados { max-width: var(--ancho); margin: -104px auto 0; padding: 22px 0 8px; position: relative; z-index: 3; }
-.destacados-cab { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; padding: 0 24px 14px; }
+/* ---------- Destacados, a la derecha del titulo ---------- */
+.destacados { min-width: 0; position: relative; z-index: 3; }
+.destacados-cab { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; padding: 0 0 12px; }
 .destacados-tit {
   font-family: var(--display); font-weight: 700; font-size: 13px;
   letter-spacing: .16em; text-transform: uppercase; margin: 0; color: #fff;
@@ -767,13 +774,16 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 .destacados-nota { font-family: var(--datos); font-size: 10.5px; color: rgba(255, 255, 255, .6); letter-spacing: .04em; }
 .destacados-pista {
   display: flex; gap: 14px; overflow-x: auto;
-  padding: 4px 24px 18px;
+  padding: 4px 2px 16px;
   scrollbar-width: none; -webkit-overflow-scrolling: touch;
+  /* se desvanece en los bordes: el carrusel no termina en un corte seco */
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 16px, #000 calc(100% - 30px), transparent);
+  mask-image: linear-gradient(90deg, transparent 0, #000 16px, #000 calc(100% - 30px), transparent);
 }
 .destacados-pista::-webkit-scrollbar { display: none; }
 
 .dest {
-  flex: 0 0 226px; position: relative;
+  flex: 0 0 204px; position: relative;
   border-radius: var(--r-medio); overflow: hidden; background: var(--losa);
   box-shadow: var(--flota-2);
   transition: transform .24s var(--curva), box-shadow .24s var(--curva);
@@ -890,10 +900,8 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 .mas:active { transform: scale(.94); }
 
 @media (max-width: 620px) {
-  .banner { padding: 32px 18px 104px; min-height: 280px; }
-  .destacados { margin-top: -92px; padding: 18px 0 4px; }
-  .destacados-cab { padding: 0 14px 12px; }
-  .destacados-pista { padding: 4px 14px 16px; gap: 11px; }
+  .destacados { margin-inline: -18px; padding-inline: 18px; }
+  .destacados-pista { gap: 11px; }
   .dest { flex: 0 0 168px; }
 
   /* Un producto por fila, con tope de ancho para que no se estire de mas. */
@@ -1228,7 +1236,7 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
    =========================================================================== */
 
 /* ---------- Portada: titulo, una linea y un boton ---------- */
-.banner { padding: 56px 44px 116px; min-height: 0; align-items: flex-start; }
+.banner { padding: 52px 44px 56px; min-height: 0; }
 .banner-sub {
   margin: 16px 0 28px; max-width: 46ch; position: relative; z-index: 3;
   font-size: 17px; line-height: 1.5; color: rgba(255, 255, 255, .82);
@@ -1300,7 +1308,8 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 .barra-inferior { display: none; }
 
 @media (max-width: 620px) {
-  .banner { padding: 36px 18px 104px; }
+  .banner { padding: 34px 18px 36px; }
+  .banner-in { grid-template-columns: 1fr; gap: 30px; }
   .banner-sub { font-size: 15.5px; margin: 12px 0 22px; }
 
   .carrito { display: none; }           /* en el telefono el pedido vive abajo */

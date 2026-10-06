@@ -1732,7 +1732,7 @@
 
   aplicarTema(esOscuro());
   seguirSeccion();
-  arrastrable($('destacados-pista'), true);
+  arrastrable($('destacados-pista'), false);   // sin rueda: esta arriba y no debe trabar el scroll de la pagina
   marquesina($('destacados-pista'));
   arrastrable($('chips'), false);
   recuperarPedido();

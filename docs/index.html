@@ -21,9 +21,9 @@
      el HTML nuevo y el JavaScript viejo, y la pagina se rompe. -->
 <!-- Identidad visual de Marcial: tokens (unico lugar con valores) y componentes
      base. Van antes que styles.css, que usa sus variables. -->
-<link rel="stylesheet" href="assets/marca/tokens.css?v=20">
-<link rel="stylesheet" href="assets/marca/marcial.css?v=20">
-<link rel="stylesheet" href="assets/css/styles.css?v=20">
+<link rel="stylesheet" href="assets/marca/tokens.css?v=21">
+<link rel="stylesheet" href="assets/marca/marcial.css?v=21">
+<link rel="stylesheet" href="assets/css/styles.css?v=21">
 
 <!-- Antes del primer pintado, para que no se vea el salto de claro a oscuro. -->
 <script>
@@ -87,21 +87,25 @@
 
 <!-- ===================== Portada ===================== -->
 <section class="banner" id="inicio">
-  <h1 class="banner-tit" id="banner-titulo">Tu pedido, en camino</h1>
-  <p class="banner-sub" id="banner-sub">Mirá el catálogo completo, con fotos y precios.</p>
-  <a class="boton boton-claro" href="#catalogo">
-    Ver catálogo
-    <svg class="ico" aria-hidden="true"><use href="assets/marca/iconos.svg#i-arrow-right"/></svg>
-  </a>
-</section>
+  <div class="banner-in">
+    <div class="banner-texto">
+      <h1 class="banner-tit" id="banner-titulo">Tu pedido, en camino</h1>
+      <p class="banner-sub" id="banner-sub">Mirá el catálogo completo, con fotos y precios.</p>
+      <a class="boton boton-claro" href="#catalogo">
+        Ver catálogo
+        <svg class="ico" aria-hidden="true"><use href="assets/marca/iconos.svg#i-arrow-right"/></svg>
+      </a>
+    </div>
 
-<!-- Los destacados suben y se montan sobre el azul del banner -->
-<section class="destacados" id="destacados" hidden aria-label="Los mas pedidos">
-  <div class="destacados-cab">
-    <h2 class="destacados-tit">Los más pedidos</h2>
-    <span class="destacados-nota">Deslizá &rarr;</span>
+    <!-- Los mas pedidos: avanzan solos, a la derecha del titulo -->
+    <section class="destacados" id="destacados" hidden aria-label="Los mas pedidos">
+      <div class="destacados-cab">
+        <h2 class="destacados-tit">Los más pedidos</h2>
+        <span class="destacados-nota">Deslizá &rarr;</span>
+      </div>
+      <div class="destacados-pista" id="destacados-pista"></div>
+    </section>
   </div>
-  <div class="destacados-pista" id="destacados-pista"></div>
 </section>
 
 <!-- ===================== Filtros ===================== -->
@@ -293,7 +297,7 @@
 
 <div class="nota" id="aviso" hidden></div>
 
-<script src="config.js?v=20"></script>
-<script src="assets/js/app.js?v=20"></script>
+<script src="config.js?v=21"></script>
+<script src="assets/js/app.js?v=21"></script>
 </body>
 </html>
