@@ -11,10 +11,18 @@
  *
  * USO (una sola vez):
  *   1. Completar la seccion CONFIGURACION de abajo.
- *   2. Ejecutar  instalarActivadores()  y aceptar los permisos.
+ *   2. Ejecutar  probarSinGuardar()  : muestra que celdas se van a usar y NO
+ *      crea ni cambia nada.
  *   3. Ejecutar  actualizarListaPDF()  una vez a mano: crea el PDF y deja el
  *      enlace en  Ver > Registros de ejecucion.
- *   4. Pasar ese enlace al catalogo (config.js, campo LISTA_PDF).
+ *   4. Ejecutar  instalarActivadores()  para que se mantenga al dia solo.
+ *   5. Pasar el enlace al catalogo (config.js, campo LISTA_PDF).
+ *
+ * SOLO LECTURA: este script NUNCA escribe en la planilla. Solo lee los valores
+ * visibles del rango. Lo unico que crea o cambia es el archivo PDF, en Drive, y
+ * sus propios datos internos del script. Ademas, el archivo appsscript.json que
+ * lo acompana pide permiso de solo lectura sobre las hojas: aunque alguien
+ * agregara por error una instruccion de escritura, Google la rechazaria.
  *
  * IMPORTANTE: el PDF es PUBLICO (cualquiera con el enlace). El rango tiene que
  * incluir solo precios de venta; nunca costos ni margenes.
@@ -81,24 +89,35 @@ function verEnlace() {
   Logger.log(id ? 'https://drive.google.com/file/d/' + id + '/view' : 'Todavia no se genero el PDF: ejecutar actualizarListaPDF().');
 }
 
-/** Crea los activadores: revision periodica y revision al editar. */
+/** Crea la revision periodica. No toca la planilla: solo programa este script. */
 function instalarActivadores() {
   ScriptApp.getProjectTriggers().forEach(function (t) {
-    var f = t.getHandlerFunction();
-    if (f === 'actualizarListaPDF' || f === 'alEditar_') ScriptApp.deleteTrigger(t);
+    if (t.getHandlerFunction() === 'actualizarListaPDF') ScriptApp.deleteTrigger(t);
   });
   ScriptApp.newTrigger('actualizarListaPDF').timeBased().everyMinutes(CONFIG.REVISAR_CADA_MINUTOS).create();
-  ScriptApp.newTrigger('alEditar_').forSpreadsheet(CONFIG.SPREADSHEET_ID).onChange().create();
-  Logger.log('Activadores instalados. Ahora ejecutar actualizarListaPDF() una vez.');
+  Logger.log('Listo: se revisa cada ' + CONFIG.REVISAR_CADA_MINUTOS + ' minutos.');
 }
 
-/** Al cambiar la planilla se revisa enseguida (con tope de una vez por minuto). */
-function alEditar_() {
-  var props = PropertiesService.getScriptProperties();
-  var ultima = Number(props.getProperty('LISTA_PDF_ULTIMA_REVISION') || 0);
-  if (Date.now() - ultima < 60000) return;     // la revision periodica lo toma despues
-  props.setProperty('LISTA_PDF_ULTIMA_REVISION', String(Date.now()));
-  actualizarListaPDF();
+/** Para sacar la revision automatica. */
+function quitarActivadores() {
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'actualizarListaPDF') ScriptApp.deleteTrigger(t);
+  });
+  Logger.log('Revision automatica desactivada.');
+}
+
+/**
+ * Prueba segura: solo LEE el rango y lo muestra en el registro. No crea el PDF
+ * ni cambia nada, ni en la planilla ni en Drive.
+ */
+function probarSinGuardar() {
+  var hoja = obtenerHoja_();
+  var rango = CONFIG.RANGO ? hoja.getRange(CONFIG.RANGO) : hoja.getDataRange();
+  var valores = rango.getDisplayValues();
+  Logger.log('Hoja: ' + hoja.getName() + ' | Rango: ' + rango.getA1Notation() +
+    ' | ' + valores.length + ' filas x ' + (valores[0] ? valores[0].length : 0) + ' columnas');
+  Logger.log('Primera fila: ' + JSON.stringify(valores[0]));
+  Logger.log('Ultima fila: ' + JSON.stringify(valores[valores.length - 1]));
 }
 
 // ------------------------------- internos ----------------------------------

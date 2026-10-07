@@ -4,25 +4,42 @@
 al dia en Drive. El archivo es siempre el mismo, asi que el enlace no cambia y
 el boton "Ver lista de precios" del catalogo apunta a un enlace fijo.
 
-## Instalacion (una sola vez, en el Apps Script del Spreadsheet)
+## Garantia de solo lectura
 
-1. Abrir el Spreadsheet `Precios COSTO - VENTA` > Extensiones > Apps Script.
-2. Crear un archivo nuevo (`+` > Script) llamado `ListaPDF` y pegar todo el
-   contenido de `ListaPDF.gs`.
+El script **no escribe nunca en la planilla**: solo lee los valores visibles del
+rango (`getDisplayValues`). Lo unico que crea o cambia es el PDF en Drive.
+Ademas `appsscript.json` pide permiso `spreadsheets.readonly`: Google rechaza
+cualquier intento de escribir en una hoja. No usa `setValue`, `clear`,
+`insert`, `delete`, `sort` ni nada que modifique celdas, formulas o formatos.
+
+## Antes de empezar
+
+1. Hacer una copia de seguridad de la planilla: Archivo > Hacer una copia.
+2. Crear un proyecto de Apps Script **nuevo y aparte** (script.google.com >
+   Nuevo proyecto), no dentro de la planilla ni del Apps Script del catalogo:
+   asi no se toca ningun script existente.
+
+## Instalacion (una sola vez)
+
+1. En el proyecto nuevo, pegar `ListaPDF.gs` en `Codigo.gs`.
+2. Configuracion del proyecto (engranaje) > tildar "Mostrar el archivo de
+   manifiesto appsscript.json", abrirlo y reemplazar su contenido por el de
+   `appsscript.json` de esta carpeta.
 3. Completar `CONFIG` arriba: `SPREADSHEET_ID`, `HOJA`, `RANGO` y, si se quiere,
    `CARPETA_ID`.
-4. Ejecutar `instalarActivadores` (acepta los permisos de Drive y Sheets).
-5. Ejecutar `actualizarListaPDF`. El enlace queda en Ejecuciones/Registros
+4. Ejecutar `probarSinGuardar`: solo muestra el rango en el registro, no crea ni
+   cambia nada. Revisar que sean las celdas correctas y que no haya costos.
+5. Ejecutar `actualizarListaPDF`. Crea el PDF y deja el enlace en el registro
    (o ejecutar `verEnlace`).
-6. Pegar ese enlace en `docs/config.js`, campo `LISTA_PDF`. Con eso el boton de
+6. Ejecutar `instalarActivadores` para que se mantenga al dia solo.
+7. Pegar el enlace en `docs/config.js`, campo `LISTA_PDF`. Con eso el boton de
    la portada pasa a decir "Ver lista de precios" y abre el PDF.
 
 ## Como se mantiene al dia
 
-- Cada 5 minutos compara el contenido de las celdas con la ultima version.
-  Si cambio algo, regenera el PDF. Detecta cambios hechos a mano, por formula o
-  por otro script.
-- Ademas se revisa apenas se modifica la planilla (maximo una vez por minuto).
+- Cada 5 minutos (configurable) compara el contenido de las celdas con la ultima
+  version. Si cambio algo, regenera el PDF. Detecta cambios hechos a mano, por
+  formula o por otro script. Para desactivarlo: `quitarActivadores`.
 
 ## Cuidados
 
