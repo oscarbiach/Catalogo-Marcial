@@ -161,18 +161,53 @@
    * Si la base falla o esta apagada, se lee de Apps Script como antes. Por eso
    * volver atras es poner `activo: false` en config.js y nada mas.
    */
-  var BD = CFG.INSFORGE || {};
+  var BD = CFG.INSFORGE || {};     // la base anterior (queda de respaldo)
+  var SB = CFG.SUPABASE || {};     // la base nueva
 
-  function baseActiva() {
+  function supabaseActivo() {
+    return !!(SB.activo && SB.URL && SB.ANON);
+  }
+
+  function insforgeActivo() {
     return !!(BD.activo && BD.URL && BD.ANON);
   }
 
-  function pedirABase(ruta) {
+  function baseActiva() {
+    return supabaseActivo() || insforgeActivo();
+  }
+
+  function pedirAInsforge(ruta) {
     return fetch(BD.URL + ruta, { headers: { Authorization: 'Bearer ' + BD.ANON } })
       .then(function (r) {
-        if (!r.ok) throw new Error('La base respondio ' + r.status + '.');
+        if (!r.ok) throw new Error('Insforge respondio ' + r.status + '.');
         return r.json();
       });
+  }
+
+  /**
+   * Lee una tabla de Supabase de a paginas: la API corta en 1000 filas por
+   * pedido, y el catalogo puede pasarse. La clave que usa el sitio es la
+   * publica (anon): las politicas de la base solo le dejan leer el catalogo.
+   */
+  var PAGINA_SB = 1000;
+
+  function pedirASupabase(tabla, consulta) {
+    var cabeceras = { apikey: SB.ANON, Authorization: 'Bearer ' + SB.ANON };
+
+    function pagina(desde, acumulado) {
+      var url = SB.URL + '/rest/v1/' + tabla + '?' + consulta +
+        '&limit=' + PAGINA_SB + '&offset=' + desde;
+      return fetch(url, { headers: cabeceras }).then(function (r) {
+        if (!r.ok) throw new Error('Supabase respondio ' + r.status + '.');
+        return r.json();
+      }).then(function (filas) {
+        if (!Array.isArray(filas)) throw new Error('Supabase devolvio algo inesperado.');
+        acumulado = acumulado.concat(filas);
+        if (filas.length < PAGINA_SB || acumulado.length >= 20 * PAGINA_SB) return acumulado;
+        return pagina(desde + PAGINA_SB, acumulado);
+      });
+    }
+    return pagina(0, []);
   }
 
   /**
@@ -222,14 +257,24 @@
     };
   }
 
-  function pedirCatalogoABase() {
+  function pedirCatalogoAInsforge() {
     return Promise.all([
-      pedirABase('/api/database/records/productos?limit=5000&order=posicion.asc'),
-      pedirABase('/api/database/records/config?limit=200'),
+      pedirAInsforge('/api/database/records/productos?limit=5000&order=posicion.asc'),
+      pedirAInsforge('/api/database/records/config?limit=200'),
     ]).then(function (partes) {
       var filas = partes[0], claves = partes[1];
       if (!Array.isArray(filas) || !filas.length) throw new Error('La base devolvio el catalogo vacio.');
       return armarDesdeBase(filas, Array.isArray(claves) ? claves : []);
+    });
+  }
+
+  function pedirCatalogoASupabase() {
+    return Promise.all([
+      pedirASupabase('productos', 'select=*&order=posicion.asc,nombre.asc'),
+      pedirASupabase('config', 'select=clave,valor&order=clave.asc'),
+    ]).then(function (partes) {
+      if (!partes[0].length) throw new Error('Supabase devolvio el catalogo vacio.');
+      return armarDesdeBase(partes[0], partes[1]);
     });
   }
 
@@ -244,21 +289,33 @@
    * servidor con los suyos.
    */
   function anotarPedido(lineas) {
-    if (!baseActiva() || !BD.guardarPedidos || !lineas.length) return;
+    var aSupabase = supabaseActivo() && SB.guardarPedidos;
+    var aInsforge = !aSupabase && insforgeActivo() && BD.guardarPedidos;
+    if ((!aSupabase && !aInsforge) || !lineas.length) return;
 
-    var cuerpo = {
-      cliente: ($('pedido-nombre').value || '').slice(0, 300),
-      nota: ($('pedido-nota').value || '').slice(0, 300),
-      items: lineas.map(function (l) {
-        return { id: String(l.producto.id), cantidad: l.cantidad };
-      }),
-    };
+    var cliente = ($('pedido-nombre').value || '').slice(0, 300);
+    var nota = ($('pedido-nota').value || '').slice(0, 300);
+    var items = lineas.map(function (l) {
+      return { id: String(l.producto.id), cantidad: l.cantidad };
+    });
 
     try {
-      fetch(BD.URL + '/functions/pedido', {
+      var pedido = aSupabase
+        ? {
+            url: SB.URL + '/rest/v1/rpc/registrar_pedido',
+            headers: { apikey: SB.ANON, Authorization: 'Bearer ' + SB.ANON, 'Content-Type': 'application/json' },
+            cuerpo: { p_cliente: cliente, p_nota: nota, p_items: items },
+          }
+        : {
+            url: BD.URL + '/functions/pedido',
+            headers: { Authorization: 'Bearer ' + BD.ANON, 'Content-Type': 'application/json' },
+            cuerpo: { cliente: cliente, nota: nota, items: items },
+          };
+
+      fetch(pedido.url, {
         method: 'POST',
-        headers: { Authorization: 'Bearer ' + BD.ANON, 'Content-Type': 'application/json' },
-        body: JSON.stringify(cuerpo),
+        headers: pedido.headers,
+        body: JSON.stringify(pedido.cuerpo),
         keepalive: true,   // el navegador lo termina aunque la pestania se vaya a WhatsApp
       }).catch(function () { /* que no se guarde no es problema del cliente */ });
     } catch (err) {
@@ -288,15 +345,24 @@
   }
 
   /**
-   * Pide el catalogo a la base y, si no se puede, a Apps Script. El respaldo no
-   * es adorno: es lo que hace que apagar la base sea inofensivo.
+   * Pide el catalogo a la primera fuente que responda: Supabase, despues
+   * Insforge, despues Apps Script. El respaldo no es adorno: es lo que hace
+   * que apagar una base sea inofensivo.
    */
   function pedirCatalogo() {
-    if (!baseActiva()) return pedirCatalogoAAppsScript();
-    return pedirCatalogoABase().catch(function (err) {
-      if (window.console) console.warn('La base no respondio, se usa Apps Script:', err.message);
-      return pedirCatalogoAAppsScript();
-    });
+    var fuentes = [];
+    if (supabaseActivo()) fuentes.push(['Supabase', pedirCatalogoASupabase]);
+    if (insforgeActivo()) fuentes.push(['Insforge', pedirCatalogoAInsforge]);
+    fuentes.push(['Apps Script', pedirCatalogoAAppsScript]);
+
+    function probar(i) {
+      return fuentes[i][1]().catch(function (err) {
+        if (i === fuentes.length - 1) throw err;   // la ultima no tiene respaldo
+        if (window.console) console.warn(fuentes[i][0] + ' no respondio, se prueba ' + fuentes[i + 1][0] + ':', err.message);
+        return probar(i + 1);
+      });
+    }
+    return probar(0);
   }
 
   function pedirCatalogoAAppsScript() {

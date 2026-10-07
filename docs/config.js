@@ -30,6 +30,19 @@ window.CATALOGO_CONFIG = {
     guardarPedidos: true,
   },
 
+  // --- Supabase (la base nueva) -----------------------------------------
+  // Se lee primero de aca; si falla o esta apagada, se prueba Insforge y
+  // despues Apps Script. Para encenderla: crear el proyecto, correr
+  // supabase/01-catalogo.sql y pegar abajo la URL y la clave PUBLICA (anon)
+  // del proyecto, y poner `activo: true`. Nunca pegar aca la clave
+  // service_role: esa no se puede publicar. Guia: supabase/LEEME.md
+  SUPABASE: {
+    activo: false,
+    URL: '',     // https://XXXX.supabase.co
+    ANON: '',    // clave publica (anon / publishable)
+    guardarPedidos: true,
+  },
+
   // Minutos que el navegador reutiliza el catalogo guardado antes de pedirlo
   // de nuevo. El contenido igual se refresca en segundo plano en cada visita.
   MINUTOS_CACHE: 30,
