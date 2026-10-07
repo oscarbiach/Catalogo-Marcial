@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Marcial Distribuidora</title>
 <meta name="description" content="Catalogo de productos con fotos y precios.">
+<meta name="theme-color" content="#8546D2" media="(max-width: 620px)">
 <meta name="theme-color" content="#F2F5F9" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#081629" media="(prefers-color-scheme: dark)">
 
@@ -21,9 +22,9 @@
      el HTML nuevo y el JavaScript viejo, y la pagina se rompe. -->
 <!-- Identidad visual de Marcial: tokens (unico lugar con valores) y componentes
      base. Van antes que styles.css, que usa sus variables. -->
-<link rel="stylesheet" href="assets/marca/tokens.css?v=23">
-<link rel="stylesheet" href="assets/marca/marcial.css?v=23">
-<link rel="stylesheet" href="assets/css/styles.css?v=23">
+<link rel="stylesheet" href="assets/marca/tokens.css?v=24">
+<link rel="stylesheet" href="assets/marca/marcial.css?v=24">
+<link rel="stylesheet" href="assets/css/styles.css?v=24">
 
 <!-- Antes del primer pintado, para que no se vea el salto de claro a oscuro. -->
 <script>
@@ -57,7 +58,14 @@
       <circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/>
     </svg>
     <input type="search" id="buscar" placeholder="Buscar" aria-label="Buscar producto" autocomplete="off">
+    <button class="buscar-cerrar" id="cerrar-buscar" type="button" aria-label="Cerrar la busqueda">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
   </div>
+
+  <button class="buscar-abrir" id="abrir-buscar" type="button" aria-label="Buscar producto" aria-expanded="false" aria-controls="buscar">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg>
+  </button>
 
   <a class="boton-fantasma" id="cta-whatsapp" hidden target="_blank" rel="noopener">Consultar</a>
 
@@ -83,6 +91,18 @@
   </div>
   <p class="cajon-bajada">Mostra solo lo que le sirve a tu comercio.</p>
   <nav class="cajon-lista" id="rubros-lista"></nav>
+
+  <div class="cajon-pie">
+    <a class="cajon-opcion" id="cajon-contacto" hidden target="_blank" rel="noopener">
+      <svg class="ico" aria-hidden="true"><use href="assets/marca/iconos.svg#i-message-circle"/></svg>
+      Contactar por WhatsApp
+    </a>
+    <button class="cajon-opcion cajon-tema" id="tema-cajon" type="button" role="switch" aria-checked="false">
+      <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+      Modo oscuro
+      <span class="tema-pista"><span class="tema-bola"></span></span>
+    </button>
+  </div>
 </aside>
 
 <!-- ===================== Portada ===================== -->
@@ -138,20 +158,6 @@
     <button class="boton-fantasma" id="reintentar" type="button">Reintentar</button>
   </div>
 </main>
-
-<!-- ===================== Contacto ===================== -->
-<section class="contacto" id="contacto" hidden aria-labelledby="contacto-tit">
-  <div class="contacto-caja">
-    <div class="contacto-texto">
-      <h2 class="contacto-tit" id="contacto-tit">¿Necesitás algo en particular?</h2>
-      <p>Escribinos y te ayudamos.</p>
-    </div>
-    <a class="boton boton-claro" id="contacto-wasap" target="_blank" rel="noopener">
-      <svg class="ico" aria-hidden="true"><use href="assets/marca/iconos.svg#i-message-circle"/></svg>
-      Contactar
-    </a>
-  </div>
-</section>
 
 <!-- ===================== Pie ===================== -->
 <footer class="pie">
@@ -273,8 +279,8 @@
   </svg>
 </a>
 
-<!-- Barra inferior del celular. El pedido y el contacto viven aca, asi que en
-     el telefono no hay boton flotante de WhatsApp ni barra de pedido. -->
+<!-- Barra inferior del celular. El pedido vive aca; el contacto esta en el
+     menu de la hamburguesa, asi que en el telefono no hay boton flotante. -->
 <nav class="barra-inferior" id="barra-inferior" aria-label="Secciones">
   <a class="bi-item activo" href="#inicio" data-seccion="inicio">
     <svg class="ico" aria-hidden="true"><use href="assets/marca/iconos.svg#i-house"/></svg>
@@ -289,15 +295,11 @@
     <span>Pedido</span>
     <span class="bi-cuenta" id="nav-cuenta" hidden>0</span>
   </button>
-  <a class="bi-item" id="nav-contacto" hidden target="_blank" rel="noopener">
-    <svg class="ico" aria-hidden="true"><use href="assets/marca/iconos.svg#i-message-circle"/></svg>
-    <span>Contactar</span>
-  </a>
 </nav>
 
 <div class="nota" id="aviso" hidden></div>
 
-<script src="config.js?v=23"></script>
-<script src="assets/js/app.js?v=23"></script>
+<script src="config.js?v=24"></script>
+<script src="assets/js/app.js?v=24"></script>
 </body>
 </html>

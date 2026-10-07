@@ -29,6 +29,7 @@
     orden: 'destacados',
     visibles: [],
     fichaActual: null,
+    fotoToken: 0,
     // El pedido guarda solo { idProducto: cantidad }. Nombre y precio se
     // resuelven contra el catalogo en cada dibujado, asi nunca se muestra un
     // precio viejo ni un producto que ya se dio de baja.
@@ -427,14 +428,12 @@
     var enlaceContacto = numero
       ? 'https://wa.me/' + numero + '?text=' + encodeURIComponent('Hola me comunico desde la pagina!')
       : '';
-    ['wasap', 'contacto-wasap', 'nav-contacto'].forEach(function (id) {
+    ['wasap', 'cajon-contacto'].forEach(function (id) {
       var el = $(id);
       if (!el) return;
       el.hidden = !numero;
       if (numero) el.href = enlaceContacto;
     });
-    // El bloque entero se va si no hay a donde escribir
-    if ($('contacto')) $('contacto').hidden = !numero;
   }
 
   function enlaceWhatsapp(producto) {
@@ -846,6 +845,13 @@
     delete img.dataset.alterna;
   }, true);
 
+  ['mouseover', 'touchstart'].forEach(function (tipo) {
+    $('grilla').addEventListener(tipo, function (evento) {
+      var piezaEl = evento.target.closest && evento.target.closest('.pieza');
+      if (piezaEl) precargarProducto(piezaEl.dataset.id);
+    }, { passive: true });
+  });
+
   $('grilla').addEventListener('click', function (evento) {
     var piezaEl = evento.target.closest('.pieza');
     if (!piezaEl) return;
@@ -1073,6 +1079,43 @@
     fijarCantidad(p.id, parseInt($('ficha-cantidad').value, 10) || 1);
   });
 
+  /**
+   * Las fotos vienen de Drive y tardan. Para que no se note:
+   *  - se muestra enseguida la miniatura que ya estaba bajada (la de la grilla
+   *    o la de la tira), desenfocada, y cuando llega la grande se cambia;
+   *  - las grandes de todo el producto se bajan en segundo plano apenas se abre
+   *    la ficha (y un poco antes, cuando el mouse pasa por encima), asi pasar de
+   *    una foto a otra ya no espera la red.
+   */
+  var ANCHO_FICHA = 1000;
+  var fotosListas = {};
+
+  function bajarFoto(fileId) {
+    var alta = urlImagen(fileId, ANCHO_FICHA);
+    if (fotosListas[alta]) return Promise.resolve(alta);
+    function cargar(url) {
+      return new Promise(function (listo, falla) {
+        var i = new Image();
+        i.decoding = 'async';
+        i.onload = function () { listo(url); };
+        i.onerror = falla;
+        i.src = url;
+      });
+    }
+    return cargar(alta).catch(function () {
+      return cargar(urlImagenAlterna(fileId, ANCHO_FICHA));
+    }).then(function (url) {
+      fotosListas[alta] = url;
+      return url;
+    });
+  }
+
+  function precargarProducto(id) {
+    var p = buscarProducto(id);
+    if (!p || !p.imagenes || !p.imagenes.length) return;
+    bajarFoto(p.imagenes[0]).catch(function () {});
+  }
+
   function dibujarGaleria(p) {
     var imagenes = p.imagenes || [];
     var img = $('ficha-img');
@@ -1089,7 +1132,7 @@
 
     img.hidden = false;
     marco.classList.remove('sin-foto');
-    mostrarFoto(imagenes[0], p.nombre);
+    mostrarFoto(imagenes[0], p.nombre, 480);
 
     $('ficha-tiras').innerHTML = imagenes.length > 1
       ? imagenes.map(function (id, i) {
@@ -1097,20 +1140,38 @@
             escapar(id) + '"><img src="' + urlImagen(id, 140) + '" alt=""></button>';
         }).join('')
       : '';
+
+    // El resto de las fotos, de a una y despues de la primera
+    var resto = imagenes.slice(1);
+    var token = estado.fotoToken;
+    (function siguiente() {
+      if (!resto.length || token !== estado.fotoToken) return;
+      bajarFoto(resto.shift()).then(siguiente, siguiente);
+    })();
   }
 
-  function mostrarFoto(fileId, nombre) {
+  function mostrarFoto(fileId, nombre, anchoBajo) {
     var img = $('ficha-img');
+    var token = ++estado.fotoToken;
+    var alta = urlImagen(fileId, ANCHO_FICHA);
     img.alt = nombre || '';
-    img.dataset.alterna = urlImagenAlterna(fileId, 1000);
-    img.src = urlImagen(fileId, 1000);
-  }
 
-  $('ficha-img').addEventListener('error', function () {
-    if (!this.dataset.alterna) return;
-    this.src = this.dataset.alterna;
-    delete this.dataset.alterna;
-  });
+    if (fotosListas[alta]) {               // ya bajada: aparece al instante
+      img.classList.remove('cargando');
+      img.src = fotosListas[alta];
+      return;
+    }
+
+    img.classList.add('cargando');
+    img.src = urlImagen(fileId, anchoBajo || 140);
+    bajarFoto(fileId).then(function (url) {
+      if (token !== estado.fotoToken) return;   // ya se paso a otra foto
+      img.src = url;
+      img.classList.remove('cargando');
+    }, function () {
+      if (token === estado.fotoToken) img.classList.remove('cargando');
+    });
+  }
 
   $('ficha-tiras').addEventListener('click', function (evento) {
     var tira = evento.target.closest('.ficha-tira');
@@ -1118,10 +1179,11 @@
     Array.prototype.forEach.call($('ficha-tiras').querySelectorAll('.ficha-tira'), function (t) {
       t.classList.toggle('viva', t === tira);
     });
-    mostrarFoto(tira.dataset.foto, estado.fichaActual ? estado.fichaActual.nombre : '');
+    mostrarFoto(tira.dataset.foto, estado.fichaActual ? estado.fichaActual.nombre : '', 140);
   });
 
   function cerrarFicha() {
+    estado.fotoToken++;   // corta la bajada de fotos en segundo plano
     ocultarSuave(ficha, 240);
     ocultarSuave($('ficha-velo'), 240);
     estado.fichaActual = null;
@@ -1634,20 +1696,46 @@
 
   function aplicarTema(oscuro) {
     document.documentElement.setAttribute('data-theme', oscuro ? 'dark' : 'light');
-    var boton = $('tema');
-    if (boton) {
+    ['tema', 'tema-cajon'].forEach(function (id) {
+      var boton = $(id);
+      if (!boton) return;
       boton.setAttribute('aria-checked', oscuro ? 'true' : 'false');
-      boton.setAttribute('aria-label', oscuro ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro');
-    }
+      if (id === 'tema') boton.setAttribute('aria-label', oscuro ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro');
+    });
   }
 
-  if ($('tema')) {
-    $('tema').addEventListener('click', function () {
+  ['tema', 'tema-cajon'].forEach(function (id) {
+    if (!$(id)) return;
+    $(id).addEventListener('click', function () {
       var ahora = !esOscuro();
       try { localStorage.setItem(CLAVE_TEMA, ahora ? 'oscuro' : 'claro'); } catch (err) { /* sin espacio: igual cambia */ }
       aplicarTema(ahora);
     });
-  }
+  });
+
+  // ---------- Buscador del celular: una lupa que abre el campo sobre la barra ----------
+
+  (function () {
+    var barra = document.querySelector('.barra');
+    var abrir = $('abrir-buscar');
+    var cerrar = $('cerrar-buscar');
+    if (!barra || !abrir || !cerrar) return;
+
+    function mostrar(si) {
+      barra.classList.toggle('buscando', si);
+      abrir.setAttribute('aria-expanded', si ? 'true' : 'false');
+      if (si) $('buscar').focus();
+    }
+    abrir.addEventListener('click', function () { mostrar(true); });
+    cerrar.addEventListener('click', function () {
+      $('buscar').value = '';
+      $('buscar').dispatchEvent(new Event('input', { bubbles: true }));
+      mostrar(false);
+    });
+    $('buscar').addEventListener('blur', function () {
+      if (!this.value) mostrar(false);
+    });
+  })();
 
   // Mientras el usuario no haya elegido, el sitio sigue al sistema en vivo.
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function (e) {
