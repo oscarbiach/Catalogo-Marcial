@@ -161,27 +161,14 @@
    * Si la base falla o esta apagada, se lee de Apps Script como antes. Por eso
    * volver atras es poner `activo: false` en config.js y nada mas.
    */
-  var BD = CFG.INSFORGE || {};     // la base anterior (queda de respaldo)
-  var SB = CFG.SUPABASE || {};     // la base nueva
+  var SB = CFG.SUPABASE || {};
 
   function supabaseActivo() {
     return !!(SB.activo && SB.URL && SB.ANON);
   }
 
-  function insforgeActivo() {
-    return !!(BD.activo && BD.URL && BD.ANON);
-  }
-
   function baseActiva() {
-    return supabaseActivo() || insforgeActivo();
-  }
-
-  function pedirAInsforge(ruta) {
-    return fetch(BD.URL + ruta, { headers: { Authorization: 'Bearer ' + BD.ANON } })
-      .then(function (r) {
-        if (!r.ok) throw new Error('Insforge respondio ' + r.status + '.');
-        return r.json();
-      });
+    return supabaseActivo();
   }
 
   /**
@@ -257,17 +244,6 @@
     };
   }
 
-  function pedirCatalogoAInsforge() {
-    return Promise.all([
-      pedirAInsforge('/api/database/records/productos?limit=5000&order=posicion.asc'),
-      pedirAInsforge('/api/database/records/config?limit=200'),
-    ]).then(function (partes) {
-      var filas = partes[0], claves = partes[1];
-      if (!Array.isArray(filas) || !filas.length) throw new Error('La base devolvio el catalogo vacio.');
-      return armarDesdeBase(filas, Array.isArray(claves) ? claves : []);
-    });
-  }
-
   function pedirCatalogoASupabase() {
     return Promise.all([
       pedirASupabase('productos', 'select=*&order=posicion.asc,nombre.asc'),
@@ -289,9 +265,7 @@
    * servidor con los suyos.
    */
   function anotarPedido(lineas) {
-    var aSupabase = supabaseActivo() && SB.guardarPedidos;
-    var aInsforge = !aSupabase && insforgeActivo() && BD.guardarPedidos;
-    if ((!aSupabase && !aInsforge) || !lineas.length) return;
+    if (!(supabaseActivo() && SB.guardarPedidos) || !lineas.length) return;
 
     var cliente = ($('pedido-nombre').value || '').slice(0, 300);
     var nota = ($('pedido-nota').value || '').slice(0, 300);
@@ -300,17 +274,11 @@
     });
 
     try {
-      var pedido = aSupabase
-        ? {
-            url: SB.URL + '/rest/v1/rpc/registrar_pedido',
-            headers: { apikey: SB.ANON, Authorization: 'Bearer ' + SB.ANON, 'Content-Type': 'application/json' },
-            cuerpo: { p_cliente: cliente, p_nota: nota, p_items: items },
-          }
-        : {
-            url: BD.URL + '/functions/pedido',
-            headers: { Authorization: 'Bearer ' + BD.ANON, 'Content-Type': 'application/json' },
-            cuerpo: { cliente: cliente, nota: nota, items: items },
-          };
+      var pedido = {
+        url: SB.URL + '/rest/v1/rpc/registrar_pedido',
+        headers: { apikey: SB.ANON, Authorization: 'Bearer ' + SB.ANON, 'Content-Type': 'application/json' },
+        cuerpo: { p_cliente: cliente, p_nota: nota, p_items: items },
+      };
 
       fetch(pedido.url, {
         method: 'POST',
@@ -346,13 +314,12 @@
 
   /**
    * Pide el catalogo a la primera fuente que responda: Supabase, despues
-   * Insforge, despues Apps Script. El respaldo no es adorno: es lo que hace
+   * Apps Script. El respaldo no es adorno: es lo que hace
    * que apagar una base sea inofensivo.
    */
   function pedirCatalogo() {
     var fuentes = [];
     if (supabaseActivo()) fuentes.push(['Supabase', pedirCatalogoASupabase]);
-    if (insforgeActivo()) fuentes.push(['Insforge', pedirCatalogoAInsforge]);
     fuentes.push(['Apps Script', pedirCatalogoAAppsScript]);
 
     function probar(i) {

@@ -4,7 +4,7 @@
 --  La planilla sigue siendo donde se edita. Cada 10 minutos, Supabase
 --  lee el endpoint publico del catalogo del Apps Script (?action=catalog)
 --  y copia el resultado a las tablas. Es lo mismo que hacia la tarea
---  programada de Insforge: no hay que pegar nada en el Apps Script.
+--  programada que antes alimentaba otra base: no hay que pegar nada en el Apps Script.
 --
 --  Reglas (iguales a las de Espejo.gs):
 --   - Cada producto se inserta o actualiza por su id.

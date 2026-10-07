@@ -6,7 +6,7 @@
 - Esquema aplicado, con seguridad por filas, y probado con la clave pública.
 - **Sincronización automática activa:** cada 10 minutos Supabase lee el catálogo de tu Apps Script (`?action=catalog`) y lo copia a las tablas. Es lo mismo que hace hoy la tarea programada de Insforge, así que **no hay que tocar el Apps Script**. Detalle en `02-sincronizacion.sql`.
 - Primera sincronización: 322 productos (269 publicados, 53 ocultos) y 17 datos de configuración.
-- `docs/config.js` apunta a este proyecto con `activo: true`. Insforge queda de respaldo.
+- `docs/config.js` apunta a este proyecto con `activo: true`. Insforge ya no se usa.
 
 Para mirar cómo viene la sincronización (en el SQL Editor de Supabase):
 
@@ -22,7 +22,6 @@ select * from sincronizacion_log order by id desc limit 10;
 4. **Encender el sitio.** En `docs/config.js`, bloque `SUPABASE`: pegá `URL` y `ANON` y poné `activo: true`.
 5. **Cargar los datos.** Correr `02-sincronizacion.sql` en el SQL Editor. Programa la copia automática desde tu Apps Script y no hay que pegar nada en él.
 6. **Probar.** Abrí el sitio con la consola del navegador abierta. No debería haber avisos de "Supabase no respondió". Mandá un pedido de prueba y mirá que aparezca en *Table Editor → pedidos_catalogo*.
-7. **Apagar Insforge** (`activo: false`) cuando todo esté estable. Se puede dejar de respaldo un tiempo.
 
 ## Qué puede y qué no puede hacer el sitio
 
@@ -40,4 +39,4 @@ select * from sincronizacion_log order by id desc limit 10;
 - **Pedidos de relleno:** cualquiera que conozca la clave pública puede llamar a `registrar_pedido`. La función limita el tamaño y valida los productos, pero no frena a alguien que mande muchos pedidos. Si llegara a pasar, se agrega un límite por tiempo o un control anti-robots.
 - **Orden por "más pedidos":** lo calcula tu planilla (columna `pedidos`) y el catálogo llega ya ordenado. Los pedidos que se hacen desde el sitio quedan registrados en `pedidos_catalogo`, pero por ahora no cambian ese orden.
 - **Productos que salen de la planilla:** quedan con `publicado = false`. No se borran, así que la historia de pedidos se conserva.
-- **Volver atrás:** poner `activo: false` en el bloque `SUPABASE` de `config.js`. El sitio vuelve a leer de Insforge o de Apps Script.
+- **Volver atrás:** poner `activo: false` en el bloque `SUPABASE` de `config.js`. El sitio vuelve a leer del Apps Script.
