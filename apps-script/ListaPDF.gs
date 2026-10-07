@@ -112,6 +112,7 @@ function quitarActivadores() {
  */
 function probarSinGuardar() {
   var hoja = obtenerHoja_();
+  Logger.log('Archivo: ' + hoja.getParent().getName());
   var rango = CONFIG.RANGO ? hoja.getRange(CONFIG.RANGO) : hoja.getDataRange();
   var valores = rango.getDisplayValues();
   Logger.log('Hoja: ' + hoja.getName() + ' | Rango: ' + rango.getA1Notation() +
