@@ -1439,3 +1439,50 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 @media (max-width: 620px) {
   :root[data-theme="dark"] .barra .hamburguesa:hover, :root[data-theme="dark"] .buscar-abrir:hover { background: rgba(236, 234, 228, .1); }
 }
+
+
+/* ===========================================================================
+   Modo oscuro en grafito (gris carbon neutro) en vez del azul marino.
+   Prueba de color: para volver al azul alcanza con borrar este bloque.
+   =========================================================================== */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --piso:      #131417;
+    --piso-alto: #1b1c20;
+    --losa:      #222328;
+    --losa-2:    #2b2c32;
+    --tinta:     #ECEDF0;
+    --tinta-2:   #B7BAC2;
+    --tinta-3:   #8B8F99;
+    --linea:     rgba(255, 255, 255, .10);
+    --borde:     rgba(255, 255, 255, .22);
+    --marca:       #ECEDF0;
+    --marca-tinta: #16171a;
+    --marino:      #2b2c32;
+    --marino-hondo: #1b1c20;
+  }
+}
+:root[data-theme="dark"] {
+  --piso:      #131417;
+  --piso-alto: #1b1c20;
+  --losa:      #222328;
+  --losa-2:    #2b2c32;
+  --tinta:     #ECEDF0;
+  --tinta-2:   #B7BAC2;
+  --tinta-3:   #8B8F99;
+  --linea:     rgba(255, 255, 255, .10);
+  --borde:     rgba(255, 255, 255, .22);
+  --marca:       #ECEDF0;
+  --marca-tinta: #16171a;
+  --marino:      #2b2c32;
+  --marino-hondo: #1b1c20;
+}
+:root[data-theme="dark"] .banner { background: #1b1c20; }
+:root[data-theme="dark"] .nota { background: #ECEDF0; color: #16171a; }
+:root[data-theme="dark"] .cajon { background: #1b1c20; }
+:root[data-theme="dark"] .velo { background: rgba(0, 0, 0, .55); }
+:root[data-theme="dark"] .tema[aria-checked="true"] .tema-pista,
+:root[data-theme="dark"] .cajon-tema[aria-checked="true"] .tema-pista { background: #8B8F99; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .velo { background: rgba(0, 0, 0, .55); }
+}
