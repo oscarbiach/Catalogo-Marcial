@@ -428,6 +428,14 @@
     var enlaceContacto = numero
       ? 'https://wa.me/' + numero + '?text=' + encodeURIComponent('Hola me comunico desde la pagina!')
       : '';
+    var lista = $('ver-lista');
+    if (lista && CFG.LISTA_PDF) {
+      lista.href = CFG.LISTA_PDF;
+      lista.target = '_blank';
+      lista.rel = 'noopener';
+      $('ver-lista-txt').textContent = 'Ver lista completa';
+    }
+
     ['wasap', 'cajon-contacto'].forEach(function (id) {
       var el = $(id);
       if (!el) return;
@@ -1183,12 +1191,50 @@
 
   function cerrarFicha() {
     estado.fotoToken++;   // corta la bajada de fotos en segundo plano
-    ocultarSuave(ficha, 240);
-    ocultarSuave($('ficha-velo'), 240);
+    var salida = window.matchMedia('(max-width: 620px)').matches ? 320 : 240;
+    ocultarSuave(ficha, salida);
+    ocultarSuave($('ficha-velo'), salida);
     estado.fichaActual = null;
     if (!estado.pedidoAbierto) document.body.style.overflow = '';
     if (location.hash.indexOf('#p=') === 0) history.replaceState(null, '', location.pathname);
   }
+
+  /**
+   * En el celular la ficha es una hoja que sube desde abajo: se cierra
+   * arrastrandola hacia abajo cuando esta arriba del todo. Si se suelta antes
+   * de pasar el umbral, vuelve a su lugar.
+   */
+  (function () {
+    var inicioY = null, delta = 0, t0 = 0;
+    function movil() { return window.matchMedia('(max-width: 620px)').matches; }
+
+    ficha.addEventListener('touchstart', function (e) {
+      if (!movil() || ficha.scrollTop > 0 || e.touches.length !== 1) { inicioY = null; return; }
+      inicioY = e.touches[0].clientY; delta = 0; t0 = Date.now();
+    }, { passive: true });
+
+    ficha.addEventListener('touchmove', function (e) {
+      if (inicioY === null) return;
+      delta = e.touches[0].clientY - inicioY;
+      if (delta <= 0) { delta = 0; ficha.style.transform = ''; ficha.style.transition = ''; return; }
+      ficha.style.transition = 'none';
+      ficha.style.transform = 'translateY(' + delta + 'px)';
+    }, { passive: true });
+
+    ficha.addEventListener('touchend', function () {
+      if (inicioY === null) return;
+      var rapido = delta > 50 && (Date.now() - t0) < 250;
+      inicioY = null;
+      ficha.style.transition = '';
+      if (delta > 120 || rapido) {
+        ficha.style.transform = '';
+        cerrarFicha();
+      } else {
+        ficha.style.transform = '';
+      }
+      delta = 0;
+    });
+  })();
 
   $('ficha-cerrar').addEventListener('click', cerrarFicha);
   $('ficha-velo').addEventListener('click', cerrarFicha);

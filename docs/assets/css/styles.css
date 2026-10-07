@@ -1515,3 +1515,41 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
   }
   .rail-fin { width: auto; padding: 0 10px 12px; }
 }
+
+
+/* ===========================================================================
+   Los mas pedidos: el producto llena la foto de la tarjeta. Estaba al 76% del
+   ancho en una banda baja de 5:3, y dentro de la tarjeta se veia chico.
+   =========================================================================== */
+.dest-foto { aspect-ratio: 1 / 1; }
+.dest-foto img { width: 94%; aspect-ratio: 1 / 1; margin-bottom: 4%; }
+
+/* ===========================================================================
+   Ficha en el celular: hoja que sube desde abajo, con asa para arrastrar y
+   cerrar. Antes ocupaba toda la pantalla y entraba con un fundido.
+   =========================================================================== */
+.ficha-agarre { display: none; }
+@media (max-width: 620px) {
+  .ficha {
+    top: auto; bottom: 0; left: 0; width: 100%; max-width: 100%;
+    height: auto; max-height: 94dvh; transform: none;
+    border-radius: 22px 22px 0 0; overflow-y: auto; overscroll-behavior: contain;
+    grid-template-rows: none;
+    transition: transform .42s cubic-bezier(.32, .72, 0, 1), opacity .2s var(--curva-fuerte);
+  }
+  .ficha.entrando, .ficha.saliendo { opacity: 1; transform: translateY(100%); }
+  .ficha.saliendo { transition: transform .3s cubic-bezier(.4, 0, 1, 1), opacity .3s var(--curva-fuerte); }
+  .velo { transition-duration: .3s; }
+
+  .ficha-agarre {
+    display: block; position: absolute; z-index: 5; top: 8px; left: 50%;
+    width: 40px; height: 4px; margin-left: -20px; border-radius: 4px;
+    background: var(--tinta-3); opacity: .55; pointer-events: none;
+  }
+  .ficha-visual { padding-top: 24px; }
+  .ficha .cerrar { top: 16px; }
+}
+@media (max-width: 620px) and (prefers-reduced-motion: reduce) {
+  .ficha.entrando, .ficha.saliendo { transform: none; opacity: 0; }
+  .ficha { transition: opacity .2s linear; }
+}

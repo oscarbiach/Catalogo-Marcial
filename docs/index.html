@@ -21,9 +21,9 @@
      el HTML nuevo y el JavaScript viejo, y la pagina se rompe. -->
 <!-- Identidad visual de Marcial: tokens (unico lugar con valores) y componentes
      base. Van antes que styles.css, que usa sus variables. -->
-<link rel="stylesheet" href="assets/marca/tokens.css?v=30">
-<link rel="stylesheet" href="assets/marca/marcial.css?v=30">
-<link rel="stylesheet" href="assets/css/styles.css?v=30">
+<link rel="stylesheet" href="assets/marca/tokens.css?v=31">
+<link rel="stylesheet" href="assets/marca/marcial.css?v=31">
+<link rel="stylesheet" href="assets/css/styles.css?v=31">
 
 <!-- Antes del primer pintado, para que no se vea el salto de claro a oscuro. -->
 <script>
@@ -110,8 +110,8 @@
     <div class="banner-texto">
       <h1 class="banner-tit" id="banner-titulo">Tu pedido, en camino</h1>
       <p class="banner-sub" id="banner-sub">Mirá el catálogo completo, con fotos y precios.</p>
-      <a class="boton boton-claro" href="#catalogo">
-        Ver catálogo
+      <a class="boton boton-claro" id="ver-lista" href="#catalogo">
+        <span id="ver-lista-txt">Ver catálogo</span>
         <svg class="ico" aria-hidden="true"><use href="assets/marca/iconos.svg#i-arrow-right"/></svg>
       </a>
     </div>
@@ -170,6 +170,7 @@
 <div class="velo" id="ficha-velo" hidden></div>
 
 <article class="ficha" id="ficha" hidden role="dialog" aria-modal="true" aria-labelledby="ficha-nombre">
+  <span class="ficha-agarre" aria-hidden="true"></span>
   <button class="cerrar" id="ficha-cerrar" aria-label="Cerrar">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
   </button>
@@ -298,7 +299,7 @@
 
 <div class="nota" id="aviso" hidden></div>
 
-<script src="config.js?v=30"></script>
-<script src="assets/js/app.js?v=30"></script>
+<script src="config.js?v=31"></script>
+<script src="assets/js/app.js?v=31"></script>
 </body>
 </html>

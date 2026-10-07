@@ -13,6 +13,12 @@ window.CATALOGO_CONFIG = {
   // Ejemplo: 'https://script.google.com/macros/s/AKfy.../exec'
   API: 'https://script.google.com/macros/s/AKfycbzgSbKJJOA_dcsaAILAVCjDZFdNyE4w5IKIiZIDeXW7jRwqsujEw-9p9BRzzv71CjCraA/exec',
 
+  // Enlace al PDF con la lista completa. Con esto cargado, el boton de la
+  // portada pasa a decir "Ver lista completa" y abre el PDF en otra pestania.
+  // Vacio: el boton sigue llevando al catalogo. Es un enlace de Drive con
+  // acceso "cualquiera con el enlace"; el PDF no debe incluir costos.
+  LISTA_PDF: '',
+
   // --- Supabase (la base nueva) -----------------------------------------
   // Se lee primero de aca; si falla o esta apagada, se lee de Apps Script.
   // Para encenderla: crear el proyecto, correr
