@@ -18,11 +18,11 @@
  *   4. Ejecutar  instalarActivadores()  para que se mantenga al dia solo.
  *   5. Pasar el enlace al catalogo (config.js, campo LISTA_PDF).
  *
- * SOLO LECTURA: este script NUNCA escribe en la planilla. Solo lee los valores
- * visibles del rango. Lo unico que crea o cambia es el archivo PDF, en Drive, y
- * sus propios datos internos del script. Ademas, el archivo appsscript.json que
- * lo acompana pide permiso de solo lectura sobre las hojas: aunque alguien
- * agregara por error una instruccion de escritura, Google la rechazaria.
+ * SOLO LECTURA: este script NUNCA escribe en la planilla. Lee los valores con la
+ * API de Google Sheets (solo consulta) y no usa SpreadsheetApp. Lo unico que
+ * crea o cambia es el archivo PDF, en Drive, y sus propios datos internos del
+ * script. Ademas, el archivo appsscript.json que lo acompana pide permiso de
+ * solo lectura sobre las hojas: Google rechazaria cualquier escritura.
  *
  * IMPORTANTE: el PDF es PUBLICO (cualquiera con el enlace). El rango tiene que
  * incluir solo precios de venta; nunca costos ni margenes.
@@ -60,16 +60,15 @@ function actualizarListaPDF(forzar) {
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(20000)) return;       // ya hay otra corrida en curso
   try {
-    var hoja = obtenerHoja_();
-    var rango = CONFIG.RANGO ? hoja.getRange(CONFIG.RANGO) : hoja.getDataRange();
-    var huella = huella_(rango.getDisplayValues());
+    var datos = leerHoja_();
+    var huella = huella_(datos.valores);
     var props = PropertiesService.getScriptProperties();
 
     if (forzar !== true && props.getProperty(PROP_HUELLA) === huella && props.getProperty(PROP_ARCHIVO)) {
       return;                              // nada cambio
     }
 
-    var pdf = exportarPDF_(hoja, rango);
+    var pdf = exportarPDF_(datos);
     var archivo = guardarPDF_(pdf, props);
     props.setProperty(PROP_HUELLA, huella);
     Logger.log('PDF actualizado: https://drive.google.com/file/d/' + archivo.getId() + '/view');
@@ -111,23 +110,45 @@ function quitarActivadores() {
  * ni cambia nada, ni en la planilla ni en Drive.
  */
 function probarSinGuardar() {
-  var hoja = obtenerHoja_();
-  Logger.log('Archivo: ' + hoja.getParent().getName());
-  var rango = CONFIG.RANGO ? hoja.getRange(CONFIG.RANGO) : hoja.getDataRange();
-  var valores = rango.getDisplayValues();
-  Logger.log('Hoja: ' + hoja.getName() + ' | Rango: ' + rango.getA1Notation() +
-    ' | ' + valores.length + ' filas x ' + (valores[0] ? valores[0].length : 0) + ' columnas');
-  Logger.log('Primera fila: ' + JSON.stringify(valores[0]));
-  Logger.log('Ultima fila: ' + JSON.stringify(valores[valores.length - 1]));
+  var datos = leerHoja_();
+  var v = datos.valores;
+  Logger.log('Archivo: ' + datos.titulo);
+  Logger.log('Hoja: ' + datos.nombreHoja + ' | Rango: ' + datos.a1 +
+    ' | ' + v.length + ' filas x ' + (v[0] ? v[0].length : 0) + ' columnas');
+  Logger.log('Primera fila: ' + JSON.stringify(v[0]));
+  Logger.log('Ultima fila: ' + JSON.stringify(v[v.length - 1]));
 }
 
 // ------------------------------- internos ----------------------------------
 
-function obtenerHoja_() {
-  var libro = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID);
-  var hoja = libro.getSheetByName(CONFIG.HOJA);
+/** Consulta (solo lectura) a la API de Google Sheets. */
+function consultarSheets_(ruta) {
+  var r = UrlFetchApp.fetch('https://sheets.googleapis.com/v4/spreadsheets/' + CONFIG.SPREADSHEET_ID + ruta, {
+    headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
+    muteHttpExceptions: true
+  });
+  if (r.getResponseCode() !== 200) {
+    throw new Error('No se pudo leer la planilla (HTTP ' + r.getResponseCode() + '). ' + r.getContentText().slice(0, 200));
+  }
+  return JSON.parse(r.getContentText());
+}
+
+/** Lee el titulo del archivo, el id de la hoja y los valores tal como se ven. */
+function leerHoja_() {
+  var info = consultarSheets_('?fields=properties.title,sheets.properties(sheetId,title)');
+  var hoja = (info.sheets || []).filter(function (h) { return h.properties.title === CONFIG.HOJA; })[0];
   if (!hoja) throw new Error('No existe la hoja "' + CONFIG.HOJA + '".');
-  return hoja;
+
+  var referencia = "'" + CONFIG.HOJA.replace(/'/g, "''") + "'" + (CONFIG.RANGO ? '!' + CONFIG.RANGO : '');
+  var datos = consultarSheets_('/values/' + encodeURIComponent(referencia) + '?valueRenderOption=FORMATTED_VALUE');
+
+  return {
+    titulo: info.properties.title,
+    nombreHoja: CONFIG.HOJA,
+    gid: hoja.properties.sheetId,
+    valores: datos.values || [],
+    a1: String(datos.range || '').split('!').pop()      // rango real usado, ej. A1:G187
+  };
 }
 
 function huella_(valores) {
@@ -135,12 +156,11 @@ function huella_(valores) {
   return bytes.map(function (b) { return ('0' + (b & 0xff).toString(16)).slice(-2); }).join('');
 }
 
-function exportarPDF_(hoja, rango) {
-  var a1 = rango.getA1Notation();
+function exportarPDF_(datos) {
   var url = 'https://docs.google.com/spreadsheets/d/' + CONFIG.SPREADSHEET_ID + '/export?' + [
     'format=pdf',
-    'gid=' + hoja.getSheetId(),
-    'range=' + encodeURIComponent(a1),
+    'gid=' + datos.gid,
+    'range=' + encodeURIComponent(datos.a1),
     'size=A4',
     'portrait=true',
     'fitw=true',                 // ajustar al ancho de la hoja

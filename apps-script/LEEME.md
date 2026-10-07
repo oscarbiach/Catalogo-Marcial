@@ -7,7 +7,7 @@ el boton "Ver lista de precios" del catalogo apunta a un enlace fijo.
 ## Garantia de solo lectura
 
 El script **no escribe nunca en la planilla**: solo lee los valores visibles del
-rango (`getDisplayValues`). Lo unico que crea o cambia es el PDF en Drive.
+rango con la API de consulta de Google Sheets. Lo unico que crea o cambia es el PDF en Drive.
 Ademas `appsscript.json` pide permiso `spreadsheets.readonly`: Google rechaza
 cualquier intento de escribir en una hoja. No usa `setValue`, `clear`,
 `insert`, `delete`, `sort` ni nada que modifique celdas, formulas o formatos.
