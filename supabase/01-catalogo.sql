@@ -151,7 +151,8 @@ end;
 $$;
 
 revoke all on function registrar_pedido(text, text, jsonb) from public;
-grant execute on function registrar_pedido(text, text, jsonb) to anon, authenticated;
+-- Solo la clave publica (anon): el sitio no usa usuarios con sesion.
+grant execute on function registrar_pedido(text, text, jsonb) to anon;
 
 -- ── CONTROL ─────────────────────────────────────────────────────────
 -- Despues de correr esto: 4 tablas con la seguridad activada ("t").

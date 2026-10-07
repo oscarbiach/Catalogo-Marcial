@@ -37,9 +37,10 @@ window.CATALOGO_CONFIG = {
   // del proyecto, y poner `activo: true`. Nunca pegar aca la clave
   // service_role: esa no se puede publicar. Guia: supabase/LEEME.md
   SUPABASE: {
-    activo: false,
-    URL: '',     // https://XXXX.supabase.co
-    ANON: '',    // clave publica (anon / publishable)
+    activo: true,
+    URL: 'https://tdyekqddpchjjiuhglhv.supabase.co',
+    // Clave PUBLICA (anon): solo puede leer el catalogo y registrar pedidos.
+    ANON: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRkeWVrcWRkcGNoamppdWhnbGh2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEzODIyNjgsImV4cCI6MjEwNjk1ODI2OH0.TqKoZXGP4czlbYtRt6SGDy9syheSAPLwG8rhKvNVvOY',
     guardarPedidos: true,
   },
 

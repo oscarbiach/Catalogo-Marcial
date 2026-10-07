@@ -1,5 +1,14 @@
 # Conectar el catálogo con Supabase
 
+## Estado (07/10/2026)
+
+- Proyecto de Supabase: **Catalago Marcial** (`tdyekqddpchjjiuhglhv`), separado de la app de pedidos.
+- Esquema aplicado, con seguridad por filas, y probado con la clave pública.
+- Cargados **322 productos** (269 publicados, 53 ocultos) y los textos del sitio, copiados de la planilla "Catálogo — base de datos". Se verificó con huellas de control que coinciden con la planilla.
+- `docs/config.js` apunta a este proyecto con `activo: true`. Insforge queda de respaldo.
+- **Falta:** la sincronización automática desde la planilla (`02-sync-apps-script.gs`), que se pega en el Apps Script. Hasta entonces, los cambios en la planilla no llegan solos a Supabase.
+
+
 El sitio ya sabe leer de Supabase. Queda **apagado** hasta que completes estos pasos, así que mientras tanto el catálogo sigue funcionando como hoy (con Insforge y, si falla, con Apps Script).
 
 Orden de lectura una vez encendido: **Supabase → Insforge → Apps Script**. Si una fuente falla, prueba la siguiente.
