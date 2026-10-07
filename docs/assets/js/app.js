@@ -1239,20 +1239,6 @@
   $('ficha-cerrar').addEventListener('click', cerrarFicha);
   $('ficha-velo').addEventListener('click', cerrarFicha);
 
-  $('ficha-compartir').addEventListener('click', function () {
-    if (!estado.fichaActual) return;
-    var url = urlProducto(estado.fichaActual);
-    if (navigator.share) {
-      navigator.share({ title: estado.fichaActual.nombre, url: url }).catch(function () {});
-    } else if (navigator.clipboard) {
-      navigator.clipboard.writeText(url)
-        .then(function () { avisar('Link copiado'); })
-        .catch(function () { avisar('No se pudo copiar el link'); });
-    } else {
-      avisar(url);
-    }
-  });
-
   function abrirDesdeUrl() {
     var m = /^#p=(.+)$/.exec(location.hash);
     if (m) abrirFicha(decodeURIComponent(m[1]));
