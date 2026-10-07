@@ -1486,3 +1486,16 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .velo { background: rgba(0, 0, 0, .55); }
 }
+
+/* ===========================================================================
+   Productos mas grandes en la grilla. La foto estaba en una banda de 5:3 al
+   90% del ancho, asi que una foto cuadrada o vertical se veia a poco mas de la
+   mitad del lugar disponible. Ahora usa casi toda la losa cuadrada (el boton +
+   ya no esta encima de la foto, no hace falta dejarle sitio).
+   =========================================================================== */
+.pieza-losa img { width: 100%; aspect-ratio: 1 / 1; margin-bottom: 5%; }
+.pieza-losa:not(.sin-foto)::before { bottom: 5%; height: 6%; left: 24%; right: 24%; }
+@media (max-width: 620px) {
+  .pieza-losa img { width: 100%; margin-bottom: 5%; }
+  .pieza-losa:not(.sin-foto)::before { bottom: 5%; }
+}
