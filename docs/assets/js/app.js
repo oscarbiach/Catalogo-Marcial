@@ -433,7 +433,7 @@
       lista.href = CFG.LISTA_PDF;
       lista.target = '_blank';
       lista.rel = 'noopener';
-      $('ver-lista-txt').textContent = 'Ver lista completa';
+      $('ver-lista-txt').textContent = 'Ver lista de precios';
     }
 
     ['wasap', 'cajon-contacto'].forEach(function (id) {
