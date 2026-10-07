@@ -112,10 +112,15 @@ function quitarActivadores() {
  */
 function probarSinGuardar() {
   var v = leerHoja_().valores;
-  Logger.log((CONFIG.RANGO ? 'Rango: ' + CONFIG.RANGO : 'Toda la hoja') + ' | ' + v.length + ' filas x ' + (v[0] ? v[0].length : 0) + ' columnas');
-  Logger.log('Primeras filas:');
-  for (var i = 0; i < Math.min(5, v.length); i++) Logger.log(JSON.stringify(v[i]));
-  Logger.log('Ultima fila: ' + JSON.stringify(v[v.length - 1]));
+  var llenas = v.filter(function (fila) {
+    return fila.some(function (c) { return String(c).trim() !== ''; });
+  });
+  Logger.log((CONFIG.RANGO ? 'Rango: ' + CONFIG.RANGO : 'Toda la hoja') + ' | ' + v.length +
+    ' filas (' + llenas.length + ' con datos) x ' + (v[0] ? v[0].length : 0) + ' columnas');
+  Logger.log('--- PRIMERAS 10 FILAS CON DATOS ---');
+  llenas.slice(0, 10).forEach(function (f) { Logger.log(JSON.stringify(f)); });
+  Logger.log('--- ULTIMAS 5 FILAS CON DATOS ---');
+  llenas.slice(-5).forEach(function (f) { Logger.log(JSON.stringify(f)); });
 }
 
 // ------------------------------- internos ----------------------------------
