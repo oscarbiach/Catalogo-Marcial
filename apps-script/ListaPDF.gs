@@ -18,11 +18,11 @@
  *   4. Ejecutar  instalarActivadores()  para que se mantenga al dia solo.
  *   5. Pasar el enlace al catalogo (config.js, campo LISTA_PDF).
  *
- * SOLO LECTURA: este script NUNCA escribe en la planilla. Lee los valores con la
- * API de Google Sheets (solo consulta) y no usa SpreadsheetApp. Lo unico que
- * crea o cambia es el archivo PDF, en Drive, y sus propios datos internos del
- * script. Ademas, el archivo appsscript.json que lo acompana pide permiso de
- * solo lectura sobre las hojas: Google rechazaria cualquier escritura.
+ * SOLO LECTURA: este script NUNCA escribe en la planilla. Baja una copia en
+ * texto (CSV) de la hoja, igual que "Archivo > Descargar", y no usa
+ * SpreadsheetApp: el appsscript.json que lo acompana NO le da permiso para
+ * editar hojas. Lo unico que crea o cambia es el archivo PDF, en Drive, y sus
+ * propios datos internos del script.
  *
  * IMPORTANTE: el PDF es PUBLICO (cualquiera con el enlace). El rango tiene que
  * incluir solo precios de venta; nunca costos ni margenes.
@@ -34,10 +34,11 @@ var CONFIG = {
   // entre /d/ y /edit.
   SPREADSHEET_ID: 'PEGAR_ACA_EL_ID_DEL_SPREADSHEET',
 
-  // Nombre exacto de la hoja con los precios de venta
-  HOJA: 'Ventas',
+  // Numero de la pestania "Ventas": abrir esa pestania en el navegador y mirar
+  // el final de la URL, donde dice  #gid=NUMERO
+  GID: 'PEGAR_ACA_EL_NUMERO_GID',
 
-  // Celdas fijas que van al PDF (en formato A1). Dejar '' para toda la hoja.
+  // Celdas fijas que van al PDF (en formato A1, por ejemplo A1:G200). Dejar '' para toda la hoja.
   RANGO: 'A1:G200',
 
   // Carpeta de Drive donde queda el PDF (el codigo al final de la URL de la
@@ -68,7 +69,7 @@ function actualizarListaPDF(forzar) {
       return;                              // nada cambio
     }
 
-    var pdf = exportarPDF_(datos);
+    var pdf = exportarPDF_();
     var archivo = guardarPDF_(pdf, props);
     props.setProperty(PROP_HUELLA, huella);
     Logger.log('PDF actualizado: https://drive.google.com/file/d/' + archivo.getId() + '/view');
@@ -110,45 +111,37 @@ function quitarActivadores() {
  * ni cambia nada, ni en la planilla ni en Drive.
  */
 function probarSinGuardar() {
-  var datos = leerHoja_();
-  var v = datos.valores;
-  Logger.log('Archivo: ' + datos.titulo);
-  Logger.log('Hoja: ' + datos.nombreHoja + ' | Rango: ' + datos.a1 +
-    ' | ' + v.length + ' filas x ' + (v[0] ? v[0].length : 0) + ' columnas');
-  Logger.log('Primera fila: ' + JSON.stringify(v[0]));
+  var v = leerHoja_().valores;
+  Logger.log((CONFIG.RANGO ? 'Rango: ' + CONFIG.RANGO : 'Toda la hoja') + ' | ' + v.length + ' filas x ' + (v[0] ? v[0].length : 0) + ' columnas');
+  Logger.log('Primeras filas:');
+  for (var i = 0; i < Math.min(5, v.length); i++) Logger.log(JSON.stringify(v[i]));
   Logger.log('Ultima fila: ' + JSON.stringify(v[v.length - 1]));
 }
 
 // ------------------------------- internos ----------------------------------
 
-/** Consulta (solo lectura) a la API de Google Sheets. */
-function consultarSheets_(ruta) {
-  var r = UrlFetchApp.fetch('https://sheets.googleapis.com/v4/spreadsheets/' + CONFIG.SPREADSHEET_ID + ruta, {
+/** Baja la hoja como CSV (solo lectura) y devuelve los valores tal como se ven. */
+function leerHoja_() {
+  var url = urlExportacion_('csv');
+  var r = UrlFetchApp.fetch(url, {
     headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
     muteHttpExceptions: true
   });
   if (r.getResponseCode() !== 200) {
-    throw new Error('No se pudo leer la planilla (HTTP ' + r.getResponseCode() + '). ' + r.getContentText().slice(0, 200));
+    throw new Error('No se pudo leer la planilla (HTTP ' + r.getResponseCode() + '). Revisar SPREADSHEET_ID y GID.');
   }
-  return JSON.parse(r.getContentText());
+  return { valores: Utilities.parseCsv(r.getContentText()) };
 }
 
-/** Lee el titulo del archivo, el id de la hoja y los valores tal como se ven. */
-function leerHoja_() {
-  var info = consultarSheets_('?fields=properties.title,sheets.properties(sheetId,title)');
-  var hoja = (info.sheets || []).filter(function (h) { return h.properties.title === CONFIG.HOJA; })[0];
-  if (!hoja) throw new Error('No existe la hoja "' + CONFIG.HOJA + '".');
-
-  var referencia = "'" + CONFIG.HOJA.replace(/'/g, "''") + "'" + (CONFIG.RANGO ? '!' + CONFIG.RANGO : '');
-  var datos = consultarSheets_('/values/' + encodeURIComponent(referencia) + '?valueRenderOption=FORMATTED_VALUE');
-
-  return {
-    titulo: info.properties.title,
-    nombreHoja: CONFIG.HOJA,
-    gid: hoja.properties.sheetId,
-    valores: datos.values || [],
-    a1: String(datos.range || '').split('!').pop()      // rango real usado, ej. A1:G187
-  };
+function urlExportacion_(formato) {
+  var partes = ['format=' + formato, 'gid=' + CONFIG.GID];
+  if (CONFIG.RANGO) partes.push('range=' + encodeURIComponent(CONFIG.RANGO));
+  if (formato === 'pdf') {
+    partes.push('size=A4', 'portrait=true', 'fitw=true', 'gridlines=false', 'printtitle=false',
+      'sheetnames=false', 'pagenum=UNDEFINED',
+      'top_margin=0.5', 'bottom_margin=0.5', 'left_margin=0.5', 'right_margin=0.5');
+  }
+  return 'https://docs.google.com/spreadsheets/d/' + CONFIG.SPREADSHEET_ID + '/export?' + partes.join('&');
 }
 
 function huella_(valores) {
@@ -156,22 +149,8 @@ function huella_(valores) {
   return bytes.map(function (b) { return ('0' + (b & 0xff).toString(16)).slice(-2); }).join('');
 }
 
-function exportarPDF_(datos) {
-  var url = 'https://docs.google.com/spreadsheets/d/' + CONFIG.SPREADSHEET_ID + '/export?' + [
-    'format=pdf',
-    'gid=' + datos.gid,
-    'range=' + encodeURIComponent(datos.a1),
-    'size=A4',
-    'portrait=true',
-    'fitw=true',                 // ajustar al ancho de la hoja
-    'gridlines=false',
-    'printtitle=false',
-    'sheetnames=false',
-    'pagenum=UNDEFINED',
-    'top_margin=0.5', 'bottom_margin=0.5', 'left_margin=0.5', 'right_margin=0.5'
-  ].join('&');
-
-  var respuesta = UrlFetchApp.fetch(url, {
+function exportarPDF_() {
+  var respuesta = UrlFetchApp.fetch(urlExportacion_('pdf'), {
     headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
     muteHttpExceptions: true
   });

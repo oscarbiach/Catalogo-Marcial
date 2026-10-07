@@ -6,11 +6,10 @@ el boton "Ver lista de precios" del catalogo apunta a un enlace fijo.
 
 ## Garantia de solo lectura
 
-El script **no escribe nunca en la planilla**: solo lee los valores visibles del
-rango con la API de consulta de Google Sheets. Lo unico que crea o cambia es el PDF en Drive.
-Ademas `appsscript.json` pide permiso `spreadsheets.readonly`: Google rechaza
-cualquier intento de escribir en una hoja. No usa `setValue`, `clear`,
-`insert`, `delete`, `sort` ni nada que modifique celdas, formulas o formatos.
+El script **no escribe nunca en la planilla**: baja una copia en texto (CSV) de
+la hoja, igual que "Archivo > Descargar", y exporta el PDF por el mismo camino.
+No usa `SpreadsheetApp` y `appsscript.json` no le da permiso para editar hojas.
+Lo unico que crea o cambia es el PDF en Drive.
 
 ## Antes de empezar
 
@@ -25,8 +24,9 @@ cualquier intento de escribir en una hoja. No usa `setValue`, `clear`,
 2. Configuracion del proyecto (engranaje) > tildar "Mostrar el archivo de
    manifiesto appsscript.json", abrirlo y reemplazar su contenido por el de
    `appsscript.json` de esta carpeta.
-3. Completar `CONFIG` arriba: `SPREADSHEET_ID`, `HOJA`, `RANGO` y, si se quiere,
-   `CARPETA_ID`.
+3. Completar `CONFIG` arriba: `SPREADSHEET_ID`, `GID` (el numero que figura al
+   final de la URL de la pestania Ventas, `#gid=NUMERO`), `RANGO` y, si se
+   quiere, `CARPETA_ID`.
 4. Ejecutar `probarSinGuardar`: solo muestra el rango en el registro, no crea ni
    cambia nada. Revisar que sean las celdas correctas y que no haya costos.
 5. Ejecutar `actualizarListaPDF`. Crea el PDF y deja el enlace en el registro
