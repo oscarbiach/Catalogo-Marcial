@@ -1376,32 +1376,33 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 .buscar-abrir, .buscar-cerrar { display: none; }
 
 /* ===========================================================================
-   Barra superior del celular: violeta, hamburguesa a la izquierda, logo al
+   Barra superior del celular: con los colores normales del sitio, hamburguesa a la izquierda, logo al
    centro y lupa a la derecha. El carrito no va aca: el pedido esta abajo.
    =========================================================================== */
 @media (max-width: 620px) {
   .barra {
     height: 60px; padding: 0 6px; gap: 0; max-width: none;
-    justify-content: space-between; background: #8546d2; color: #fff;
+    justify-content: space-between; background: var(--losa); color: var(--tinta);
+    border-bottom: 1px solid var(--linea);
   }
   .barra::before { display: none; }
-  body.scrolleado .barra { box-shadow: 0 2px 10px rgba(40, 20, 80, .22); }
+  body.scrolleado .barra { box-shadow: var(--flota-2); }
 
   .barra .hamburguesa, .buscar-abrir {
-    width: 44px; height: 44px; padding: 0; border-radius: 50%; color: #fff;
+    width: 44px; height: 44px; padding: 0; border-radius: 50%; color: var(--tinta);
     display: grid; place-items: center; border: 0; background: transparent;
   }
   .barra .hamburguesa { display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; }
   .barra .hamburguesa .hamburguesa-rayas { gap: 5px; }
   .barra .hamburguesa .hamburguesa-rayas span { width: 20px; height: 2px; }
-  .barra .hamburguesa:hover, .buscar-abrir:hover { background: rgba(255, 255, 255, .14); }
-  .barra .hamburguesa:active, .buscar-abrir:active { background: rgba(255, 255, 255, .22); }
+  .barra .hamburguesa:hover, .buscar-abrir:hover { background: rgba(23, 41, 74, .07); }
+  .barra .hamburguesa:active, .buscar-abrir:active { background: rgba(23, 41, 74, .13); }
   /* Con un rubro elegido: un puntito en vez del nombre, que no entra */
-  .barra .hamburguesa.activo { width: 44px; padding: 0; background: transparent; border: 0; color: #fff; }
+  .barra .hamburguesa.activo { width: 44px; padding: 0; background: transparent; border: 0; color: var(--tinta); }
   .barra .hamburguesa.activo .hamburguesa-txt { display: none; }
   .barra .hamburguesa.activo::after {
     content: ''; position: absolute; top: 9px; right: 9px; width: 9px; height: 9px;
-    border-radius: 50%; background: #ffd35a; box-shadow: 0 0 0 2px #8546d2;
+    border-radius: 50%; background: var(--marca); box-shadow: 0 0 0 2px var(--losa);
   }
 
   .barra .marca {
@@ -1409,8 +1410,6 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
     padding: 0; display: flex; align-items: center;
   }
   .barra .marca img { height: 32px; }
-  .barra .logo-claro { display: none; }
-  .barra .logo-oscuro { display: block; }
 
   .buscar-abrir svg {
     width: 22px; height: 22px; fill: none; stroke: currentColor;
@@ -1423,14 +1422,14 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
   .barra-buscar { display: none; }
   .barra.buscando .barra-buscar {
     display: flex; align-items: center; gap: 4px; position: absolute; inset: 0;
-    padding: 0 6px 0 10px; background: #8546d2; z-index: 2;
+    padding: 0 6px 0 10px; background: var(--losa); z-index: 2;
   }
-  .barra.buscando #buscar { flex: 1; min-height: 42px; background: #fff; border-color: transparent; color: #1b2433; }
-  .barra.buscando .lupa { left: 24px; stroke: #78828e; }
+  .barra.buscando #buscar { flex: 1; min-height: 42px; background: var(--piso); color: var(--tinta); }
+  .barra.buscando .lupa { left: 24px; stroke: var(--tinta-3); }
   .barra.buscando #buscar { padding-left: 38px; }
   .barra.buscando .buscar-cerrar {
     display: grid; place-items: center; flex: 0 0 auto; width: 44px; height: 44px;
-    appearance: none; border: 0; background: transparent; color: #fff; border-radius: 50%; cursor: pointer;
+    appearance: none; border: 0; background: transparent; color: var(--tinta); border-radius: 50%; cursor: pointer;
   }
   .buscar-cerrar svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
 
@@ -1438,4 +1437,7 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 }
 @media (max-width: 620px) {
   #buscar::-webkit-search-cancel-button { display: none; }   /* ya hay una cruz propia */
+}
+@media (max-width: 620px) {
+  :root[data-theme="dark"] .barra .hamburguesa:hover, :root[data-theme="dark"] .buscar-abrir:hover { background: rgba(236, 234, 228, .1); }
 }
