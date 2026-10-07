@@ -31,9 +31,8 @@ create table if not exists productos (
   destacado      boolean not null default false,
   nuevo          boolean not null default false,
   sin_stock      boolean not null default false,
-  posicion       int  not null default 0,     -- el orden que manda la planilla
-  orden          int  not null default 0,     -- cuantas veces se pidio: lo suma registrar_pedido
-                                              -- (la sincronizacion NO lo pisa)
+  posicion       int  not null default 0,     -- el lugar en la lista: el catalogo llega ordenado por lo mas pedido
+  orden          int  not null default 0,     -- el numero de orden de la planilla
   publicado      boolean not null default true,
   actualizado_en timestamptz not null default now()
 );
@@ -138,8 +137,6 @@ begin
     v_total   := v_total + coalesce(r.precio, 0) * r.cantidad;
     v_validos := v_validos + 1;
 
-    -- Lo mas pedido sube solo en el orden del sitio
-    update productos set orden = orden + 1 where id = r.id;
   end loop;
 
   if v_validos = 0 then
