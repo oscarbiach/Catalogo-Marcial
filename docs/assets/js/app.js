@@ -1010,7 +1010,6 @@
     var specs = [];
     if (p.presentacion) specs.push(['Presentacion', p.presentacion]);
     if (p.unidadesCaja) specs.push(['Por caja', String(p.unidadesCaja)]);
-    if (p.sku) specs.push(['Codigo', p.sku]);
     $('ficha-specs').innerHTML = specs.map(function (par) {
       return '<dt>' + escapar(par[0]) + '</dt><dd>' + escapar(par[1]) + '</dd>';
     }).join('');

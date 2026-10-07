@@ -1499,3 +1499,19 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
   .pieza-losa img { width: 100%; margin-bottom: 5%; }
   .pieza-losa:not(.sin-foto)::before { bottom: 5%; }
 }
+
+/* ===========================================================================
+   Celular: al bajar quedan fijos la barra de arriba y los rubros (Todo,
+   Salsas, ...). Los selectores de marca y orden pasan a ser parte de la pagina:
+   se ven arriba del todo y se van con el scroll en vez de ocupar pantalla.
+   En la PC no cambia nada: ahi siguen en la misma fila fija.
+   =========================================================================== */
+@media (max-width: 620px) {
+  .rail { display: contents; }
+  .rail-pistas {
+    position: sticky; top: 60px; z-index: 30;
+    background: var(--piso); mask-image: none; -webkit-mask-image: none;
+    width: auto; margin: 0; padding: 8px 10px;
+  }
+  .rail-fin { width: auto; padding: 0 10px 12px; }
+}
