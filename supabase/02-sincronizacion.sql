@@ -99,6 +99,10 @@ declare
   v_ahora     timestamptz := now();
   v_ocultos   int := 0;
   v_config    int := 0;
+  v_contrato  int;
+  v_reglas_antes int;
+  v_reglas_nuevas int;
+  v_reglas    jsonb;
 begin
   if j is null
      or coalesce(j->>'ok', '') <> 'true'
@@ -121,6 +125,7 @@ begin
       (coalesce(p->>'precio', '') <> '' and (p->>'precio') !~ '^[0-9]+(\.[0-9]+)?$')
       or (coalesce(p->>'unidadesCaja', '') <> '' and (p->>'unidadesCaja') !~ '^[0-9]{1,6}$')
       or (coalesce(p->>'orden', '') <> '' and (p->>'orden') !~ '^-?[0-9]{1,9}$')
+      or (coalesce(p->>'kgCaja', '') <> '' and (p->>'kgCaja') !~ '^[0-9]{1,4}(\.[0-9]+)?$')
       or coalesce(btrim(p->>'nombre'), '') = ''
     );
   if v_malos is not null then
@@ -139,6 +144,45 @@ begin
   select count(*) into v_pub from productos where publicado;
   if v_unicos < 1 or (v_pub > 0 and v_unicos < v_pub * 0.5) then
     raise exception 'El catalogo llego con % productos validos y hay % publicados: no se sincroniza', v_unicos, v_pub;
+  end if;
+
+  -- [AUDITORIA H01] Contrato 2: la planilla es la fuente de la venta por caja
+  -- cerrada (columnas solo_caja y kg_caja). Las tablas caja_cerrada y
+  -- caja_cerrada_kg pasan a ser una copia que se rehace en cada vuelta, ANTES
+  -- de actualizar productos, para que el trigger ya vea las reglas nuevas.
+  -- Con contrato 1 (o sin contrato) las tablas no se tocan, como antes.
+  -- Red de seguridad: si de golpe desaparece mas de la mitad de las reglas,
+  -- se rechaza el lote (igual que con los productos).
+  v_contrato := case when coalesce(j->>'contrato', '') ~ '^[0-9]{1,3}$' then (j->>'contrato')::int else 1 end;
+  if v_contrato >= 2 then
+    -- Una regla valida: precio por kg con kilos de caja, o por unidad con mas
+    -- de una unidad por caja. Un "si" sin datos no se puede aplicar.
+    select coalesce(jsonb_agg(r), '[]'::jsonb) into v_reglas
+    from (
+      select p->>'id' as id,
+             case when coalesce(p->>'kgCaja', '') <> '' and (p->>'kgCaja')::numeric > 0
+                  then (p->>'kgCaja')::numeric end as kg,
+             case when coalesce(p->>'unidadPrecio', '') <> 'kg' and coalesce(p->>'unidadesCaja', '') <> ''
+                       and (p->>'unidadesCaja')::int > 1 then (p->>'unidadesCaja')::int end as unidades
+      from jsonb_array_elements(j->'productos') p
+      where coalesce(p->>'id', '') <> ''
+        and lower(coalesce(p->>'soloCaja', '')) in ('true', 't', '1', 'yes', 'si')
+    ) r
+    where r.kg is not null or r.unidades is not null;
+
+    v_reglas_nuevas := jsonb_array_length(v_reglas);
+    select (select count(*) from caja_cerrada) + (select count(*) from caja_cerrada_kg) into v_reglas_antes;
+    if v_reglas_antes > 0 and v_reglas_nuevas < v_reglas_antes * 0.5 then
+      raise exception 'Las reglas de caja cerrada bajarian de % a %: no se sincroniza', v_reglas_antes, v_reglas_nuevas;
+    end if;
+
+    delete from caja_cerrada_kg;
+    insert into caja_cerrada_kg (producto_id, kg)
+    select x.id, x.kg from jsonb_to_recordset(v_reglas) as x(id text, kg numeric, unidades int) where x.kg is not null;
+    delete from caja_cerrada;
+    insert into caja_cerrada (producto_id, unidades)
+    select x.id, x.unidades from jsonb_to_recordset(v_reglas) as x(id text, kg numeric, unidades int)
+    where x.kg is null and x.unidades is not null;
   end if;
 
   insert into productos (id, sku, nombre, descripcion, categoria, marca, precio, moneda,
@@ -205,7 +249,8 @@ begin
   delete from config where clave not in (select clave from nuevas);
   select count(*) into v_config from config;
 
-  return jsonb_build_object('productos', v_unicos, 'ocultados', v_ocultos, 'config', v_config);
+  return jsonb_build_object('productos', v_unicos, 'ocultados', v_ocultos, 'config', v_config,
+                            'contrato', v_contrato, 'reglas_caja', v_reglas_nuevas);
 end;
 $$;
 

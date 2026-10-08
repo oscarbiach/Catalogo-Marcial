@@ -99,6 +99,19 @@ function aTexto(valor) {
 }
 
 /**
+ * Kilos de una caja (kg_caja). No usa aNumero, que lee "0.500" como 500: aca
+ * coma o punto son siempre decimales ("3,6" y "3.6" -> 3.6). Fuera de rango
+ * (0 a 1000 kg) o ilegible -> 0, que significa "sin dato".
+ */
+function aKilos(valor) {
+  if (valor === '' || valor === null || valor === undefined) return 0;
+  const n = typeof valor === 'number'
+    ? valor
+    : parseFloat(String(valor).replace(/[^0-9,.]/g, '').replace(',', '.'));
+  return isFinite(n) && n > 0 && n <= 1000 ? Math.round(n * 1000) / 1000 : 0;
+}
+
+/**
  * Parte una celda con valores separados por coma. Se usa para los rubros, que
  * se cargan a mano y llegan con espacios y comas de mas.
  */
@@ -138,6 +151,9 @@ function filaAProducto(fila) {
     pedidos: aNumero(o.pedidos) || pedidosDeTabla(aTexto(o.sku)),
     activo: aBool(o.activo),
     actualizado: o.actualizado instanceof Date ? o.actualizado.toISOString() : aTexto(o.actualizado),
+    // [AUDITORIA H01] Venta solo por caja cerrada (ver COLUMNAS en Codigo.gs).
+    solo_caja: aBool(o.solo_caja),
+    kg_caja: aKilos(o.kg_caja),
   };
 }
 
@@ -278,6 +294,16 @@ function guardarProducto(token, datos) {
     } else if (fila) {
       producto.unidad_precio = aTexto(hoja.getRange(fila, COLUMNAS.indexOf('unidad_precio') + 1).getValue()).toLowerCase();
     }
+    // [AUDITORIA H01] Igual con la venta por caja cerrada: el panel no la
+    // maneja, y como la fila se reescribe entera, sin esto cada guardado
+    // desde el panel le borraria la regla al producto.
+    ['solo_caja', 'kg_caja'].forEach(function (col) {
+      if (datos[col] !== undefined) {
+        producto[col] = col === 'solo_caja' ? aBool(datos[col]) : aKilos(datos[col]);
+      } else if (fila) {
+        producto[col] = hoja.getRange(fila, COLUMNAS.indexOf(col) + 1).getValue();
+      }
+    });
     const valores = [productoAFila(producto)];
 
     if (fila) {

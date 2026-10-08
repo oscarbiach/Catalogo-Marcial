@@ -21,14 +21,26 @@ const CFG = {
   PROP_SALT: 'ADMIN_SALT',
   PROP_CARPETA: 'CARPETA_ID',
   PROP_PLANILLA: 'PLANILLA_ID',
+  // Lo pone cc_aplicar() (CajaCerrada.gs) cuando las reglas de caja cerrada ya
+  // estan cargadas en la planilla. Recien ahi el catalogo las publica como
+  // fuente de verdad (contrato 2).
+  PROP_CAJA_EN_PLANILLA: 'CAJA_EN_PLANILLA',
 };
 
-/** Orden y nombre de las columnas de la hoja Productos. No reordenar a mano. */
+/**
+ * Orden y nombre de las columnas de la hoja Productos. No reordenar a mano:
+ * la hoja se lee por posicion. Las columnas nuevas van siempre al final.
+ */
 const COLUMNAS = [
   'id', 'sku', 'nombre', 'descripcion', 'categoria', 'marca',
   'precio', 'moneda', 'unidades_caja', 'presentacion', 'imagenes',
   'destacado', 'nuevo', 'sin_stock', 'orden', 'activo', 'actualizado', 'pedidos',
   'rubros', 'codigo_precio','unidad_precio',
+  // [AUDITORIA H01] Venta solo por caja cerrada. solo_caja: si/no. kg_caja:
+  // kilos de la caja cuando el precio es por kg (las unidades salen de
+  // unidades_caja). Antes esta regla vivia solo en Supabase y el respaldo de
+  // Apps Script la perdia.
+  'solo_caja', 'kg_caja',
 ];
 
 /** Claves de la hoja Config, con sus valores por defecto. */
@@ -408,8 +420,17 @@ function construirCatalogo() {
   const logoId = buscarLogoEnDrive();
   if (logoId) config.negocio_logo_id = logoId;
 
+  // [AUDITORIA H01] contrato 2 = cada producto trae soloCaja y kgCaja y la
+  // planilla es la fuente de verdad de la venta por caja. Mientras no se haya
+  // corrido cc_aplicar(), las columnas estan vacias y se sigue en contrato 1:
+  // asi Supabase no toma un "nadie se vende por caja" que en realidad es
+  // "todavia no se cargo".
+  const contrato = PropertiesService.getScriptProperties()
+    .getProperty(CFG.PROP_CAJA_EN_PLANILLA) === '1' ? 2 : 1;
+
   return {
     ok: true,
+    contrato: contrato,
     version: Date.now(),
     config: config,
     categorias: categorias,
@@ -439,6 +460,8 @@ function despublicar(p) {
     orden: p.orden,
     rubros: p.rubros,
     unidadPrecio: p.unidad_precio,
+    soloCaja: p.solo_caja,
+    kgCaja: p.kg_caja,
     // A proposito NO se manda 'pedidos': es informacion comercial. El catalogo
     // ya viaja ordenado por ese criterio desde el servidor, asi que el sitio
     // no necesita conocer el numero para mostrar lo mas pedido primero.

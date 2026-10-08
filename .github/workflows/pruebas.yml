@@ -29,6 +29,8 @@ jobs:
           node-version: 22
       - name: Sintaxis de app.js
         run: node --check docs/assets/js/app.js
+      - name: Apps Script (planilla simulada)
+        run: node pruebas/apps-script/caja-cerrada.test.js
       - name: Instalar Playwright
         # Sin package.json a proposito: el sitio no tiene dependencias, esto
         # es solo para las pruebas.

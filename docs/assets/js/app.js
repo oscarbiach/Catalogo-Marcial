@@ -392,6 +392,7 @@
    * @property {?number}  sincronizadoEn  ultima sincronizacion buena (ms)
    * @property {number}   obtenidoEn      cuando lo trajo este navegador (ms)
    * @property {'completas'|'heredadas'|'faltan'} reglasCaja
+   * @property {number}   contrato        2 = la fuente trae soloCaja/kgCaja propios
    * @property {Object<string,string>} config
    * @property {string[]} categorias
    * @property {string[]} marcas
@@ -501,6 +502,7 @@
       sincronizadoEn: sincronizadoEn,
       obtenidoEn: comoNumero(crudo.obtenidoEn, Date.now()),
       reglasCaja: crudo.reglasCaja === 'heredadas' || crudo.reglasCaja === 'faltan' ? crudo.reglasCaja : 'completas',
+      contrato: Math.max(1, Math.floor(comoNumero(crudo.contrato, 1))),
       config: config,
       categorias: comoListaDeTextos(crudo.categorias),
       marcas: comoListaDeTextos(crudo.marcas),
@@ -691,7 +693,11 @@
       .then(function (r) {
         if (!r.ok) throw new Error('El servidor respondio ' + r.status + '.');
         var datos = normalizarCatalogo(r.cuerpo, 'apps-script');
-        return supabaseActivo() ? aplicarReglasCaja(datos) : datos;
+        // [AUDITORIA H01] Contrato 2: la planilla ya manda soloCaja y kgCaja,
+        // el respaldo cumple el mismo contrato que Supabase y no hace falta
+        // heredar reglas guardadas.
+        if (datos.contrato >= 2 || !supabaseActivo()) return datos;
+        return aplicarReglasCaja(datos);
       });
   }
 
