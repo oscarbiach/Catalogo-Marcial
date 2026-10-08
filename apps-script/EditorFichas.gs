@@ -6,10 +6,13 @@
  * por caja. Se abre desde el menu "Fichas de producto".
  *
  * QUE TOCA Y QUE NO
- *  - Escribe SOLO en tres columnas de la hoja Productos: descripcion,
- *    presentacion y unidades_caja, y solo en la fila del producto que se esta
- *    editando (verifica que el id coincida antes de escribir).
- *  - No cambia precios, orden, categorias, fotos, formulas ni la estructura.
+ *  - Escribe SOLO en cuatro columnas de la hoja Productos: descripcion,
+ *    presentacion, unidades_caja e imagenes (el orden de las fotos y cuales
+ *    quedan), y solo en la fila del producto que se esta editando (verifica que
+ *    el id coincida antes de escribir).
+ *  - Quitar una foto la saca de la lista del producto; el archivo sigue en Drive.
+ *    Nunca se agregan fotos nuevas ni ids que no estuvieran ya en el producto.
+ *  - No cambia precios, orden, categorias, formulas ni la estructura.
  *  - Cada cambio queda anotado en una hoja nueva "Historial fichas" (fecha,
  *    producto, campo, valor anterior y nuevo): sirve para deshacer. Se puede
  *    borrar esa hoja cuando quieras.
@@ -57,8 +60,8 @@ function ef_crearMenu() {
 
 function ef_abrir() {
   var html = HtmlService.createHtmlOutputFromFile('EditorFichas')
-    .setWidth(1000)
-    .setHeight(700);
+    .setWidth(1100)
+    .setHeight(760);
   SpreadsheetApp.getUi().showModalDialog(html, 'Editor de fichas de producto');
 }
 
@@ -105,6 +108,35 @@ function ef_idsImagen_(valor) {
     } catch (e) { /* sigue con el metodo general */ }
   }
   return (texto.match(/[-\w]{25,}/g) || []);
+}
+
+/**
+ * Mira como estan escritas las fotos en toda la columna imagenes (lista JSON,
+ * separadas por coma, por punto y coma o una por linea) para volver a escribirlas
+ * exactamente igual.
+ */
+function ef_formatoImagenes_(valoresColumna) {
+  var cuenta = { json: 0, nl: 0, semi: 0, comaEsp: 0, coma: 0 };
+  valoresColumna.forEach(function (v) {
+    var t = String(v === null || v === undefined ? '' : v).trim();
+    if (!t) return;
+    if (t.charAt(0) === '[') cuenta.json++;
+    else if (t.indexOf('\n') > -1) cuenta.nl++;
+    else if (t.indexOf(';') > -1) cuenta.semi++;
+    else if (/,\s/.test(t)) cuenta.comaEsp++;
+    else if (t.indexOf(',') > -1) cuenta.coma++;
+  });
+  var mejor = 'coma', max = -1;
+  ['json', 'nl', 'semi', 'comaEsp', 'coma'].forEach(function (k) {
+    if (cuenta[k] > max) { max = cuenta[k]; mejor = k; }
+  });
+  return max <= 0 ? 'coma' : mejor;
+}
+
+function ef_serializarImagenes_(ids, formato) {
+  if (formato === 'json') return JSON.stringify(ids);
+  var sep = { nl: '\n', semi: ';', comaEsp: ', ', coma: ',' }[formato] || ',';
+  return ids.join(sep);
 }
 
 /** Todos los productos, con lo necesario para editarlos. No modifica nada. */
@@ -155,6 +187,12 @@ function ef_probar() {
   var sinFoto = p.filter(function (x) { return !x.imagenes.length; }).length;
   Logger.log('Productos: ' + p.length + ' | sin descripcion: ' + sinDesc + ' | sin presentacion: ' + sinPres + ' | sin foto: ' + sinFoto);
   Logger.log('Primer producto: ' + JSON.stringify(p[0]));
+  var hoja = ef_hoja_(), col = ef_columnas_(hoja);
+  if (col.imagenes && hoja.getLastRow() > 1) {
+    var crudo = hoja.getRange(2, col.imagenes, hoja.getLastRow() - 1, 1).getValues().map(function (f) { return f[0]; });
+    var muestra = crudo.filter(function (v) { return String(v).trim() !== ''; })[0];
+    Logger.log('Formato de las fotos: ' + ef_formatoImagenes_(crudo) + ' | ejemplo: ' + String(muestra).slice(0, 120));
+  }
   Logger.log('No se modifico nada.');
 }
 
@@ -224,6 +262,29 @@ function ef_guardar(fila, id, datos) {
 
     var nombre = String(hoja.getRange(fila, col.nombre).getValue());
     var cambios = [];
+
+    // Fotos: solo reordenar o quitar las que el producto ya tiene. Nunca agregar.
+    if (datos.imagenes && col.imagenes) {
+      var celdaFotos = hoja.getRange(fila, col.imagenes);
+      var fotosAntes = celdaFotos.getValue();
+      var idsAntes = ef_idsImagen_(fotosAntes);
+      var idsNuevos = (datos.imagenes || []).map(String);
+      var vistos = {};
+      idsNuevos.forEach(function (x) {
+        if (idsAntes.indexOf(x) === -1) throw new Error('Una de las fotos no pertenece a este producto. Recarga el editor.');
+        if (vistos[x]) throw new Error('Hay una foto repetida. Recarga el editor.');
+        vistos[x] = true;
+      });
+      if (idsNuevos.join('|') !== idsAntes.join('|')) {
+        var formato = ef_formatoImagenes_(hoja.getRange(2, col.imagenes, hoja.getLastRow() - 1, 1).getValues().map(function (f) { return f[0]; }));
+        var texto = ef_serializarImagenes_(idsNuevos, formato);
+        // Comprobacion: lo que se va a escribir tiene que leerse igual que se leyo
+        if (ef_idsImagen_(texto).join('|') !== idsNuevos.join('|')) throw new Error('No se pudo guardar el orden de las fotos con el formato de la hoja.');
+        celdaFotos.setValue(texto);
+        cambios.push([new Date(), String(id), nombre, 'imagenes', String(fotosAntes), texto]);
+      }
+    }
+
     EF.CAMPOS.forEach(function (campo) {
       var celda = hoja.getRange(fila, col[campo]);
       var antes = celda.getValue();

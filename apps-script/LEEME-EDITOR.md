@@ -8,10 +8,12 @@ Archivos: `EditorFichas.gs` (logica) y `EditorFichas.html` (la ventana).
 
 ## Que toca y que no
 
-- Escribe solo en las columnas `descripcion`, `presentacion` y `unidades_caja`
+- Escribe solo en las columnas `descripcion`, `presentacion`, `unidades_caja` e `imagenes` (orden de las fotos y cuales quedan)
   de la hoja `Productos`, y solo en la fila del producto que se esta editando.
   Antes de escribir verifica que el `id` de esa fila siga siendo el mismo.
-- No cambia precios, orden, categorias, fotos, formulas ni la estructura.
+- Quitar una foto la saca de la lista del producto; el archivo sigue en Drive. Nunca
+  agrega fotos nuevas ni ids que el producto no tuviera.
+- No cambia precios, orden, categorias, formulas ni la estructura.
 - Rechaza textos que Sheets convertiria en formula (empiezan con `=`) o en fecha
   (`1/2`), para no romper celdas.
 - Cada cambio queda en la hoja nueva `Historial fichas` (fecha, id, producto,
@@ -39,3 +41,11 @@ no chocar con las existentes.
   que se haya modificado.
 - La presentacion y el peso van juntos en un texto libre, por ejemplo
   "Pieza de aprox. 4 kg" o "Caja x 12 u".
+
+## Fotos
+
+- La primera foto es la principal (la que se ve en el catalogo).
+- Flechas para mover, arrastrar y soltar, o "Usar esta foto como principal".
+- La X pide confirmacion y solo saca la foto de ese producto.
+- Se vuelve a escribir en el mismo formato en que ya estaban las fotos en la hoja
+  (`ef_probar` muestra el formato detectado).

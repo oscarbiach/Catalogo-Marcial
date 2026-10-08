@@ -5,109 +5,192 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-  :root { --tinta:#14213a; --tinta2:#51607a; --linea:#d7dde8; --fondo:#f4f6fa; --losa:#fff; --marca:#14294b; --ok:#177a45; --err:#b3261e; --aviso:#fff4d6; }
-  * { box-sizing: border-box; }
-  body { margin:0; font:14px/1.4 "Google Sans", Roboto, Arial, sans-serif; color:var(--tinta); background:var(--fondo); height:100vh; display:flex; flex-direction:column; }
-  header { display:flex; gap:10px; align-items:center; padding:10px 14px; background:var(--losa); border-bottom:1px solid var(--linea); flex-wrap:wrap; }
-  header .cuenta { font-weight:700; margin-right:auto; }
-  header .cuenta small { font-weight:400; color:var(--tinta2); margin-left:6px; }
-  select, input, textarea, button { font:inherit; }
-  select, input[type=text], input[type=number], input[type=search], textarea { border:1px solid var(--linea); border-radius:8px; padding:8px 10px; background:#fff; color:var(--tinta); width:100%; }
-  header select, header input[type=search] { width:auto; min-width:150px; }
-  textarea { resize:vertical; min-height:120px; }
-  main { flex:1; display:grid; grid-template-columns: minmax(280px, 42%) 1fr; gap:16px; padding:14px; min-height:0; }
-  .fotos { background:var(--losa); border:1px solid var(--linea); border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:10px; min-height:0; }
-  .foto-grande { flex:1; min-height:200px; display:grid; place-items:center; background:#f0f2f7; border-radius:8px; overflow:hidden; position:relative; }
+  :root {
+    --tinta:#1b2540; --tinta2:#5a6783; --linea:#dfe5f1; --fondo:#eef2fb; --losa:#fff;
+    --azul:#2f5bd7; --azul-osc:#1e3f9e; --azul-claro:#e6edff;
+    --verde:#16a05a; --verde-osc:#0f7e45; --verde-claro:#def7ea;
+    --naranja:#f28a1b; --naranja-claro:#fff0dc;
+    --rojo:#d93a3a; --rojo-claro:#fde4e4;
+    --dorado:#f5b81c; --violeta:#7a4fe0; --violeta-claro:#efe8ff;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; font:15px/1.45 "Google Sans", Roboto, Arial, sans-serif; color:var(--tinta); background:var(--fondo); height:100vh; display:flex; flex-direction:column; }
+  button, input, select, textarea { font:inherit; }
+
+  /* Cabecera de color con el progreso */
+  .top { background:linear-gradient(120deg, var(--azul-osc), var(--azul) 55%, #4a86f0); color:#fff; padding:8px 18px 9px; }
+  .top-fila { display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+  .top h2 { margin:0; font-size:18px; letter-spacing:.2px; }
+  .top .pos { margin-left:auto; font-weight:700; background:rgba(255,255,255,.18); padding:4px 12px; border-radius:99px; }
+  .progreso { margin-top:6px; display:flex; align-items:center; gap:12px; }
+  .progreso .barra { flex:1; }
+  .barra { height:9px; border-radius:99px; background:rgba(255,255,255,.28); overflow:hidden; }
+  .barra > i { display:block; height:100%; width:0; background:linear-gradient(90deg, #7df0b0, #b9ff7a); border-radius:99px; transition:width .4s; }
+  .progreso small { opacity:.95; white-space:nowrap; font-size:12.5px; }
+
+  /* Filtros en pastillas de colores */
+  .filtros { display:flex; gap:8px; align-items:center; flex-wrap:wrap; padding:10px 18px; background:var(--losa); border-bottom:1px solid var(--linea); }
+  .pill { border:2px solid var(--linea); background:#fff; color:var(--tinta); border-radius:99px; padding:6px 14px; cursor:pointer; font-weight:600; transition:.15s; }
+  .pill:hover { border-color:var(--azul); }
+  .pill b { margin-left:6px; background:var(--fondo); border-radius:99px; padding:1px 8px; font-size:12px; }
+  .pill.on { background:var(--azul); border-color:var(--azul); color:#fff; }
+  .pill.on b { background:rgba(255,255,255,.25); color:#fff; }
+  .pill.naranja.on { background:var(--naranja); border-color:var(--naranja); }
+  .pill.violeta.on { background:var(--violeta); border-color:var(--violeta); }
+  .filtros select, .filtros input { border:2px solid var(--linea); border-radius:10px; padding:7px 10px; background:#fff; color:var(--tinta); }
+  .filtros input { min-width:190px; }
+  .filtros .sep { margin-left:auto; display:flex; gap:8px; flex-wrap:wrap; }
+
+  main { flex:1; display:grid; grid-template-columns:minmax(300px, 44%) 1fr; gap:16px; padding:14px 18px; min-height:0; overflow:auto; align-items:start; }
+  .tarjeta { background:var(--losa); border-radius:16px; box-shadow:0 2px 10px rgba(30,63,158,.08); overflow:hidden; display:flex; flex-direction:column; }
+  .tarjeta > h3 { margin:0; padding:10px 16px; font-size:14px; letter-spacing:.3px; text-transform:uppercase; color:#fff; }
+  .t-fotos > h3 { background:linear-gradient(90deg, var(--violeta), #9a6bff); }
+  .t-datos > h3 { background:linear-gradient(90deg, var(--verde-osc), var(--verde)); }
+  .cuerpo { padding:14px 16px; display:flex; flex-direction:column; gap:12px; }
+
+  /* Fotos */
+  .foto-grande { height:clamp(170px, 29vh, 300px); flex:none; display:grid; place-items:center; background:repeating-conic-gradient(#f3f5fb 0 25%, #fff 0 50%) 0 0/20px 20px; border-radius:12px; overflow:hidden; position:relative; }
   .foto-grande img { width:100%; height:100%; object-fit:contain; }
-  .foto-grande .vacia { color:var(--tinta2); text-align:center; padding:20px; }
-  .tiras { display:flex; gap:6px; flex-wrap:wrap; }
-  .tiras button { width:54px; height:54px; padding:0; border:2px solid transparent; border-radius:8px; overflow:hidden; background:#f0f2f7; cursor:pointer; }
-  .tiras button.viva { border-color:var(--marca); }
-  .tiras img { width:100%; height:100%; object-fit:cover; }
-  .datos { background:var(--losa); border:1px solid var(--linea); border-radius:12px; padding:16px; overflow:auto; display:flex; flex-direction:column; gap:12px; min-height:0; }
-  h1 { font-size:19px; margin:0; line-height:1.25; }
-  .sub { color:var(--tinta2); margin-top:2px; }
-  .campo label { display:block; font-weight:700; margin-bottom:4px; }
-  .campo .ayuda { color:var(--tinta2); font-size:12px; margin-top:3px; }
-  .fila { display:grid; grid-template-columns: 1fr 160px; gap:12px; }
-  .contador { text-align:right; font-size:12px; color:var(--tinta2); }
-  .estado { min-height:20px; font-size:13px; }
-  .estado.ok { color:var(--ok); }
-  .estado.err { color:var(--err); font-weight:700; }
-  footer { display:flex; gap:8px; padding:10px 14px; background:var(--losa); border-top:1px solid var(--linea); align-items:center; }
-  footer .espacio { margin-right:auto; color:var(--tinta2); font-size:12px; }
-  button.b { border:1px solid var(--linea); background:#fff; color:var(--tinta); border-radius:8px; padding:9px 14px; cursor:pointer; }
-  button.b:hover { background:#f0f2f7; }
-  button.b[disabled] { opacity:.5; cursor:default; }
-  button.primario { background:var(--marca); border-color:var(--marca); color:#fff; font-weight:700; }
-  button.primario:hover { background:#1c3a68; }
-  .aviso { background:var(--aviso); border-radius:8px; padding:6px 10px; font-size:12px; }
-  .cargando { padding:40px; text-align:center; color:var(--tinta2); }
-  @media (max-width: 760px) { main { grid-template-columns:1fr; overflow:auto; } .fila { grid-template-columns:1fr; } }
+  .foto-grande .vacia { color:var(--tinta2); text-align:center; padding:20px; background:#fff; border-radius:10px; }
+  .etiqueta-foto { position:absolute; left:10px; top:10px; background:var(--dorado); color:#4a3500; font-weight:800; font-size:12px; padding:4px 10px; border-radius:99px; box-shadow:0 1px 4px rgba(0,0,0,.2); }
+  .etiqueta-foto.sec { background:#fff; color:var(--tinta2); }
+  .ayuda-fotos { color:var(--tinta2); font-size:12.5px; }
+  .tiras { display:flex; gap:10px; flex-wrap:wrap; }
+  .tile { width:92px; display:flex; flex-direction:column; gap:4px; }
+  .tile .marco { position:relative; width:92px; height:92px; border-radius:12px; overflow:hidden; border:3px solid transparent; background:#f0f2f8; cursor:pointer; }
+  .tile.sel .marco { border-color:var(--violeta); box-shadow:0 0 0 2px var(--violeta-claro); }
+  .tile.drag .marco { opacity:.4; }
+  .tile.sobre .marco { border-color:var(--naranja); }
+  .tile img { width:100%; height:100%; object-fit:cover; display:block; }
+  .tile .num { position:absolute; left:4px; top:4px; background:rgba(20,30,60,.75); color:#fff; font-size:11px; font-weight:700; border-radius:99px; padding:1px 7px; }
+  .tile.primera .num { background:var(--dorado); color:#4a3500; }
+  .tile .acc { display:flex; gap:3px; }
+  .tile .acc button { flex:1; border:0; border-radius:7px; padding:4px 0; cursor:pointer; font-weight:700; background:var(--azul-claro); color:var(--azul-osc); }
+  .tile .acc button:hover { background:var(--azul); color:#fff; }
+  .tile .acc button.quitar { background:var(--rojo-claro); color:var(--rojo); }
+  .tile .acc button.quitar:hover { background:var(--rojo); color:#fff; }
+  .tile .acc button[disabled] { opacity:.3; cursor:default; }
+  .tile .conf { display:flex; gap:3px; }
+  .tile .conf button { flex:1; border:0; border-radius:7px; padding:4px 0; cursor:pointer; font-weight:700; }
+  .tile .conf .si { background:var(--rojo); color:#fff; }
+  .tile .conf .no { background:#e6e9f2; color:var(--tinta); }
+  .tile .conf-txt { font-size:11px; color:var(--rojo); font-weight:700; text-align:center; }
+  .btn-principal { align-self:flex-start; border:0; background:var(--dorado); color:#4a3500; font-weight:800; border-radius:10px; padding:8px 14px; cursor:pointer; }
+  .btn-principal:hover { filter:brightness(.95); }
+  .btn-principal[disabled] { opacity:.45; cursor:default; }
+
+  /* Datos */
+  h1 { font-size:21px; margin:0; line-height:1.25; }
+  .chips { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
+  .chip { background:var(--azul-claro); color:var(--azul-osc); border-radius:99px; padding:3px 11px; font-size:12.5px; font-weight:600; }
+  .chip.precio { background:var(--verde-claro); color:var(--verde-osc); }
+  .chip.estado-ok { background:var(--verde-claro); color:var(--verde-osc); }
+  .chip.estado-falta { background:var(--naranja-claro); color:#a85a00; }
+  .campo label { display:flex; align-items:center; gap:6px; font-weight:800; margin-bottom:5px; }
+  .campo .ayuda { color:var(--tinta2); font-size:12.5px; margin-top:4px; }
+  textarea, input[type=text], input[type=number] { width:100%; border:2px solid var(--linea); border-radius:12px; padding:10px 12px; background:#fbfcff; color:var(--tinta); transition:.15s; }
+  textarea:focus, input[type=text]:focus, input[type=number]:focus { outline:none; border-color:var(--azul); background:#fff; box-shadow:0 0 0 3px var(--azul-claro); }
+  textarea { resize:vertical; min-height:130px; }
+  .fila { display:grid; grid-template-columns:1fr 170px; gap:14px; }
+  .contador { text-align:right; font-size:12px; color:var(--tinta2); margin-top:2px; }
+  .estado { min-height:22px; font-weight:700; }
+  .estado.ok { color:var(--verde-osc); }
+  .estado.err { color:var(--rojo); background:var(--rojo-claro); border-radius:10px; padding:8px 12px; }
+  .estado.trabajando { color:var(--azul); }
+  .aviso { background:var(--naranja-claro); color:#7a4400; border-radius:10px; padding:8px 12px; font-size:12.5px; }
+
+  footer { display:flex; gap:10px; padding:12px 18px; background:var(--losa); border-top:1px solid var(--linea); align-items:center; }
+  footer .espacio { margin-right:auto; color:var(--tinta2); font-size:12.5px; }
+  .b { border:2px solid var(--linea); background:#fff; color:var(--tinta); border-radius:12px; padding:10px 16px; cursor:pointer; font-weight:700; }
+  .b:hover { border-color:var(--azul); color:var(--azul); }
+  .b[disabled] { opacity:.5; cursor:default; }
+  .b.grande { background:linear-gradient(180deg, var(--verde), var(--verde-osc)); border-color:var(--verde-osc); color:#fff; padding:11px 22px; font-size:15px; box-shadow:0 3px 8px rgba(22,160,90,.35); }
+  .b.grande:hover { filter:brightness(1.05); color:#fff; }
+  .cargando { padding:50px; text-align:center; color:var(--tinta2); font-size:16px; }
+  @media (max-width: 800px) { main { grid-template-columns:1fr; overflow:auto; } .fila { grid-template-columns:1fr; } }
 </style>
 </head>
 <body>
 
-<header>
-  <div class="cuenta" id="cuenta">Cargando…</div>
-  <select id="filtro" aria-label="Mostrar">
-    <option value="falta-desc">Sin descripción</option>
-    <option value="falta-pres">Sin presentación</option>
-    <option value="falta-algo">Falta algo</option>
-    <option value="todos">Todos</option>
-  </select>
-  <select id="categoria" aria-label="Categoría"><option value="">Todas las categorías</option></select>
-  <input type="search" id="buscar" placeholder="Buscar por nombre o código" aria-label="Buscar">
-</header>
+<div class="top">
+  <div class="top-fila">
+    <h2>✏️ Editor de fichas</h2>
+    <span class="pos" id="pos">—</span>
+  </div>
+  <div class="progreso">
+    <div class="barra"><i id="barra"></i></div>
+    <small id="progreso-txt"></small>
+  </div>
+</div>
+
+<div class="filtros">
+  <button class="pill naranja" data-f="falta-desc" type="button">📝 Sin descripción <b id="n-desc">0</b></button>
+  <button class="pill violeta" data-f="sin-foto" type="button">🖼️ Sin foto <b id="n-foto">0</b></button>
+  <button class="pill" data-f="falta-algo" type="button">⚠️ Falta algo <b id="n-algo">0</b></button>
+  <button class="pill" data-f="todos" type="button">📋 Todos <b id="n-todos">0</b></button>
+  <div class="sep">
+    <select id="categoria" aria-label="Categoría"><option value="">Todas las categorías</option></select>
+    <input type="search" id="buscar" placeholder="🔍 Buscar por nombre o código" aria-label="Buscar">
+  </div>
+</div>
 
 <div class="cargando" id="cargando">Cargando los productos de la planilla…</div>
 
 <main id="principal" hidden>
-  <section class="fotos" aria-label="Fotos del producto">
-    <div class="foto-grande" id="foto-grande"><div class="vacia">Sin foto</div></div>
-    <div class="tiras" id="tiras"></div>
+  <section class="tarjeta t-fotos" aria-label="Fotos del producto">
+    <h3>🖼️ Fotos</h3>
+    <div class="cuerpo">
+      <div class="foto-grande" id="foto-grande"><div class="vacia">Sin foto</div></div>
+      <button type="button" class="btn-principal" id="hacer-principal">⭐ Usar esta foto como principal</button>
+      <div class="tiras" id="tiras"></div>
+      <div class="ayuda-fotos" id="ayuda-fotos">La primera foto es la principal: es la que se ve en el catálogo. Usá las flechas ◀ ▶ o arrastrá las fotos para cambiar el orden.</div>
+    </div>
   </section>
 
-  <section class="datos">
-    <div>
-      <h1 id="nombre"></h1>
-      <div class="sub" id="sub"></div>
-    </div>
-
-    <div class="campo">
-      <label for="descripcion">Descripción</label>
-      <textarea id="descripcion" maxlength="800" placeholder="Qué es, para qué sirve, cómo viene. Ej.: Queso cremoso ideal para pizzas, de buen derretido."></textarea>
-      <div class="contador"><span id="cuenta-desc">0</span> / 800</div>
-    </div>
-
-    <div class="fila">
-      <div class="campo">
-        <label for="presentacion">Presentación y peso aproximado</label>
-        <input type="text" id="presentacion" maxlength="120" placeholder="Ej.: Pieza de aprox. 4 kg · Caja x 12 u · Bolsa de 1 kg">
-        <div class="ayuda">Lo que ve el cliente en la ficha: cómo viene y cuánto pesa más o menos.</div>
+  <section class="tarjeta t-datos">
+    <h3>📋 Datos de la ficha</h3>
+    <div class="cuerpo">
+      <div>
+        <h1 id="nombre"></h1>
+        <div class="chips" id="chips"></div>
       </div>
-      <div class="campo">
-        <label for="unidades">Unidades por caja</label>
-        <input type="number" id="unidades" min="0" step="1" placeholder="Ej.: 12">
-        <div class="ayuda">Vacío si no aplica.</div>
-      </div>
-    </div>
 
-    <div class="estado" id="estado" role="status"></div>
-    <div class="aviso">Solo se guardan estos tres campos. No se toca el precio, el orden ni las fotos. Cada cambio queda anotado en la hoja «Historial fichas».</div>
+      <div class="campo">
+        <label for="descripcion">📝 Descripción</label>
+        <textarea id="descripcion" maxlength="800" placeholder="Qué es, para qué sirve, cómo viene. Ej.: Queso cremoso ideal para pizzas, de buen derretido."></textarea>
+        <div class="contador"><span id="cuenta-desc">0</span> / 800</div>
+      </div>
+
+      <div class="fila">
+        <div class="campo">
+          <label for="presentacion">📦 Presentación y peso aproximado</label>
+          <input type="text" id="presentacion" maxlength="120" placeholder="Ej.: Pieza de aprox. 4 kg · Caja x 12 u · Bolsa de 1 kg">
+          <div class="ayuda">Lo que ve el cliente: cómo viene y cuánto pesa más o menos.</div>
+        </div>
+        <div class="campo">
+          <label for="unidades">🔢 Unidades por caja</label>
+          <input type="number" id="unidades" min="0" step="1" placeholder="Ej.: 12">
+          <div class="ayuda">Vacío si no aplica.</div>
+        </div>
+      </div>
+
+      <div class="estado" id="estado" role="status"></div>
+      <div class="aviso">Se guardan la descripción, la presentación, las unidades por caja y el orden de las fotos. Quitar una foto solo la saca de este producto: el archivo sigue en Drive. Cada cambio queda en la hoja «Historial fichas».</div>
+    </div>
   </section>
 </main>
 
 <footer>
   <button class="b" id="anterior">← Anterior</button>
   <button class="b" id="siguiente">Siguiente →</button>
-  <span class="espacio" id="espacio">Al cambiar de producto se guarda solo lo que modificaste.</span>
-  <button class="b primario" id="guardar-sig">Guardar y siguiente</button>
+  <span class="espacio">Al cambiar de producto se guarda solo lo que modificaste · Ctrl+Enter = guardar y seguir</span>
+  <button class="b grande" id="guardar-sig">💾 Guardar y siguiente</button>
 </footer>
 
 <script>
 (function () {
   var todos = [], lista = [], pos = 0, original = null, fotos = {}, ocupado = false;
+  var filtro = 'falta-desc', fotosEdit = [], fotoSel = 0, confirmar = -1, arrastrando = -1;
   var $ = function (id) { return document.getElementById(id); };
 
   function llamar(nombre) {
@@ -117,120 +200,187 @@
       r[nombre].apply(r, args);
     });
   }
-
   function vacio(s) { return !String(s || '').trim(); }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
 
+  // ---------- filtros y contadores ----------
+  function cumple(p, f) {
+    if (f === 'falta-desc') return vacio(p.descripcion);
+    if (f === 'sin-foto') return !p.imagenes.length;
+    if (f === 'falta-algo') return vacio(p.descripcion) || vacio(p.presentacion) || !p.imagenes.length;
+    return true;
+  }
   function aplicarFiltro() {
-    var f = $('filtro').value, cat = $('categoria').value, q = $('buscar').value.trim().toLowerCase();
+    var cat = $('categoria').value, q = $('buscar').value.trim().toLowerCase();
     lista = todos.filter(function (p) {
-      if (!p.activo && f !== 'todos') return false;
+      if (!p.activo && filtro !== 'todos') return false;
       if (cat && p.categoria !== cat) return false;
       if (q && (p.nombre + ' ' + p.sku + ' ' + p.id).toLowerCase().indexOf(q) === -1) return false;
-      if (f === 'falta-desc') return vacio(p.descripcion);
-      if (f === 'falta-pres') return vacio(p.presentacion);
-      if (f === 'falta-algo') return vacio(p.descripcion) || vacio(p.presentacion);
-      return true;
+      return cumple(p, filtro);
     });
   }
-
-  function resumen() {
-    var activos = todos.filter(function (p) { return p.activo; });
-    var faltan = activos.filter(function (p) { return vacio(p.descripcion); }).length;
-    return activos.length + ' productos · faltan ' + faltan + ' descripciones';
+  function contadores() {
+    var act = todos.filter(function (p) { return p.activo; });
+    var cuenta = function (f) { return act.filter(function (p) { return cumple(p, f); }).length; };
+    $('n-desc').textContent = cuenta('falta-desc');
+    $('n-foto').textContent = cuenta('sin-foto');
+    $('n-algo').textContent = cuenta('falta-algo');
+    $('n-todos').textContent = act.length;
+    var hechas = act.length - cuenta('falta-desc');
+    var pct = act.length ? Math.round(hechas * 100 / act.length) : 0;
+    $('barra').style.width = pct + '%';
+    $('progreso-txt').textContent = hechas + ' de ' + act.length + ' productos con descripción (' + pct + '%)';
+    Array.prototype.forEach.call(document.querySelectorAll('.pill'), function (b) { b.classList.toggle('on', b.dataset.f === filtro); });
   }
 
+  // ---------- formulario ----------
   function formaActual() {
-    return { descripcion: $('descripcion').value, presentacion: $('presentacion').value, unidadesCaja: $('unidades').value };
+    return { descripcion: $('descripcion').value, presentacion: $('presentacion').value, unidadesCaja: $('unidades').value, imagenes: fotosEdit.slice() };
   }
   function hayCambios() {
     if (!original) return false;
     var a = formaActual();
     return a.descripcion.trim() !== original.descripcion.trim() ||
            a.presentacion.trim() !== original.presentacion.trim() ||
-           String(a.unidadesCaja).trim() !== String(original.unidadesCaja);
+           String(a.unidadesCaja).trim() !== String(original.unidadesCaja) ||
+           a.imagenes.join('|') !== original.imagenes.join('|');
   }
-
   function estado(texto, tipo) { var e = $('estado'); e.textContent = texto || ''; e.className = 'estado' + (tipo ? ' ' + tipo : ''); }
 
+  // ---------- fotos ----------
   function foto(id, ancho) {
     if (fotos[id + ancho] !== undefined) return Promise.resolve(fotos[id + ancho]);
     return llamar('ef_foto', id, ancho).then(function (d) { fotos[id + ancho] = d; return d; }, function () { return null; });
   }
 
-  function pintarFotos(p) {
-    var g = $('foto-grande'), t = $('tiras');
-    g.innerHTML = p.imagenes.length ? '<div class="vacia">Cargando foto…</div>' : '<div class="vacia">Este producto no tiene foto</div>';
-    t.innerHTML = '';
-    p.imagenes.forEach(function (id, i) {
-      var b = document.createElement('button');
-      b.type = 'button'; b.setAttribute('aria-label', 'Foto ' + (i + 1));
-      b.className = i === 0 ? 'viva' : '';
-      b.addEventListener('click', function () { mostrarFoto(p, i); });
-      t.appendChild(b);
-      foto(id, 120).then(function (d) { if (d) b.innerHTML = '<img src="' + d + '" alt="">'; });
-    });
-    if (p.imagenes.length) mostrarFoto(p, 0);
-  }
-
-  function mostrarFoto(p, i) {
+  function pintarFotoGrande() {
     var g = $('foto-grande');
-    Array.prototype.forEach.call($('tiras').children, function (b, k) { b.className = k === i ? 'viva' : ''; });
-    var id = p.imagenes[i];
+    if (!fotosEdit.length) {
+      g.innerHTML = '<div class="vacia">Este producto no tiene foto</div>';
+      $('hacer-principal').disabled = true;
+      return;
+    }
+    var id = fotosEdit[fotoSel];
+    var rotulo = fotoSel === 0 ? '<span class="etiqueta-foto">⭐ Foto principal</span>' : '<span class="etiqueta-foto sec">Foto ' + (fotoSel + 1) + ' de ' + fotosEdit.length + '</span>';
+    $('hacer-principal').disabled = fotoSel === 0;
+    g.innerHTML = '<div class="vacia">Cargando foto…</div>';
     foto(id, 800).then(function (d) {
-      if (lista[pos] !== p) return;
-      g.innerHTML = d ? '<img src="' + d + '" alt="Foto ' + (i + 1) + ' de ' + p.imagenes.length + '">' : '<div class="vacia">No se pudo cargar la foto</div>';
+      if (fotosEdit[fotoSel] !== id) return;
+      g.innerHTML = d ? '<img src="' + d + '" alt="Foto ' + (fotoSel + 1) + '">' + rotulo : '<div class="vacia">No se pudo cargar la foto</div>';
     });
   }
 
+  function pintarTiras() {
+    var t = $('tiras'); t.innerHTML = '';
+    fotosEdit.forEach(function (id, i) {
+      var d = document.createElement('div');
+      d.className = 'tile' + (i === fotoSel ? ' sel' : '') + (i === 0 ? ' primera' : '');
+      d.draggable = true;
+      var botones = confirmar === i
+        ? '<div class="conf-txt">¿Quitarla?</div><div class="conf"><button type="button" class="si" data-a="si">Sí</button><button type="button" class="no" data-a="no">No</button></div>'
+        : '<div class="acc"><button type="button" data-a="izq" title="Mover a la izquierda"' + (i === 0 ? ' disabled' : '') + '>◀</button>' +
+          '<button type="button" data-a="der" title="Mover a la derecha"' + (i === fotosEdit.length - 1 ? ' disabled' : '') + '>▶</button>' +
+          '<button type="button" class="quitar" data-a="quitar" title="Quitar esta foto">✕</button></div>';
+      d.innerHTML = '<div class="marco"><span class="num">' + (i === 0 ? '⭐ 1' : (i + 1)) + '</span></div>' + botones;
+      t.appendChild(d);
+      foto(id, 160).then(function (src) { if (src) { var im = new Image(); im.src = src; im.alt = ''; d.querySelector('.marco').appendChild(im); } });
+
+      d.querySelector('.marco').addEventListener('click', function () { fotoSel = i; confirmar = -1; pintarTiras(); pintarFotoGrande(); });
+      d.addEventListener('click', function (e) {
+        var a = e.target.getAttribute && e.target.getAttribute('data-a');
+        if (!a) return;
+        e.stopPropagation();
+        if (a === 'izq') mover(i, i - 1);
+        if (a === 'der') mover(i, i + 1);
+        if (a === 'quitar') { confirmar = i; pintarTiras(); }
+        if (a === 'no') { confirmar = -1; pintarTiras(); }
+        if (a === 'si') quitar(i);
+      });
+      d.addEventListener('dragstart', function (e) { arrastrando = i; d.classList.add('drag'); e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', String(i)); } catch (x) {} });
+      d.addEventListener('dragend', function () { arrastrando = -1; pintarTiras(); });
+      d.addEventListener('dragover', function (e) { if (arrastrando > -1) { e.preventDefault(); d.classList.add('sobre'); } });
+      d.addEventListener('dragleave', function () { d.classList.remove('sobre'); });
+      d.addEventListener('drop', function (e) { e.preventDefault(); if (arrastrando > -1 && arrastrando !== i) mover(arrastrando, i); arrastrando = -1; });
+    });
+    $('ayuda-fotos').style.display = fotosEdit.length > 1 ? '' : 'none';
+  }
+
+  function mover(de, a) {
+    if (a < 0 || a >= fotosEdit.length || de === a) return;
+    var seleccionada = fotosEdit[fotoSel];
+    var x = fotosEdit.splice(de, 1)[0];
+    fotosEdit.splice(a, 0, x);
+    fotoSel = fotosEdit.indexOf(seleccionada);
+    confirmar = -1;
+    pintarTiras(); pintarFotoGrande(); estado('Cambiaste el orden de las fotos. Se guarda al tocar “Guardar”.');
+  }
+  function quitar(i) {
+    fotosEdit.splice(i, 1);
+    fotoSel = Math.max(0, Math.min(fotoSel, fotosEdit.length - 1));
+    confirmar = -1;
+    pintarTiras(); pintarFotoGrande(); estado('Quitaste una foto. Se guarda al tocar “Guardar”.');
+  }
+  $('hacer-principal').addEventListener('click', function () { mover(fotoSel, 0); });
+
+  // ---------- pantalla del producto ----------
   function pintar() {
-    $('cuenta').innerHTML = (lista.length ? (pos + 1) + ' de ' + lista.length : '0 de 0') + '<small>' + resumen() + '</small>';
+    contadores();
+    $('pos').textContent = lista.length ? 'Producto ' + (pos + 1) + ' de ' + lista.length : 'Sin productos';
     var hay = lista.length > 0;
     ['anterior', 'siguiente', 'guardar-sig', 'descripcion', 'presentacion', 'unidades'].forEach(function (id) { $(id).disabled = !hay; });
     if (!hay) {
-      $('nombre').textContent = 'No hay productos con ese filtro';
-      $('sub').textContent = 'Cambiá el filtro de arriba para ver otros.';
+      $('nombre').textContent = 'No hay productos con este filtro 🎉';
+      $('chips').innerHTML = '<span class="chip">Cambiá el filtro de arriba para ver otros</span>';
       $('foto-grande').innerHTML = '<div class="vacia">—</div>'; $('tiras').innerHTML = '';
       $('descripcion').value = ''; $('presentacion').value = ''; $('unidades').value = '';
-      original = null; estado('');
+      fotosEdit = []; original = null; estado('');
       return;
     }
     var p = lista[pos];
     $('nombre').textContent = p.nombre;
-    $('sub').textContent = [p.categoria, p.marca, p.precio !== null ? '$ ' + p.precio.toLocaleString('es-AR') : '', p.sku].filter(Boolean).join(' · ');
+    var chips = [];
+    if (p.categoria) chips.push('<span class="chip">' + esc(p.categoria) + '</span>');
+    if (p.marca) chips.push('<span class="chip">' + esc(p.marca) + '</span>');
+    if (p.precio !== null) chips.push('<span class="chip precio">$ ' + p.precio.toLocaleString('es-AR') + '</span>');
+    if (p.sku) chips.push('<span class="chip">' + esc(p.sku) + '</span>');
+    chips.push(vacio(p.descripcion) ? '<span class="chip estado-falta">Falta la descripción</span>' : '<span class="chip estado-ok">Con descripción ✓</span>');
+    $('chips').innerHTML = chips.join('');
     $('descripcion').value = p.descripcion;
     $('presentacion').value = p.presentacion;
     $('unidades').value = p.unidadesCaja === '' ? '' : p.unidadesCaja;
     $('cuenta-desc').textContent = $('descripcion').value.length;
-    original = { descripcion: p.descripcion, presentacion: p.presentacion, unidadesCaja: p.unidadesCaja === '' ? '' : p.unidadesCaja };
+    fotosEdit = p.imagenes.slice(); fotoSel = 0; confirmar = -1;
+    original = { descripcion: p.descripcion, presentacion: p.presentacion, unidadesCaja: p.unidadesCaja === '' ? '' : p.unidadesCaja, imagenes: p.imagenes.slice() };
     estado('');
-    pintarFotos(p);
-    // adelanta la foto del producto que viene, para que no haya espera
+    pintarTiras(); pintarFotoGrande();
     var sig = lista[pos + 1];
     if (sig && sig.imagenes[0]) foto(sig.imagenes[0], 800);
   }
 
-  // Guarda lo modificado del producto actual. Devuelve true si se puede seguir.
   function guardarActual() {
     if (!original || !hayCambios()) return Promise.resolve(true);
     var p = lista[pos], f = formaActual();
-    estado('Guardando…');
-    return llamar('ef_guardar', p.fila, p.id, f).then(function () {
+    var cambioFotos = f.imagenes.join('|') !== original.imagenes.join('|');
+    var envio = { descripcion: f.descripcion, presentacion: f.presentacion, unidadesCaja: f.unidadesCaja };
+    if (cambioFotos) envio.imagenes = f.imagenes;
+    estado('Guardando…', 'trabajando');
+    return llamar('ef_guardar', p.fila, p.id, envio).then(function () {
       p.descripcion = f.descripcion.trim(); p.presentacion = f.presentacion.trim();
       p.unidadesCaja = String(f.unidadesCaja).trim() === '' ? '' : Number(f.unidadesCaja);
-      original = { descripcion: p.descripcion, presentacion: p.presentacion, unidadesCaja: p.unidadesCaja };
-      estado('Guardado ✓', 'ok');
+      p.imagenes = f.imagenes.slice();
+      original = { descripcion: p.descripcion, presentacion: p.presentacion, unidadesCaja: p.unidadesCaja, imagenes: p.imagenes.slice() };
+      estado('¡Guardado! ✓', 'ok');
       return true;
     }, function (e) { estado(e.message, 'err'); return false; });
   }
 
-  function ir(delta, guardar) {
+  function ir(delta) {
     if (ocupado) return;
     ocupado = true;
-    (guardar ? guardarActual() : Promise.resolve(true)).then(function (ok) {
+    guardarActual().then(function (ok) {
       ocupado = false;
       if (!ok) return;
       var actualId = lista[pos] && lista[pos].id;
-      // Si el filtro es "sin descripcion", el producto recien completado sale de la lista
       aplicarFiltro();
       var idx = lista.findIndex(function (p) { return p.id === actualId; });
       if (idx === -1) { pos = Math.min(pos, Math.max(lista.length - 1, 0)); if (delta < 0) pos = Math.max(pos - 1, 0); }
@@ -239,12 +389,12 @@
     });
   }
 
-  $('anterior').addEventListener('click', function () { ir(-1, true); });
-  $('siguiente').addEventListener('click', function () { ir(1, true); });
-  $('guardar-sig').addEventListener('click', function () { ir(1, true); });
+  $('anterior').addEventListener('click', function () { ir(-1); });
+  $('siguiente').addEventListener('click', function () { ir(1); });
+  $('guardar-sig').addEventListener('click', function () { ir(1); });
   $('descripcion').addEventListener('input', function () { $('cuenta-desc').textContent = this.value.length; estado(''); });
   document.addEventListener('keydown', function (e) {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); ir(1, true); }
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); ir(1); }
   });
 
   function refiltrar() {
@@ -253,17 +403,19 @@
       aplicarFiltro(); pos = 0; pintar();
     });
   }
-  $('filtro').addEventListener('change', refiltrar);
+  Array.prototype.forEach.call(document.querySelectorAll('.pill'), function (b) {
+    b.addEventListener('click', function () { filtro = b.dataset.f; refiltrar(); });
+  });
   $('categoria').addEventListener('change', refiltrar);
   var t = null;
   $('buscar').addEventListener('input', function () { clearTimeout(t); t = setTimeout(refiltrar, 250); });
 
   llamar('ef_listar').then(function (r) {
     todos = r.productos;
-    $('categoria').innerHTML += r.categorias.map(function (c) { return '<option>' + c.replace(/</g, '&lt;') + '</option>'; }).join('');
+    $('categoria').innerHTML += r.categorias.map(function (c) { return '<option>' + esc(c) + '</option>'; }).join('');
     $('cargando').hidden = true; $('principal').hidden = false;
     aplicarFiltro();
-    if (!lista.length) { $('filtro').value = 'todos'; aplicarFiltro(); }
+    if (!lista.length) { filtro = 'todos'; aplicarFiltro(); }
     pintar();
   }, function (e) {
     $('cargando').textContent = 'No se pudo cargar: ' + e.message;
