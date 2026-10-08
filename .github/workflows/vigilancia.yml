@@ -1,0 +1,64 @@
+# Vigilancia de la sincronizacion planilla -> Supabase (auditoria H06).
+#
+# Cada hora lee `_sincronizado_en` (la fecha de la ultima sincronizacion
+# buena, que ya es publica: la usa el sitio) con la clave publica de
+# docs/config.js. Si tiene mas de 60 minutos (el cron corre cada 10), el job
+# falla y GitHub manda el aviso por correo. No usa claves secretas ni escribe
+# nada.
+#
+# Para ver el detalle de una falla: en Supabase, SQL Editor,
+#   select * from estado_sincronizacion;
+#   select * from sincronizacion_log order by id desc limit 10;
+name: Vigilancia
+
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sincronizacion:
+    name: Sincronizacion al dia
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: docs/config.js
+          sparse-checkout-cone-mode: false
+      - name: Revisar la ultima sincronizacion
+        env:
+          MINUTOS_MAX: '60'
+        run: |
+          set -euo pipefail
+          url=$(grep -oP "URL: '\K[^']+" docs/config.js | head -1)
+          anon=$(grep -oP "ANON: '\K[^']+" docs/config.js | head -1)
+          if [ -z "$url" ] || [ -z "$anon" ]; then
+            echo "::error::No se encontraron URL y ANON de Supabase en docs/config.js"
+            exit 1
+          fi
+
+          respuesta=$(curl -fsS --max-time 30 --retry 2 \
+            -H "apikey: $anon" -H "Authorization: Bearer $anon" \
+            "$url/rest/v1/config?select=valor&clave=eq._sincronizado_en") || {
+            echo "::error::Supabase no respondio a la consulta de config"
+            exit 1
+          }
+
+          valor=$(echo "$respuesta" | jq -r '.[0].valor // empty' | jq -r '. // empty' 2>/dev/null || true)
+          if [ -z "$valor" ]; then
+            echo "::error::No hay fecha de sincronizacion (_sincronizado_en). Respuesta: $respuesta"
+            exit 1
+          fi
+
+          antes=$(date -d "$valor" +%s)
+          ahora=$(date +%s)
+          minutos=$(( (ahora - antes) / 60 ))
+          echo "Ultima sincronizacion buena: $valor (hace $minutos minutos)"
+          if [ "$minutos" -gt "$MINUTOS_MAX" ]; then
+            echo "::error::La sincronizacion lleva $minutos minutos sin completarse (maximo $MINUTOS_MAX). Revisar sincronizacion_log en Supabase."
+            exit 1
+          fi

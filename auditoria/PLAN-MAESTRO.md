@@ -78,9 +78,9 @@ Verifiqué cada hallazgo contra el código y reproduje los importantes con prueb
 
 1. **H03 de fondo.** Una Supabase Edge Function `registrar-pedido` con Cloudflare Turnstile. Pasos: (a) la función verifica el token de Turnstile, (b) llama a `registrar_pedido` con un rol de privilegios mínimos, (c) se revoca el `execute` a `anon`. Al cliente solo se le agrega el widget y el token en el POST.
 2. **H01 definitivo.** Pasar las listas `caja_cerrada` y `caja_cerrada_kg` a columnas de la planilla (`solo_caja`, `kg_caja`). Así la planilla vuelve a ser la única fuente comercial, Apps Script las devuelve y las dos fuentes cumplen el mismo contrato. Después de eso, retirar `aplicarReglasCaja()` y el modo consulta.
-3. **Alertas de sincronización.** Una tarea de pg_cron cada hora que, si `estado_sincronizacion.antiguedad > interval '1 hour'`, envíe un POST con `extensions.http_post` a un webhook (correo o Slack). No se incluyó porque requiere elegir el destino.
+3. **Alertas de sincronización.** ✅ Hecho: `.github/workflows/vigilancia.yml` revisa cada hora `_sincronizado_en` con la clave pública y falla si pasaron más de 60 minutos; GitHub avisa por correo. No requiere claves secretas.
 4. **H19, modularización sin bundler.** Partir `app.js` en módulos ES (`<script type="module">`): `contrato.js` (normalización y reglas), `fuentes.js` (Supabase, Apps Script, caché), `pedido.js` (carrito, totales, registro), `ui/*.js`. Las funciones puras de `contrato.js` y `pedido.js` se pueden probar en Node sin DOM. Sumar `// @ts-check` y los `@typedef` que ya están en `app.js` para tener chequeo de tipos de TypeScript sin compilar.
-5. **CI.** Un GitHub Action que corra `pruebas/regresion.js` y `pruebas/sql/correr-local.sh` en cada PR.
+5. **CI.** ✅ Hecho: `.github/workflows/pruebas.yml` corre `pruebas/regresion.js` y `pruebas/sql/correr-local.sh` en cada PR.
 6. **PWA.** No hay Service Worker: el sitio no abre sin conexión. Como mínimo, un SW con caché de la estructura del sitio (HTML, CSS, JS y fuentes) y `network-first` para los datos. Va después del punto 4.
 
 ---
