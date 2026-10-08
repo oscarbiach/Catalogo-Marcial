@@ -11,17 +11,39 @@
   'use strict';
 
   var CFG = window.CATALOGO_CONFIG || {};
-  var CLAVE_CACHE = 'catalogo_datos_v1';
+  // [AUDITORIA H05] v2: la cache guarda solo catalogos ya validados y con
+  // version de esquema. Las copias v1 (sin validar) se ignoran.
+  var CLAVE_CACHE = 'catalogo_datos_v2';
+  var CLAVE_CACHE_VIEJA = 'catalogo_datos_v1';
+  var ESQUEMA_CACHE = 2;
   var CLAVE_PEDIDO = 'catalogo_pedido_v1';
   var CLAVE_CLIENTE = 'catalogo_cliente_v1';
   var CLAVE_ENVIADO = 'catalogo_enviado_v1';
+  var CLAVE_REF = 'catalogo_pedido_ref_v1';
+  var CLAVE_REGLAS_CAJA = 'catalogo_reglas_caja_v1';
   var CLAVE_TEMA = 'catalogo_tema_v1';
 
   // Un pedido ya enviado se descarta solo pasado este tiempo. Antes de eso
   // sigue disponible, para que tocar "Enviar" por error no cueste rehacerlo.
   var HORAS_HASTA_OLVIDAR = 3;
   var MAX_CANTIDAD = 999;
+  // [AUDITORIA H08] Mismo tope que registrar_pedido en la base.
+  var MAX_LINEAS = 100;
+  // [AUDITORIA H12] Mismo recorte que hace la base con cliente y nota.
+  var MAX_TEXTO_CLIENTE = 300;
   var LIMITE_URL = 3500;
+  // [AUDITORIA H11] Cuanto se espera a una fuente antes de pasar al respaldo.
+  var MS_LIMITE_FUENTE = 8000;
+  var MS_LIMITE_REGISTRO = 10000;
+  // [AUDITORIA H06] Pasado este tiempo sin poder refrescar, se avisa que los
+  // precios en pantalla son los guardados.
+  var MINUTOS_CACHE = Number(CFG.MINUTOS_CACHE) > 0 ? Number(CFG.MINUTOS_CACHE) : 30;
+  // La base se sincroniza cada 10 minutos: mas de 2 horas sin sincronizar es
+  // una falla de la sincronizacion, no una demora.
+  var HORAS_SINCRONIZACION_VIEJA = 2;
+  // [AUDITORIA H01] Las reglas de caja cerrada aprendidas de Supabase valen
+  // para el respaldo durante este tiempo.
+  var DIAS_REGLAS_CAJA = 7;
 
   var estado = {
     datos: null,
@@ -35,6 +57,13 @@
     // precio viejo ni un producto que ya se dio de baja.
     pedido: {},
     enviadoEn: null,
+    // [AUDITORIA H02] Referencia unica del intento de pedido. Se mantiene en
+    // los reintentos (idempotencia) y se renueva cuando cambia el contenido.
+    refPedido: null,
+    // [AUDITORIA H06] Cuando se trajo por ultima vez el catalogo de la red.
+    ultimaConsulta: 0,
+    consultando: null,
+    errorConsulta: null,
     // Que hay abierto. No se deduce del DOM: mientras un panel se esta
     // cerrando todavia no esta oculto, y quien pregunte se lleva la respuesta
     // de hace un momento.
@@ -150,6 +179,69 @@
     return (window.CSS && CSS.escape) ? CSS.escape(id) : String(id).replace(/["\\]/g, '\\$&');
   }
 
+  /**
+   * [AUDITORIA H09] Redondeo decimal a centavos, mitad hacia arriba, igual que
+   * round(numeric, 2) de Postgres. Pasa por notacion exponencial para no
+   * arrastrar el error binario (1.005 * 100 = 100.49999...).
+   * @param {number} valor
+   * @returns {number}
+   */
+  function redondear2(valor) {
+    if (!isFinite(valor)) return valor;
+    var signo = valor < 0 ? -1 : 1;
+    return signo * Number(Math.round(Number(Math.abs(valor) + 'e2')) + 'e-2');
+  }
+
+  /** [AUDITORIA H02] uuid v4 para la idempotencia del registro. */
+  function nuevoUuid() {
+    var c = window.crypto;
+    if (c && typeof c.randomUUID === 'function') return c.randomUUID();
+    var b = new Uint8Array(16);
+    if (c && c.getRandomValues) c.getRandomValues(b);
+    else for (var i = 0; i < 16; i++) b[i] = Math.floor(Math.random() * 256);
+    b[6] = (b[6] & 0x0f) | 0x40;
+    b[8] = (b[8] & 0x3f) | 0x80;
+    var h = Array.prototype.map.call(b, function (x) { return (x < 16 ? '0' : '') + x.toString(16); }).join('');
+    return h.slice(0, 8) + '-' + h.slice(8, 12) + '-' + h.slice(12, 16) + '-' + h.slice(16, 20) + '-' + h.slice(20);
+  }
+
+  /**
+   * [AUDITORIA H11] fetch con tiempo maximo, incluida la lectura del cuerpo.
+   * Sin esto, una conexion que queda colgada retiene tambien al respaldo y la
+   * pantalla de carga no termina. Nunca rechaza por un HTTP 4xx/5xx: devuelve
+   * el estado para que quien llama decida (fetch tampoco lo hace, y no mirar
+   * `ok` era parte de H02).
+   * @param {string} url
+   * @param {RequestInit} opciones
+   * @param {number} ms
+   * @returns {Promise<{ok: boolean, status: number, cuerpo: *}>}
+   */
+  function pedirJson(url, opciones, ms) {
+    var control = typeof AbortController === 'function' ? new AbortController() : null;
+    var reloj = null;
+    var vencido = new Promise(function (_, falla) {
+      reloj = setTimeout(function () {
+        if (control) control.abort();
+        falla(new Error('La consulta tardo mas de ' + Math.round(ms / 1000) + ' segundos.'));
+      }, ms);
+    });
+    var conSenal = Object.assign({}, opciones || {}, control ? { signal: control.signal } : {});
+    var pedido = fetch(url, conSenal).then(function (r) {
+      return r.text().then(function (texto) {
+        var cuerpo = null;
+        try { cuerpo = texto ? JSON.parse(texto) : null; } catch (err) { cuerpo = null; }
+        return { ok: r.ok, status: r.status, cuerpo: cuerpo };
+      });
+    });
+    return Promise.race([pedido, vencido]).then(function (r) {
+      clearTimeout(reloj);
+      return r;
+    }, function (err) {
+      clearTimeout(reloj);
+      throw err;
+    });
+  }
+
   // -------------------------------------------------------------------------
   // Base de datos
   // -------------------------------------------------------------------------
@@ -185,10 +277,10 @@
     function pagina(desde, acumulado) {
       var url = SB.URL + '/rest/v1/' + tabla + '?' + consulta +
         '&limit=' + PAGINA_SB + '&offset=' + desde;
-      return fetch(url, { headers: cabeceras }).then(function (r) {
+      // [AUDITORIA H11] Cada pagina tiene tiempo maximo.
+      return pedirJson(url, { headers: cabeceras }, MS_LIMITE_FUENTE).then(function (r) {
         if (!r.ok) throw new Error('Supabase respondio ' + r.status + '.');
-        return r.json();
-      }).then(function (filas) {
+        var filas = r.cuerpo;
         if (!Array.isArray(filas)) throw new Error('Supabase devolvio algo inesperado.');
         acumulado = acumulado.concat(filas);
         if (filas.length < PAGINA_SB || acumulado.length >= 20 * PAGINA_SB) return acumulado;
@@ -199,15 +291,16 @@
   }
 
   /**
-   * Arma, con lo que devuelve la base, el mismo objeto que devolvia Apps
-   * Script. Asi el resto de la pagina no se entera de donde salieron los datos.
+   * Arma, con lo que devuelve la base, el mismo objeto que devuelve Apps
+   * Script. Despues pasa por normalizarCatalogo como cualquier otra fuente.
    */
   function armarDesdeBase(filas, claves) {
     var config = {};
     var listas = {};
     claves.forEach(function (c) {
+      if (!c || typeof c.clave !== 'string') return;
       // Las que empiezan con guion bajo no son textos del negocio: son las
-      // listas ya ordenadas por el servidor.
+      // listas ya ordenadas por el servidor y la fecha de sincronizacion.
       if (c.clave.charAt(0) === '_') {
         try { listas[c.clave.slice(1)] = JSON.parse(c.valor); } catch (err) { /* se ignora */ }
       } else {
@@ -215,34 +308,39 @@
       }
     });
 
+    // [AUDITORIA H06] La version es la fecha de la ultima sincronizacion
+    // buena, no el momento en que el navegador leyo la base.
+    var sincronizadoEn = Date.parse(listas.sincronizado_en || '');
+
     return {
       ok: true,
-      version: Date.now(),
+      version: isFinite(sincronizadoEn) ? sincronizadoEn : null,
+      sincronizadoEn: isFinite(sincronizadoEn) ? sincronizadoEn : null,
       config: config,
       categorias: listas.categorias || [],
       marcas: listas.marcas || [],
       rubros: listas.rubros || [],
       productos: filas.map(function (p) {
         return {
-          id: String(p.id),
-          sku: p.sku || '',
-          nombre: p.nombre || '',
-          descripcion: p.descripcion || '',
-          categoria: p.categoria || '',
-          marca: p.marca || '',
-          precio: p.precio === null || p.precio === undefined ? null : Number(p.precio),
-          moneda: p.moneda || 'ARS',
-          unidadesCaja: p.unidades_caja || 0,
+          id: p.id,
+          sku: p.sku,
+          nombre: p.nombre,
+          descripcion: p.descripcion,
+          categoria: p.categoria,
+          marca: p.marca,
+          precio: p.precio,
+          moneda: p.moneda,
+          unidadesCaja: p.unidades_caja,
           soloCaja: !!p.solo_caja,
-          kgCaja: Number(p.kg_caja) || 0,
-          presentacion: p.presentacion || '',
-          unidadPrecio: p.unidad_precio || '',
-          imagenes: p.imagenes || [],
-          rubros: p.rubros || [],
-          destacado: !!p.destacado,
-          nuevo: !!p.nuevo,
-          sinStock: !!p.sin_stock,
-          orden: p.orden || 0,
+          kgCaja: p.kg_caja,
+          presentacion: p.presentacion,
+          unidadPrecio: p.unidad_precio,
+          imagenes: p.imagenes,
+          rubros: p.rubros,
+          destacado: p.destacado,
+          nuevo: p.nuevo,
+          sinStock: p.sin_stock,
+          orden: p.orden,
         };
       }),
     };
@@ -254,44 +352,280 @@
       pedirASupabase('config', 'select=clave,valor&order=clave.asc'),
     ]).then(function (partes) {
       if (!partes[0].length) throw new Error('Supabase devolvio el catalogo vacio.');
-      return armarDesdeBase(partes[0], partes[1]);
+      return normalizarCatalogo(armarDesdeBase(partes[0], partes[1]), 'supabase');
     });
   }
 
-  /**
-   * Guarda el pedido que el cliente acaba de mandar por WhatsApp.
-   *
-   * Va suelto a proposito: no se espera la respuesta ni se muestra ningun
-   * error. Lo que le importa al cliente es que se abra WhatsApp; que el pedido
-   * quede anotado es cosa nuestra, y si falla no puede estorbar la venta.
-   *
-   * Solo se mandan los ids y las cantidades: el precio y el total los pone el
-   * servidor con los suyos.
-   */
-  function anotarPedido(lineas) {
-    if (!(supabaseActivo() && SB.guardarPedidos) || !lineas.length) return;
+  // -------------------------------------------------------------------------
+  // Contrato del catalogo
+  // -------------------------------------------------------------------------
 
-    var cliente = ($('pedido-nombre').value || '').slice(0, 300);
-    var nota = ($('pedido-nota').value || '').slice(0, 300);
-    var items = lineas.map(function (l) {
-      return { id: String(l.producto.id), cantidad: l.cantidad };
+  /**
+   * @typedef {Object} Producto
+   * @property {string}   id
+   * @property {string}   sku
+   * @property {string}   nombre
+   * @property {string}   descripcion
+   * @property {string}   categoria
+   * @property {string}   marca
+   * @property {?number}  precio        null = sin precio
+   * @property {string}   moneda
+   * @property {number}   unidadesCaja
+   * @property {boolean}  soloCaja      se vende solo por caja cerrada
+   * @property {number}   kgCaja        kilos de la caja (precio por kg)
+   * @property {string}   presentacion
+   * @property {''|'kg'|'unidad'|'caja'} unidadPrecio
+   * @property {string[]} imagenes
+   * @property {string[]} rubros
+   * @property {boolean}  destacado
+   * @property {boolean}  nuevo
+   * @property {boolean}  sinStock
+   * @property {number}   orden
+   * @property {string}   tipo
+   * @property {string}   heno          texto de busqueda ya normalizado
+   *
+   * @typedef {Object} Catalogo
+   * @property {true}     ok
+   * @property {number}   esquema
+   * @property {'supabase'|'apps-script'} fuente
+   * @property {?number}  version
+   * @property {?number}  sincronizadoEn  ultima sincronizacion buena (ms)
+   * @property {number}   obtenidoEn      cuando lo trajo este navegador (ms)
+   * @property {'completas'|'heredadas'|'faltan'} reglasCaja
+   * @property {Object<string,string>} config
+   * @property {string[]} categorias
+   * @property {string[]} marcas
+   * @property {string[]} rubros
+   * @property {Producto[]} productos
+   */
+
+  function comoTexto(v) {
+    return v === null || v === undefined ? '' : String(v);
+  }
+
+  function comoNumero(v, porDefecto) {
+    if (v === null || v === undefined || v === '' || typeof v === 'boolean') return porDefecto;
+    var n = Number(v);
+    return isFinite(n) ? n : porDefecto;
+  }
+
+  function comoBooleano(v) {
+    return v === true || v === 1 || /^(true|t|1|si|yes)$/i.test(comoTexto(v).trim());
+  }
+
+  function comoListaDeTextos(v) {
+    if (!Array.isArray(v)) return [];
+    return v.map(function (x) {
+      if (typeof x === 'string' || typeof x === 'number') return String(x).trim();
+      if (x && typeof x === 'object') return comoTexto(x.nombre || x.id).trim();
+      return '';
+    }).filter(Boolean);
+  }
+
+  /**
+   * [AUDITORIA H05] Valida y normaliza un catalogo, venga de la red o de la
+   * cache. Lo estructural (sin ok, sin array de productos, sin config) se
+   * rechaza; un producto suelto mal formado se descarta sin tumbar al resto.
+   * Nunca deja pasar NaN, Infinity ni tipos inesperados a la pantalla.
+   * @param {*} crudo
+   * @param {'supabase'|'apps-script'} fuente
+   * @returns {Catalogo}
+   */
+  function normalizarCatalogo(crudo, fuente) {
+    if (!crudo || typeof crudo !== 'object' || crudo.ok !== true) {
+      throw new Error('La respuesta del catalogo no tiene el formato esperado.');
+    }
+    if (!Array.isArray(crudo.productos)) throw new Error('El catalogo no trae la lista de productos.');
+    if (!crudo.config || typeof crudo.config !== 'object' || Array.isArray(crudo.config)) {
+      throw new Error('El catalogo no trae la configuracion.');
+    }
+
+    var config = {};
+    Object.keys(crudo.config).forEach(function (k) {
+      var v = crudo.config[k];
+      if (v === null || typeof v !== 'object') config[k] = comoTexto(v);
     });
 
-    try {
-      var pedido = {
-        url: SB.URL + '/rest/v1/rpc/registrar_pedido',
-        headers: { apikey: SB.ANON, Authorization: 'Bearer ' + SB.ANON, 'Content-Type': 'application/json' },
-        cuerpo: { p_cliente: cliente, p_nota: nota, p_items: items },
-      };
+    var vistos = Object.create(null);
+    var productos = [];
+    crudo.productos.forEach(function (p) {
+      if (!p || typeof p !== 'object') return;
+      var id = comoTexto(p.id).trim();
+      var nombre = comoTexto(p.nombre).trim();
+      if (!id || !nombre || vistos[id]) return;
+      vistos[id] = true;
 
-      fetch(pedido.url, {
-        method: 'POST',
-        headers: pedido.headers,
-        body: JSON.stringify(pedido.cuerpo),
-        keepalive: true,   // el navegador lo termina aunque la pestania se vaya a WhatsApp
-      }).catch(function () { /* que no se guarde no es problema del cliente */ });
+      var precio = comoNumero(p.precio, null);
+      if (precio !== null && precio < 0) precio = null;
+      var unidad = comoTexto(p.unidadPrecio).trim().toLowerCase();
+
+      /** @type {Producto} */
+      var limpio = {
+        id: id,
+        sku: comoTexto(p.sku),
+        nombre: nombre,
+        descripcion: comoTexto(p.descripcion),
+        categoria: comoTexto(p.categoria),
+        marca: comoTexto(p.marca),
+        precio: precio,
+        moneda: /^[A-Z]{3}$/.test(comoTexto(p.moneda)) ? p.moneda : 'ARS',
+        unidadesCaja: Math.max(0, Math.floor(comoNumero(p.unidadesCaja, 0))),
+        soloCaja: comoBooleano(p.soloCaja),
+        kgCaja: Math.max(0, comoNumero(p.kgCaja, 0)),
+        presentacion: comoTexto(p.presentacion),
+        unidadPrecio: unidad === 'kg' || unidad === 'unidad' || unidad === 'caja' ? unidad : '',
+        imagenes: comoListaDeTextos(p.imagenes),
+        rubros: comoListaDeTextos(p.rubros),
+        destacado: comoBooleano(p.destacado),
+        nuevo: comoBooleano(p.nuevo),
+        sinStock: comoBooleano(p.sinStock),
+        orden: comoNumero(p.orden, 0),
+        tipo: comoTexto(p.tipo),
+        heno: '',
+      };
+      // [AUDITORIA H16] El texto de busqueda se normaliza una sola vez.
+      limpio.heno = normalizar([limpio.nombre, limpio.sku, limpio.marca, limpio.categoria,
+        limpio.presentacion, limpio.descripcion].join(' '));
+      productos.push(limpio);
+    });
+    if (!productos.length) throw new Error('El catalogo llego sin productos validos.');
+
+    var sincronizadoEn = comoNumero(crudo.sincronizadoEn, null);
+
+    /** @type {Catalogo} */
+    var datos = {
+      ok: true,
+      esquema: ESQUEMA_CACHE,
+      fuente: fuente === 'supabase' ? 'supabase' : 'apps-script',
+      version: comoNumero(crudo.version, null),
+      sincronizadoEn: sincronizadoEn,
+      obtenidoEn: comoNumero(crudo.obtenidoEn, Date.now()),
+      reglasCaja: crudo.reglasCaja === 'heredadas' || crudo.reglasCaja === 'faltan' ? crudo.reglasCaja : 'completas',
+      config: config,
+      categorias: comoListaDeTextos(crudo.categorias),
+      marcas: comoListaDeTextos(crudo.marcas),
+      rubros: comoListaDeTextos(crudo.rubros),
+      productos: productos,
+    };
+    return datos;
+  }
+
+  // -------------------------------------------------------------------------
+  // Reglas de caja cerrada (equivalencia entre fuentes)
+  // -------------------------------------------------------------------------
+
+  /**
+   * [AUDITORIA H01] Apps Script no devuelve soloCaja ni kgCaja: esas listas
+   * viven solo en Supabase. Si el respaldo se usara tal cual, un producto que
+   * se vende por caja de 20 pasaria a venderse por unidad (cambian cantidades
+   * y totales). Por eso:
+   *  - cada lectura buena de Supabase guarda las reglas de caja en el
+   *    navegador;
+   *  - el respaldo las hereda si son recientes;
+   *  - si no hay reglas confiables, el respaldo queda en modo consulta: se ve
+   *    el catalogo pero el pedido se arma por WhatsApp, sin inventar una
+   *    equivalencia.
+   */
+  function guardarReglasCaja(datos) {
+    if (datos.fuente !== 'supabase') return;
+    var reglas = {};
+    datos.productos.forEach(function (p) {
+      if (p.soloCaja) reglas[p.id] = { u: p.unidadesCaja, kg: p.kgCaja };
+    });
+    try {
+      localStorage.setItem(CLAVE_REGLAS_CAJA, JSON.stringify({ guardadoEn: Date.now(), reglas: reglas }));
+    } catch (err) { /* sin almacenamiento: el respaldo queda en modo consulta */ }
+  }
+
+  function leerReglasCaja() {
+    try {
+      var guardado = JSON.parse(localStorage.getItem(CLAVE_REGLAS_CAJA) || 'null');
+      if (!guardado || typeof guardado.reglas !== 'object' || !guardado.reglas) return null;
+      var edad = Date.now() - Number(guardado.guardadoEn);
+      if (!(edad >= 0 && edad < DIAS_REGLAS_CAJA * 24 * 3600 * 1000)) return null;
+      return guardado.reglas;
     } catch (err) {
-      /* idem */
+      return null;
+    }
+  }
+
+  /** @param {Catalogo} datos */
+  function aplicarReglasCaja(datos) {
+    var reglas = leerReglasCaja();
+    if (!reglas) {
+      datos.reglasCaja = 'faltan';
+      return datos;
+    }
+    datos.productos.forEach(function (p) {
+      var r = reglas[p.id];
+      if (!r) { p.soloCaja = false; p.kgCaja = 0; return; }
+      p.soloCaja = true;
+      var u = Math.floor(comoNumero(r.u, 0));
+      if (u > 1 && !(p.unidadesCaja > 1)) p.unidadesCaja = u;
+      p.kgCaja = Math.max(0, comoNumero(r.kg, 0));
+    });
+    datos.reglasCaja = 'heredadas';
+    return datos;
+  }
+
+  // -------------------------------------------------------------------------
+  // Registro del pedido
+  // -------------------------------------------------------------------------
+
+  /** Nombre y nota tal como viajan a WhatsApp y a la base (mismo recorte). */
+  function datosCliente() {
+    return {
+      nombre: ($('pedido-nombre').value || '').trim().slice(0, MAX_TEXTO_CLIENTE),
+      nota: ($('pedido-nota').value || '').trim().slice(0, MAX_TEXTO_CLIENTE),
+    };
+  }
+
+  /**
+   * [AUDITORIA H02] Registra el pedido en la base y devuelve el resultado.
+   *
+   * Antes iba suelto y sin mirar la respuesta: un 400 o un 500 pasaban por
+   * exito y cada clic en "Enviar" creaba otro pedido. Ahora:
+   *  - viaja con la referencia del intento (p_ref): reintentar no duplica;
+   *  - se mira el estado HTTP y el cuerpo del error;
+   *  - el resultado se muestra al cliente, pero nunca bloquea WhatsApp, que
+   *    es el canal que vale.
+   *
+   * Solo se mandan ids y cantidades: precio y total los pone el servidor.
+   * @returns {Promise<{estado: 'omitido'|'registrado'|'rechazado'|'sin_conexion', mensaje?: string, codigo?: string, total?: number, duplicado?: boolean}>}
+   */
+  function anotarPedido(lineas, ref) {
+    if (!(supabaseActivo() && SB.guardarPedidos) || !lineas.length) {
+      return Promise.resolve({ estado: 'omitido' });
+    }
+    var cliente = datosCliente();
+    var cuerpo = {
+      p_ref: ref,
+      p_cliente: cliente.nombre,
+      p_nota: cliente.nota,
+      p_items: lineas.map(function (l) { return { id: String(l.producto.id), cantidad: l.cantidad }; }),
+    };
+
+    try {
+      return pedirJson(SB.URL + '/rest/v1/rpc/registrar_pedido', {
+        method: 'POST',
+        headers: { apikey: SB.ANON, Authorization: 'Bearer ' + SB.ANON, 'Content-Type': 'application/json' },
+        body: JSON.stringify(cuerpo),
+        keepalive: true,   // el navegador lo termina aunque la pestania pase a segundo plano
+      }, MS_LIMITE_REGISTRO).then(function (r) {
+        var c = r.cuerpo || {};
+        if (r.ok && c.id) {
+          return { estado: 'registrado', total: comoNumero(c.total, null), duplicado: !!c.duplicado };
+        }
+        return {
+          estado: 'rechazado',
+          codigo: comoTexto(c.hint) || 'http_' + r.status,
+          mensaje: comoTexto(c.message) || 'El servidor respondio ' + r.status + '.',
+        };
+      }, function (err) {
+        return { estado: 'sin_conexion', mensaje: err && err.message ? err.message : 'Sin conexion.' };
+      });
+    } catch (err) {
+      return Promise.resolve({ estado: 'sin_conexion', mensaje: String(err && err.message || err) });
     }
   }
 
@@ -299,27 +633,38 @@
   // Carga de datos
   // -------------------------------------------------------------------------
 
+  /** [AUDITORIA H05] Solo devuelve una cache que vuelve a pasar la validacion. */
   function leerCache() {
     try {
+      localStorage.removeItem(CLAVE_CACHE_VIEJA);
       var crudo = localStorage.getItem(CLAVE_CACHE);
       if (!crudo) return null;
       var envoltorio = JSON.parse(crudo);
-      return { datos: envoltorio.datos };
+      if (!envoltorio || envoltorio.esquema !== ESQUEMA_CACHE) throw new Error('Cache de otra version.');
+      var datos = normalizarCatalogo(envoltorio.datos, envoltorio.datos && envoltorio.datos.fuente);
+      return { datos: datos, guardadoEn: comoNumero(envoltorio.guardadoEn, 0) };
     } catch (err) {
+      borrarCache();
       return null;
     }
   }
 
   function guardarCache(datos) {
     try {
-      localStorage.setItem(CLAVE_CACHE, JSON.stringify({ guardadoEn: Date.now(), datos: datos }));
+      localStorage.setItem(CLAVE_CACHE, JSON.stringify({ esquema: ESQUEMA_CACHE, guardadoEn: Date.now(), datos: datos }));
     } catch (err) { /* sin espacio o modo privado: funciona igual, sin cache */ }
+  }
+
+  function borrarCache() {
+    try { localStorage.removeItem(CLAVE_CACHE); } catch (err) { /* nada que hacer */ }
   }
 
   /**
    * Pide el catalogo a la primera fuente que responda: Supabase, despues
-   * Apps Script. El respaldo no es adorno: es lo que hace
-   * que apagar una base sea inofensivo.
+   * Apps Script. El respaldo no es adorno: es lo que hace que apagar una base
+   * sea inofensivo. Cada fuente tiene tiempo maximo (H11) y su respuesta se
+   * valida antes de aceptarla (H05).
+   * @returns {Promise<Catalogo>}
    */
   function pedirCatalogo() {
     var fuentes = [];
@@ -327,7 +672,7 @@
     fuentes.push(['Apps Script', pedirCatalogoAAppsScript]);
 
     function probar(i) {
-      return fuentes[i][1]().catch(function (err) {
+      return Promise.resolve().then(fuentes[i][1]).catch(function (err) {
         if (i === fuentes.length - 1) throw err;   // la ultima no tiene respaldo
         if (window.console) console.warn(fuentes[i][0] + ' no respondio, se prueba ' + fuentes[i + 1][0] + ':', err.message);
         return probar(i + 1);
@@ -342,47 +687,130 @@
         'Falta configurar la URL del catalogo. Edita docs/config.js y pega ahi la URL del Web App.'));
     }
     var url = CFG.API + (CFG.API.indexOf('?') > -1 ? '&' : '?') + 'action=catalog&t=' + Date.now();
-    return fetch(url, { method: 'GET', redirect: 'follow' })
-      .then(function (respuesta) {
-        if (!respuesta.ok) throw new Error('El servidor respondio ' + respuesta.status + '.');
-        return respuesta.json();
-      })
-      .then(function (datos) {
-        if (!datos || !datos.ok) throw new Error('La respuesta del catalogo no tiene el formato esperado.');
-        return datos;
+    return pedirJson(url, { method: 'GET', redirect: 'follow' }, MS_LIMITE_FUENTE)
+      .then(function (r) {
+        if (!r.ok) throw new Error('El servidor respondio ' + r.status + '.');
+        var datos = normalizarCatalogo(r.cuerpo, 'apps-script');
+        return supabaseActivo() ? aplicarReglasCaja(datos) : datos;
       });
   }
 
+  /**
+   * [AUDITORIA H05] La cache se aplica dentro de un try: si falla, se descarta
+   * y la consulta a la red arranca igual. Antes una cache con JSON valido pero
+   * forma incorrecta tiraba una excepcion y no se llegaba a pedir nada.
+   */
   function iniciar() {
+    var pintado = false;
     var cache = leerCache();
-    if (cache && cache.datos) aplicar(cache.datos);
-    else dibujarEsqueletos();
+    if (cache) {
+      try {
+        aplicarSeguro(cache.datos);
+        pintado = true;
+      } catch (err) {
+        if (window.console) console.warn('Se descarta el catalogo guardado:', err.message);
+        borrarCache();
+      }
+    }
+    if (!pintado) dibujarEsqueletos();
+    actualizarAvisoDatos();
+    return consultarCatalogo();
+  }
 
-    pedirCatalogo()
+  /** Trae el catalogo de la red. Si ya hay una consulta en curso, la reutiliza. */
+  function consultarCatalogo() {
+    if (estado.consultando) return estado.consultando;
+    $('estado-error').hidden = true;
+
+    estado.consultando = pedirCatalogo()
       .then(function (datos) {
-        guardarCache(datos);
-        aplicar(datos);
-        $('estado-error').hidden = true;
+        aplicarSeguro(datos);
+        guardarReglasCaja(datos);
+        guardarCache(datos);    // solo despues de validar y dibujar bien
+        estado.ultimaConsulta = Date.now();
+        estado.errorConsulta = null;
       })
       .catch(function (err) {
-        if (estado.datos) return;   // ya hay algo en pantalla: no molestar
+        estado.errorConsulta = err && err.message ? err.message : 'Error desconocido.';
+        // [AUDITORIA H06] El error ya no se esconde: si hay datos en pantalla
+        // se avisa que pueden estar viejos (actualizarAvisoDatos).
+        if (window.console) console.warn('No se pudo actualizar el catalogo:', estado.errorConsulta);
+        if (estado.datos) return;
         $('grilla').innerHTML = '';
-        $('estado-error-texto').textContent = err.message;
+        $('estado-error-texto').textContent = estado.errorConsulta;
         $('estado-error').hidden = false;
+      })
+      .then(function () {
+        estado.consultando = null;
+        actualizarAvisoDatos();
       });
+    return estado.consultando;
   }
 
+  /** Aplica un catalogo; si el dibujado falla, vuelve al anterior. */
+  function aplicarSeguro(datos) {
+    var previo = estado.datos;
+    try {
+      aplicar(datos);
+    } catch (err) {
+      estado.datos = previo;
+      if (previo) {
+        try { aplicar(previo); } catch (err2) { estado.datos = null; }
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * [AUDITORIA H06] Aviso visible cuando lo que se ve puede no estar vigente:
+   * respaldo sin reglas de caja, cache vieja que no se pudo refrescar, o una
+   * base cuya sincronizacion lleva horas parada.
+   */
+  function actualizarAvisoDatos() {
+    var caja = $('aviso-datos');
+    if (!caja) return;
+    var d = estado.datos;
+    var texto = '';
+    if (d) {
+      var fecha = function (ms) {
+        try {
+          return new Date(ms).toLocaleString('es-AR', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' });
+        } catch (err) { return new Date(ms).toISOString(); }
+      };
+      if (d.reglasCaja === 'faltan') {
+        texto = 'Estamos mostrando el catalogo de respaldo. Por ahora los pedidos se arman consultando por WhatsApp.';
+      } else if (estado.errorConsulta && Date.now() - d.obtenidoEn > MINUTOS_CACHE * 60000) {
+        texto = 'No pudimos actualizar el catalogo. Los precios son del ' + fecha(d.obtenidoEn) +
+          ' y pueden haber cambiado: los confirmamos al recibir tu pedido.';
+      } else if (d.sincronizadoEn && Date.now() - d.sincronizadoEn > HORAS_SINCRONIZACION_VIEJA * 3600000) {
+        texto = 'Los precios se actualizaron por ultima vez el ' + fecha(d.sincronizadoEn) +
+          '. Los confirmamos al recibir tu pedido.';
+      }
+    }
+    caja.textContent = texto;
+    caja.hidden = !texto;
+  }
+
+  // [AUDITORIA H06] Revalidar al recuperar la conexion y al volver a la
+  // pestania despues de un rato.
+  window.addEventListener('online', function () { consultarCatalogo(); });
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden || !estado.datos) return;
+    if (Date.now() - estado.ultimaConsulta > MINUTOS_CACHE * 60000) consultarCatalogo();
+  });
+
+  /** @param {Catalogo} datos */
   function aplicar(datos) {
     estado.datos = datos;
     // El servidor ya manda los productos ordenados por lo mas pedido. Se guarda
     // esa posicion para poder volver a ese orden sin conocer el numero, que a
     // proposito no viaja al navegador.
-    (datos.productos || []).forEach(function (p, i) { p.posicion = i; });
-    marcarMasVendidos(datos.productos || []);
-    aplicarConfig(datos.config || {});
-    llenarCategorias(datos.categorias || []);
-    llenarMarcas(datos.marcas || []);
-    llenarRubros(datos.rubros || []);
+    datos.productos.forEach(function (p, i) { p.posicion = i; });
+    marcarMasVendidos(datos.productos);
+    aplicarConfig(datos.config);
+    llenarCategorias(datos.categorias);
+    llenarMarcas(datos.marcas);
+    llenarRubros(datos.rubros);
     dibujar();
     dibujarDestacados();
     dibujarPedido();   // el pedido guardado se resuelve contra el catalogo nuevo
@@ -469,18 +897,29 @@
   // Filtros
   // -------------------------------------------------------------------------
 
+  /**
+   * [AUDITORIA H18] Al refrescar el catalogo se rehacen las pastillas y el
+   * selector, pero respetando el filtro que ya estaba elegido. Antes la
+   * pantalla volvia a "Todo" mientras la grilla seguia filtrando. Si lo
+   * elegido ya no existe, se suelta el filtro para no dejar la grilla vacia.
+   */
   function llenarCategorias(categorias) {
-    $('chips').innerHTML = '<button class="pista viva" type="button" data-categoria="">Todo</button>' +
+    if (estado.filtro.categoria && categorias.indexOf(estado.filtro.categoria) === -1) estado.filtro.categoria = '';
+    var elegida = estado.filtro.categoria;
+    $('chips').innerHTML = '<button class="pista' + (elegida ? '' : ' viva') + '" type="button" data-categoria="">Todo</button>' +
       categorias.map(function (c) {
-        return '<button class="pista" type="button" data-categoria="' + escapar(c) + '">' + escapar(c) + '</button>';
+        return '<button class="pista' + (c === elegida ? ' viva' : '') + '" type="button" data-categoria="' +
+          escapar(c) + '">' + escapar(c) + '</button>';
       }).join('');
   }
 
   function llenarMarcas(marcas) {
+    if (estado.filtro.marca && marcas.indexOf(estado.filtro.marca) === -1) estado.filtro.marca = '';
     $('filtro-marca').innerHTML = '<option value="">Todas las marcas</option>' +
       marcas.map(function (m) {
         return '<option value="' + escapar(m) + '">' + escapar(m) + '</option>';
       }).join('');
+    $('filtro-marca').value = estado.filtro.marca;
     $('filtro-marca').hidden = marcas.length < 2;
   }
 
@@ -543,8 +982,8 @@
       // elegido. Sin rubros cargados solo aparece en 'Todo el catalogo'.
       if (estado.filtro.rubro && (p.rubros || []).indexOf(estado.filtro.rubro) === -1) return false;
       if (!palabras.length) return true;
-      var heno = normalizar([p.nombre, p.sku, p.marca, p.categoria, p.presentacion, p.descripcion].join(' '));
-      return palabras.every(function (palabra) { return heno.indexOf(palabra) > -1; });
+      // [AUDITORIA H16] heno viene normalizado de normalizarCatalogo.
+      return palabras.every(function (palabra) { return p.heno.indexOf(palabra) > -1; });
     });
 
     var conPrecio = function (p) {
@@ -865,7 +1304,27 @@
       soltarRueda = setTimeout(function () { soltar('rueda'); }, 900);
     }, { passive: true });
 
+    // [AUDITORIA H16] Fuera de pantalla o con la pestania oculta el ciclo se
+    // apaga del todo (no se piden fotogramas) y se retoma al volver.
+    var aLaVista = true, corriendo = false;
+
+    function arrancar() {
+      if (corriendo || !aLaVista || document.hidden) return;
+      corriendo = true;
+      ultimo = 0;
+      requestAnimationFrame(paso);
+    }
+
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(function (entradas) {
+        aLaVista = entradas[entradas.length - 1].isIntersecting;
+        arrancar();
+      }).observe(el);
+    }
+    document.addEventListener('visibilitychange', arrancar);
+
     function paso(ahora) {
+      if (!aLaVista || document.hidden) { corriendo = false; return; }
       requestAnimationFrame(paso);
 
       var dt = ultimo ? Math.min(ahora - ultimo, 50) : 0;   // pestania dormida: no saltar
@@ -885,7 +1344,7 @@
       puesto = el.scrollLeft;
     }
 
-    requestAnimationFrame(paso);
+    arrancar();
   }
 
   /** Abrir la ficha o sumar al pedido desde el carrusel. */
@@ -1181,7 +1640,7 @@
       precio = escapar(formatearPrecio(p.precio, p.moneda));
       if (soloPorCaja(p)) {
         precio += '<small>por ' + (p.unidadPrecio === 'kg' ? 'kilo' : 'unidad') + '. Se pide por caja de ' +
-          contenidoCaja(p) + ': ' + escapar(formatearPrecio(p.precio * factorCaja(p), p.moneda)) + '</small>';
+          contenidoCaja(p) + ': ' + escapar(formatearPrecio(precioDeLinea(p), p.moneda)) + '</small>';
       } else if (p.unidadPrecio === 'unidad' && p.unidadesCaja > 1) {
         precio += '<small>por unidad. Caja de ' + p.unidadesCaja + ': ' +
           escapar(formatearPrecio(p.precio * p.unidadesCaja, p.moneda)) + '</small>';
@@ -1275,10 +1734,17 @@
    */
   var ANCHO_FICHA = 1000;
   var fotosListas = {};
+  var fotosEnCurso = {};
 
+  /**
+   * [AUDITORIA H17] Si la foto ya estaba bajada devuelve la URL que de verdad
+   * funciono (antes devolvia siempre la de Drive aunque hubiera andado la
+   * alternativa), y si se esta bajando reutiliza esa misma promesa.
+   */
   function bajarFoto(fileId) {
     var alta = urlImagen(fileId, ANCHO_FICHA);
-    if (fotosListas[alta]) return Promise.resolve(alta);
+    if (fotosListas[alta]) return Promise.resolve(fotosListas[alta]);
+    if (fotosEnCurso[alta]) return fotosEnCurso[alta];
     function cargar(url) {
       return new Promise(function (listo, falla) {
         var i = new Image();
@@ -1288,12 +1754,17 @@
         i.src = url;
       });
     }
-    return cargar(alta).catch(function () {
+    fotosEnCurso[alta] = cargar(alta).catch(function () {
       return cargar(urlImagenAlterna(fileId, ANCHO_FICHA));
     }).then(function (url) {
       fotosListas[alta] = url;
+      delete fotosEnCurso[alta];
       return url;
+    }, function (err) {
+      delete fotosEnCurso[alta];
+      throw err;
     });
+    return fotosEnCurso[alta];
   }
 
   function precargarProducto(id) {
@@ -1444,6 +1915,8 @@
   function pedidosActivos() {
     var config = (estado.datos && estado.datos.config) || {};
     if (!config.whatsapp) return false;   // sin WhatsApp no hay a donde mandarlo
+    // [AUDITORIA H01] Respaldo sin reglas de caja confiables: solo consulta.
+    if (estado.datos.reglasCaja === 'faltan') return false;
     return String(config.pedidos_activos || 'si').toLowerCase() !== 'no';
   }
 
@@ -1493,24 +1966,76 @@
       : String(p.unidadesCaja);
   }
 
+  /**
+   * [AUDITORIA H09] Precio de UNA unidad de pedido (una caja si se vende por
+   * caja cerrada), redondeado a centavos igual que registrar_pedido. El
+   * subtotal es este precio por la cantidad, nunca al reves: asi WhatsApp y
+   * la base dan el mismo total.
+   * @param {Producto} p
+   * @returns {?number}
+   */
+  function precioDeLinea(p) {
+    if (p.precio === null || p.precio === undefined) return null;
+    return soloPorCaja(p) ? redondear2(p.precio * factorCaja(p)) : p.precio;
+  }
+
   /** True si la cantidad del pedido de este producto se cuenta en cajas. */
   function seCuentaPorCaja(p) {
     if (soloPorCaja(p)) return true;
     return p.unidadPrecio ? p.unidadPrecio === 'caja' : p.unidadesCaja > 1;
   }
 
+  /**
+   * [AUDITORIA H08] Lo guardado se sanea con los mismos topes que aplica la
+   * base: cantidades de 1 a 999 y hasta 100 productos distintos. Antes una
+   * cantidad de 5000 recuperada viajaba a WhatsApp y la base la rechazaba.
+   */
   function leerPedido() {
     try {
       var guardado = JSON.parse(localStorage.getItem(CLAVE_PEDIDO) || '{}');
       var limpio = {};
-      Object.keys(guardado).forEach(function (id) {
+      if (!guardado || typeof guardado !== 'object' || Array.isArray(guardado)) return limpio;
+      Object.keys(guardado).slice(0, MAX_LINEAS).forEach(function (id) {
         var n = parseInt(guardado[id], 10);
-        if (n > 0) limpio[id] = n;
+        if (id.length <= 64 && n > 0) limpio[id] = Math.min(n, MAX_CANTIDAD);
       });
       return limpio;
     } catch (err) {
       return {};
     }
+  }
+
+  /**
+   * [AUDITORIA H02] Referencia del pedido en curso. Se crea al armar el
+   * mensaje, viaja en el texto de WhatsApp y en el registro, y se mantiene
+   * mientras el contenido no cambie: tocar "Enviar" dos veces no duplica.
+   */
+  function refDelPedido() {
+    if (!estado.refPedido) {
+      estado.refPedido = nuevoUuid();
+      try { localStorage.setItem(CLAVE_REF, estado.refPedido); } catch (err) { /* sin almacenamiento */ }
+    }
+    return estado.refPedido;
+  }
+
+  function leerRef() {
+    try {
+      var r = localStorage.getItem(CLAVE_REF) || '';
+      return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(r) ? r : null;
+    } catch (err) {
+      return null;
+    }
+  }
+
+  /** El contenido cambio: el proximo envio es otro pedido. */
+  function renovarRef() {
+    estado.refPedido = null;
+    try { localStorage.removeItem(CLAVE_REF); } catch (err) { /* nada que hacer */ }
+  }
+
+  /** Lo que se le muestra al cliente como numero de pedido. */
+  function refCorta(ref) {
+    return String(ref || '').slice(0, 8).toUpperCase();
   }
 
   function guardarPedido() {
@@ -1535,6 +2060,7 @@
    */
   function recuperarPedido() {
     estado.pedido = leerPedido();
+    estado.refPedido = leerRef();
     var enviado = null;
     try { enviado = parseInt(localStorage.getItem(CLAVE_ENVIADO) || '', 10); } catch (err) { /* */ }
 
@@ -1544,6 +2070,7 @@
       estado.pedido = {};
       guardarPedido();
       marcarEnviado(null);
+      renovarRef();
     } else {
       estado.enviadoEn = enviado;
     }
@@ -1562,8 +2089,18 @@
     if (n > MAX_CANTIDAD) n = MAX_CANTIDAD;
 
     var era = estado.pedido[id] || 0;
+
+    // [AUDITORIA H08] Mismo tope de productos distintos que la base.
+    if (!era && n && Object.keys(estado.pedido).length >= MAX_LINEAS) {
+      avisar('El pedido admite hasta ' + MAX_LINEAS + ' productos distintos');
+      refrescarPieza(id);
+      sincronizarFicha(id);
+      return;
+    }
+
     if (n === 0) delete estado.pedido[id];
     else estado.pedido[id] = n;
+    if (n !== era) renovarRef();
 
     // Tocar el pedido lo vuelve a poner en curso
     if (estado.enviadoEn) { marcarEnviado(null); mostrarVista('lista'); }
@@ -1578,6 +2115,7 @@
 
   function quitarDelPedido(id) {
     delete estado.pedido[id];
+    renovarRef();
     guardarPedido();
     refrescarPieza(id);
     sincronizarFicha(id);
@@ -1588,6 +2126,7 @@
     var ids = Object.keys(estado.pedido);
     estado.pedido = {};
     marcarEnviado(null);
+    renovarRef();
     guardarPedido();
     ids.forEach(refrescarPieza);
     mostrarVista('lista');
@@ -1605,16 +2144,18 @@
     Object.keys(estado.pedido).forEach(function (id) {
       var producto = buscarProducto(id);
       if (!producto || producto.sinStock) { huerfanos.push(id); return; }
-      var tienePrecio = producto.precio !== null && producto.precio !== undefined && producto.precio !== '';
+      // [AUDITORIA H09] precio de la linea (ya redondeado) x cantidad.
+      var precio = precioDeLinea(producto);
       lineas.push({
         producto: producto,
         cantidad: estado.pedido[id],
-        subtotal: tienePrecio ? producto.precio * estado.pedido[id] * (soloPorCaja(producto) ? factorCaja(producto) : 1) : null,
+        subtotal: precio === null ? null : redondear2(precio * estado.pedido[id]),
       });
     });
 
     if (huerfanos.length) {
       huerfanos.forEach(function (id) { delete estado.pedido[id]; });
+      renovarRef();
       guardarPedido();
       // Se avisa una sola vez: al salir del pedido ya no se vuelven a contar.
       avisar(huerfanos.length === 1
@@ -1625,8 +2166,25 @@
     return lineas;
   }
 
+  /**
+   * [AUDITORIA H10] Total y moneda del pedido. Si hubiera productos en
+   * monedas distintas no se suman (el resultado no tendria sentido): el
+   * total queda "a confirmar". Hoy todo el catalogo es ARS.
+   * @returns {{total: ?number, moneda: string}}
+   */
   function totalPedido(lineas) {
-    return lineas.reduce(function (suma, l) { return suma + (l.subtotal || 0); }, 0);
+    var moneda = lineas.length ? lineas[0].producto.moneda : 'ARS';
+    var mezcla = lineas.some(function (l) { return l.producto.moneda !== moneda; });
+    if (mezcla) return { total: null, moneda: moneda };
+    return {
+      total: redondear2(lineas.reduce(function (suma, l) { return suma + (l.subtotal || 0); }, 0)),
+      moneda: moneda,
+    };
+  }
+
+  function textoTotal(lineas) {
+    var t = totalPedido(lineas);
+    return t.total === null ? 'a confirmar' : formatearPrecio(t.total, t.moneda);
   }
 
   function cantidadTotal(lineas) {
@@ -1673,7 +2231,7 @@
 
     if (hayLineas && mostrarPrecios()) {
       $('pedido-total').innerHTML = '<span>Total estimado</span><span>' +
-        escapar(formatearPrecio(totalPedido(lineas), lineas[0].producto.moneda)) + '</span>';
+        escapar(textoTotal(lineas)) + '</span>';
     } else if (hayLineas) {
       $('pedido-total').innerHTML = '<span>' + cantidadTotal(lineas) + ' items</span>';
     } else {
@@ -1721,6 +2279,10 @@
 
   function abrirPedido() {
     dibujarPedido();
+    if (estado.enviadoEn) {
+      resumenEnviado(lineasDelPedido());
+      mostrarRegistro({ estado: '' }, []);
+    }
     mostrarVista(estado.enviadoEn ? 'enviado' : 'lista');
     estado.pedidoAbierto = true;
     mostrarSuave($('pedido-velo'));
@@ -1800,6 +2362,26 @@
     });
   });
 
+  /**
+   * [AUDITORIA H15] Otra pestania cambio el pedido: se toma su version en
+   * lugar de pisarla con la copia vieja de esta en el proximo guardado.
+   * Solo lee: no escribe, asi dos pestanias no se rebotan eventos.
+   */
+  window.addEventListener('storage', function (evento) {
+    if (evento.key !== null && [CLAVE_PEDIDO, CLAVE_ENVIADO, CLAVE_REF].indexOf(evento.key) === -1) return;
+    var antes = Object.keys(estado.pedido);
+    estado.pedido = leerPedido();
+    estado.refPedido = leerRef();
+    var enviado = null;
+    try { enviado = parseInt(localStorage.getItem(CLAVE_ENVIADO) || '', 10); } catch (err) { /* */ }
+    estado.enviadoEn = enviado && !isNaN(enviado) ? enviado : null;
+    if (!estado.datos) return;
+    antes.concat(Object.keys(estado.pedido)).forEach(refrescarPieza);
+    if (estado.fichaActual) sincronizarFicha(estado.fichaActual.id);
+    if (estado.pedidoAbierto && !estado.enviadoEn) mostrarVista('lista');
+    dibujarPedido();
+  });
+
   function recordarCliente() {
     try {
       var guardado = JSON.parse(localStorage.getItem(CLAVE_CLIENTE) || '{}');
@@ -1814,10 +2396,11 @@
    * Arma el texto del pedido. Detallado incluye cantidades y subtotales;
    * compacto, solo "2x Producto".
    */
-  function textoDelPedido(lineas, compacto, tope) {
+  function textoDelPedido(lineas, compacto, tope, sinCliente) {
     var config = (estado.datos && estado.datos.config) || {};
     var conPrecios = mostrarPrecios();
-    var partes = ['*Pedido - ' + (config.negocio_nombre || 'Catalogo') + '*', ''];
+    // [AUDITORIA H02] La referencia une el mensaje con el registro en la base.
+    var partes = ['*Pedido - ' + (config.negocio_nombre || 'Catalogo') + '*', 'Ref: ' + refCorta(refDelPedido()), ''];
     var visibles = tope ? lineas.slice(0, tope) : lineas;
 
     visibles.forEach(function (l, i) {
@@ -1838,22 +2421,34 @@
     if (conPrecios) {
       // El total es SIEMPRE el del pedido completo, aunque el detalle venga
       // recortado: mandar un total parcial haria cotizar de menos.
-      partes.push('', '*Total estimado: ' + formatearPrecio(totalPedido(lineas), lineas[0].producto.moneda) + '*');
+      partes.push('', '*Total estimado: ' + textoTotal(lineas) + '*');
       if (tope && lineas.length > tope) {
         partes.push('(el total incluye los ' + lineas.length + ' productos del pedido)');
       }
     }
 
-    var nombre = $('pedido-nombre').value.trim();
-    var nota = $('pedido-nota').value.trim();
-    if (nombre || nota) partes.push('');
-    if (nombre) partes.push('Cliente: ' + nombre);
-    if (nota) partes.push('Nota: ' + nota);
+    // [AUDITORIA H12] Mismo recorte que la base (300 caracteres).
+    var cliente = datosCliente();
+    if (sinCliente) {
+      if (cliente.nombre || cliente.nota) partes.push('', '(Los datos del cliente no entraron en este mensaje.)');
+      return partes.join('\n');
+    }
+    if (cliente.nombre || cliente.nota) partes.push('');
+    if (cliente.nombre) partes.push('Cliente: ' + cliente.nombre);
+    if (cliente.nota) partes.push('Nota: ' + cliente.nota);
 
     return partes.join('\n');
   }
 
-  /** Elige la version que entra en un enlace de WhatsApp. */
+  /**
+   * Elige la version que entra en un enlace de WhatsApp.
+   *
+   * [AUDITORIA H12] Antes bajaba de a 5 lineas hasta 1 y devolvia ese texto
+   * aunque siguiera sin entrar (por ejemplo con una nota larga). Ahora busca
+   * el mayor numero de lineas que entra (busqueda binaria) y, si ni con una
+   * linea alcanza, deja afuera los datos del cliente. Siempre devuelve un
+   * texto que entra.
+   */
   function textoQueEntra(lineas) {
     var cabe = function (t) { return encodeURIComponent(t).length <= LIMITE_URL; };
 
@@ -1863,9 +2458,17 @@
     var compacto = textoDelPedido(lineas, true);
     if (cabe(compacto)) return { texto: compacto, recortado: false };
 
-    var tope = lineas.length;
-    while (tope > 1 && !cabe(textoDelPedido(lineas, true, tope))) tope -= 5;
-    return { texto: textoDelPedido(lineas, true, Math.max(tope, 1)), recortado: true };
+    var sinCliente = !cabe(textoDelPedido(lineas, true, 1));
+    var bajo = 1, alto = lineas.length - 1;
+    while (bajo < alto) {
+      var medio = Math.ceil((bajo + alto) / 2);
+      if (cabe(textoDelPedido(lineas, true, medio, sinCliente))) bajo = medio;
+      else alto = medio - 1;
+    }
+    var texto = textoDelPedido(lineas, true, bajo, sinCliente);
+    // Ultima red: un nombre de producto absurdo no puede romper el enlace.
+    while (!cabe(texto)) texto = texto.slice(0, Math.floor(texto.length * 0.9));
+    return { texto: texto, recortado: true };
   }
 
   function prepararEnvio(lineas) {
@@ -1878,6 +2481,12 @@
       return;
     }
 
+    if (!pedidosActivos()) {
+      boton.href = '#';
+      $('pedido-largo').hidden = true;
+      return;
+    }
+
     var armado = textoQueEntra(lineas);
     boton.href = 'https://wa.me/' + String(config.whatsapp).replace(/[^0-9]/g, '') +
       '?text=' + encodeURIComponent(armado.texto);
@@ -1885,20 +2494,60 @@
   }
 
   /**
-   * Al enviar no se borra nada: el pedido queda marcado como enviado y el
-   * panel pasa al estado de confirmacion. Se descarta solo mas tarde, o
-   * cuando el cliente elige empezar uno nuevo.
+   * [AUDITORIA H02] Abrir WhatsApp no prueba que el mensaje se haya mandado:
+   * eso lo decide el cliente en WhatsApp. Por eso la confirmacion dice lo que
+   * de verdad paso ("abrimos WhatsApp con tu pedido") y aparte muestra si el
+   * pedido quedo registrado en la base, que es lo unico que podemos saber.
    */
-  $('pedido-enviar').addEventListener('click', function () {
-    var lineas = lineasDelPedido();
-    if (!lineas.length) return;
+  function resumenEnviado(lineas) {
+    var cuantos = lineas.length === 1 ? '1 producto' : lineas.length + ' productos';
+    $('enviado-detalle').textContent = 'Abrimos WhatsApp con tu pedido (' + cuantos +
+      (mostrarPrecios() ? ', ' + textoTotal(lineas) : '') +
+      '). Para que nos llegue, toca Enviar en WhatsApp.';
+    $('enviado-ref').textContent = estado.refPedido ? 'Pedido ' + refCorta(estado.refPedido) : '';
+  }
 
-    anotarPedido(lineas);
+  /** Estado del registro en la base, debajo de la confirmacion. */
+  function mostrarRegistro(resultado, lineas) {
+    var caja = $('enviado-registro');
+    var texto = '';
+    if (resultado.estado === 'enviando') {
+      texto = 'Registrando el pedido...';
+    } else if (resultado.estado === 'registrado') {
+      texto = 'Pedido registrado.';
+      var t = totalPedido(lineas);
+      if (mostrarPrecios() && resultado.total !== null && t.total !== null && Math.abs(resultado.total - t.total) >= 0.01) {
+        texto += ' Total con los precios de hoy: ' + formatearPrecio(resultado.total, t.moneda) + '.';
+      }
+    } else if (resultado.estado === 'rechazado') {
+      texto = (resultado.mensaje || 'No pudimos registrar el pedido.') +
+        ' Igual podes mandarlo por WhatsApp y lo revisamos ahi.';
+    } else if (resultado.estado === 'sin_conexion') {
+      texto = 'No pudimos registrar el pedido (sin conexion). El mensaje de WhatsApp igual vale.';
+    }
+    caja.textContent = texto;
+    caja.hidden = !texto;
+    caja.classList.toggle('alerta', resultado.estado === 'rechazado' || resultado.estado === 'sin_conexion');
+  }
+
+  $('pedido-enviar').addEventListener('click', function (evento) {
+    var lineas = lineasDelPedido();
+    if (!lineas.length || !pedidosActivos()) { evento.preventDefault(); return; }
+
+    // El href ya lleva esta misma referencia (prepararEnvio -> textoDelPedido).
+    var ref = refDelPedido();
     marcarEnviado(Date.now());
-    $('enviado-detalle').textContent = mostrarPrecios()
-      ? lineas.length + ' productos por ' + formatearPrecio(totalPedido(lineas), lineas[0].producto.moneda) + '.'
-      : lineas.length + ' productos enviados.';
+    resumenEnviado(lineas);
+    mostrarRegistro({ estado: 'enviando' }, lineas);
     mostrarVista('enviado');
+
+    anotarPedido(lineas, ref).then(function (resultado) {
+      if (estado.refPedido !== ref) return;   // el pedido cambio mientras tanto
+      mostrarRegistro(resultado, lineas);
+      // Un producto dejo de estar disponible: se refresca el catalogo para
+      // que el pedido se corrija solo.
+      if (resultado.codigo === 'productos_no_disponibles') consultarCatalogo();
+    });
   });
 
   $('enviado-nuevo').addEventListener('click', function () {
@@ -2018,6 +2667,7 @@
       '</button>';
     }).join('');
 
+    if (estado.filtro.rubro && rubros.indexOf(estado.filtro.rubro) === -1) estado.filtro.rubro = '';
     marcarRubro(estado.filtro.rubro);
     // Sin rubros cargados el boton no tiene para que estar.
     if ($('abrir-rubros')) $('abrir-rubros').hidden = rubros.length === 0;

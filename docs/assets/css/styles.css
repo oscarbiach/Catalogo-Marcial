@@ -553,6 +553,12 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 .enviado-marca svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
 .enviado h3 { margin: 4px 0 0; font-size: 17px; letter-spacing: .08em; }
 .enviado p { margin: 0; color: var(--tinta-2); font-size: 14px; max-width: 30ch; }
+.enviado .enviado-ref { font-size: 12.5px; letter-spacing: .06em; font-variant-numeric: tabular-nums; }
+.enviado .enviado-ref:empty { display: none; }
+.enviado .alerta { text-align: left; max-width: 34ch; }
+
+/* Aviso de catalogo de respaldo o precios guardados (auditoria H01/H06) */
+.aviso-datos { margin: 0 0 18px; }
 .enviado .boton { margin-top: 8px; }
 
 /* ---------- Pie ---------- */

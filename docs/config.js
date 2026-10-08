@@ -33,8 +33,6 @@ window.CATALOGO_CONFIG = {
     guardarPedidos: true,
   },
 
-  // Minutos que el navegador reutiliza el catalogo guardado antes de pedirlo
-  // de nuevo. El contenido igual se refresca en segundo plano en cada visita.
   // Avisos que se muestran en la ficha de ciertos productos. Cada regla mira el
   // nombre (sin acentos ni mayusculas): `contiene` tiene que estar y `excluye`
   // no. Para sumar otro aviso, agregar otra regla a la lista.
@@ -42,6 +40,10 @@ window.CATALOGO_CONFIG = {
     { contiene: ['panceta'], excluye: ['chips'], texto: 'Ofrecemos servicio de feteo!' },
   ],
 
+  // El catalogo guardado se muestra al instante y se refresca en cada visita.
+  // Si pasan estos minutos sin poder refrescarlo, el sitio avisa que los
+  // precios en pantalla son los guardados. Tambien se revalida al volver a la
+  // pestania despues de este tiempo.
   MINUTOS_CACHE: 30,
 
 };

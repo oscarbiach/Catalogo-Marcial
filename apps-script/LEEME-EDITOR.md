@@ -16,6 +16,8 @@ Archivos: `EditorFichas.gs` (logica) y `EditorFichas.html` (la ventana).
 - No cambia precios, orden, categorias, formulas ni la estructura.
 - Rechaza textos que Sheets convertiria en formula (empiezan con `=`) o en fecha
   (`1/2`), para no romper celdas.
+- Primero valida todo y recién después escribe: si algo está mal no se toca ninguna celda.
+- Si otra persona cambió el mismo campo mientras editabas, no lo pisa: avisa para recargar.
 - Cada cambio queda en la hoja nueva `Historial fichas` (fecha, id, producto,
   campo, antes, despues). Sirve para deshacer. Se puede borrar cuando se quiera.
 - Al guardar llama a `invalidarCache()` (ya existe en `Codigo.gs`) para que el

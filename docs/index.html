@@ -23,7 +23,7 @@
      base. Van antes que styles.css, que usa sus variables. -->
 <link rel="stylesheet" href="assets/marca/tokens.css?v=40">
 <link rel="stylesheet" href="assets/marca/marcial.css?v=40">
-<link rel="stylesheet" href="assets/css/styles.css?v=40">
+<link rel="stylesheet" href="assets/css/styles.css?v=41">
 
 <!-- Antes del primer pintado, para que no se vea el salto de claro a oscuro. -->
 <script>
@@ -145,6 +145,7 @@
 
 <!-- ===================== Catalogo ===================== -->
 <main id="catalogo">
+  <p class="alerta aviso-datos" id="aviso-datos" role="status" hidden></p>
   <div class="grilla" id="grilla" aria-live="polite"></div>
 
   <p class="estado" id="estado-vacio" hidden>
@@ -234,8 +235,8 @@
     <div class="pedido-pie" id="pedido-pie" hidden>
       <div class="pedido-total" id="pedido-total"></div>
 
-      <input id="pedido-nombre" class="campo" autocomplete="organization" placeholder="Tu nombre o comercio">
-      <input id="pedido-nota" class="campo" placeholder="Aclaraciones (opcional)">
+      <input id="pedido-nombre" class="campo" autocomplete="organization" maxlength="300" placeholder="Tu nombre o comercio">
+      <input id="pedido-nota" class="campo" maxlength="300" placeholder="Aclaraciones (opcional)">
 
       <p class="alerta" id="pedido-largo" hidden>
         El pedido es largo para el enlace: el mensaje sale resumido.
@@ -262,8 +263,10 @@
       <div class="enviado-marca" aria-hidden="true">
         <svg viewBox="0 0 24 24"><path d="M4 12.5l5.5 5.5L20 7"/></svg>
       </div>
-      <h3 class="display">Pedido enviado</h3>
+      <h3 class="display">Pedido listo en WhatsApp</h3>
       <p id="enviado-detalle"></p>
+      <p class="enviado-ref" id="enviado-ref"></p>
+      <p id="enviado-registro" role="status" hidden></p>
       <button class="boton boton-ancho" id="enviado-nuevo" type="button">Empezar uno nuevo</button>
       <button class="enlace" id="enviado-volver" type="button">Volver a mi pedido</button>
     </div>
@@ -299,7 +302,7 @@
 
 <div class="nota" id="aviso" hidden></div>
 
-<script src="config.js?v=40"></script>
-<script src="assets/js/app.js?v=40"></script>
+<script src="config.js?v=41"></script>
+<script src="assets/js/app.js?v=41"></script>
 </body>
 </html>
