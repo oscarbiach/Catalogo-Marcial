@@ -32,21 +32,30 @@ select 'H04 precio basura',  pg_temp.debe_fallar($$select public.aplicar_catalog
 select 'H04 ids repetidos',  pg_temp.debe_fallar($$select public.aplicar_catalogo('{"ok":true,"config":{},"productos":[{"id":"105","nombre":"a"},{"id":"105","nombre":"b"},{"id":"300","nombre":"c"},{"id":"400","nombre":"d"}]}')$$, 'repetidos');
 select 'H04 siguen publicados', (select count(*) from productos where publicado and id in ('105','200','300','400')) = 4 as ok;
 
--- H01 contrato 2: la planilla manda sobre las reglas de caja cerrada
+-- H01 contrato 2: la planilla manda sobre la venta por caja cerrada
 savepoint antes_contrato;
-select 'H01 contrato 1 no toca reglas', (select count(*) from caja_cerrada) + (select count(*) from caja_cerrada_kg) = 2 as ok;
-select 'H01 contrato 2 copia reglas', public.aplicar_catalogo('{"ok":true,"contrato":2,"config":{"whatsapp":"1","pedidos_activos":"si"},"productos":[
+select 'H01 contrato 2 aplica reglas', public.aplicar_catalogo('{"ok":true,"contrato":2,"config":{"whatsapp":"1","pedidos_activos":"si"},"productos":[
  {"id":"105","nombre":"Pan","precio":1624,"unidadPrecio":"unidad","unidadesCaja":20,"soloCaja":true,"kgCaja":0},
  {"id":"200","nombre":"Cremoso","precio":0.10,"unidadPrecio":"kg","soloCaja":true,"kgCaja":1.25},
  {"id":"300","nombre":"Mayonesa","precio":500,"unidadPrecio":"unidad","unidadesCaja":12,"soloCaja":true,"kgCaja":0},
  {"id":"400","nombre":"Sin stock","precio":10,"sinStock":true,"soloCaja":false,"kgCaja":0}]}'::jsonb) ->> 'reglas_caja' = '3' as ok;
-select 'H01 300 pasa a caja', (select solo_caja and unidades_caja = 12 from productos where id = '300') as ok;
-select 'H01 tablas = planilla', (select string_agg(producto_id || ':' || unidades, ',' order by producto_id) from caja_cerrada) = '105:20,300:12'
-   and (select string_agg(producto_id || ':' || kg, ',') from caja_cerrada_kg) = '200:1.250' as ok;
+select 'H01 300 pasa a caja (no esta en las listas)', (select solo_caja and unidades_caja = 12 from productos where id = '300') as ok;
+select 'H01 kg de la planilla', (select solo_caja and kg_caja = 1.25 from productos where id = '200') as ok;
+select 'H01 listas intactas', (select count(*) from caja_cerrada) = 1 and (select count(*) from caja_cerrada_kg) = 1 as ok;
+select 'H01 total con regla de planilla', (public.registrar_pedido(gen_random_uuid(), '', '', '[{"id":"300","cantidad":2}]') ->> 'total')::numeric = 12000 as ok;
 select 'H01 red de seguridad', pg_temp.debe_fallar($$select public.aplicar_catalogo('{"ok":true,"contrato":2,"config":{},"productos":[
- {"id":"105","nombre":"Pan","soloCaja":false},{"id":"200","nombre":"b"},{"id":"300","nombre":"c"},{"id":"400","nombre":"d"}]}')$$, 'reglas de caja cerrada bajarian');
+ {"id":"105","nombre":"Pan","soloCaja":false},{"id":"200","nombre":"b"},{"id":"300","nombre":"c"},{"id":"400","nombre":"d"}]}')$$, 'bajarian de 3 a 0');
 select 'H01 kgCaja invalido', pg_temp.debe_fallar($$select public.aplicar_catalogo('{"ok":true,"contrato":2,"config":{},"productos":[
  {"id":"105","nombre":"a","kgCaja":"3,6"},{"id":"200","nombre":"b"},{"id":"300","nombre":"c"},{"id":"400","nombre":"d"}]}')$$, 'datos invalidos');
+-- Volver al contrato 1 (cc_desactivar): las listas vuelven a mandar
+select 'H01 vuelta a contrato 1', public.aplicar_catalogo('{"ok":true,"config":{"whatsapp":"1","pedidos_activos":"si"},"productos":[
+ {"id":"105","nombre":"Pan","precio":1624,"unidadPrecio":"unidad"},
+ {"id":"200","nombre":"Cremoso","precio":0.10,"unidadPrecio":"kg"},
+ {"id":"300","nombre":"Mayonesa","precio":500,"unidadPrecio":"unidad","soloCaja":true},
+ {"id":"400","nombre":"Sin stock","precio":10,"sinStock":true}]}'::jsonb) ->> 'contrato' = '1' as ok;
+-- En otra sentencia: la anterior ve la foto de antes de la llamada.
+select 'H01 listas mandan otra vez', (select not solo_caja from productos where id = '300')
+   and (select solo_caja from productos where id = '105') and (select kg_caja = 1.25 from productos where id = '200') as ok;
 rollback to savepoint antes_contrato;
 
 -- H02/H09: registro, idempotencia y redondeo de la caja por kilo

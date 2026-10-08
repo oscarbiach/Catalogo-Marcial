@@ -42,9 +42,12 @@ sus tablas).
 - Precio por kilo que se vende por caja: `solo_caja` = `si` y `kg_caja` con los
   kilos de la caja.
 
-En la próxima sincronización (cada 10 minutos) Supabase copia las reglas. Si de
-golpe desaparece más de la mitad, la sincronización se frena y llega el aviso por
-correo de la vigilancia horaria.
+En la próxima sincronización (cada 10 minutos) Supabase toma las reglas de la
+planilla. Si de golpe desaparece más de la mitad, la sincronización se frena y
+llega el aviso por correo de la vigilancia horaria.
+
+Las tablas viejas de Supabase (`caja_cerrada` y `caja_cerrada_kg`) no se borran:
+quedan como estaban, y vuelven a usarse solo si se ejecuta `cc_desactivar`.
 
 Guardar un producto desde el panel **no** borra estas dos columnas: si el panel no
 las manda, se conservan.
