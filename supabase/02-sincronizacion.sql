@@ -260,6 +260,8 @@ revoke all on public.estado_sincronizacion from anon, authenticated;
 -- Solo la tarea programada la ejecuta: la clave publica no puede.
 revoke all on function public.sincronizar_catalogo() from public, anon, authenticated;
 revoke all on function public.aplicar_catalogo(jsonb) from public, anon, authenticated;
+-- La funcion del trigger tampoco tiene que quedar expuesta en /rest/v1/rpc.
+revoke all on function public.productos_marcar_solo_caja() from public, anon, authenticated;
 
 -- Cada 10 minutos. Si la tarea ya existe se reemplaza (no se duplica).
 select cron.unschedule(jobid) from cron.job where jobname = 'sincronizar-catalogo';

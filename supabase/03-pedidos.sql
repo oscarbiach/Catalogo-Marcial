@@ -31,7 +31,13 @@ alter table pedidos_catalogo add column if not exists origen_ip text not null de
 create unique index if not exists pedidos_catalogo_ref_key on pedidos_catalogo (ref);
 create index if not exists pedidos_catalogo_ip_idx on pedidos_catalogo (origen_ip, creado_en desc);
 
--- La version vieja (sin p_ref) no tenia limites: se elimina.
+-- La version vieja (sin p_ref) no tenia limites: primero se le quita el
+-- permiso a la clave publica (asi queda cerrada aunque el drop no corra) y
+-- despues se elimina.
+do $$ begin
+  revoke all on function public.registrar_pedido(text, text, jsonb) from public, anon, authenticated;
+exception when undefined_function then null;
+end $$;
 drop function if exists public.registrar_pedido(text, text, jsonb);
 
 create or replace function public.registrar_pedido(p_ref uuid, p_cliente text, p_nota text, p_items jsonb)
@@ -185,7 +191,7 @@ begin
 end;
 $$;
 
-revoke all on function public.registrar_pedido(uuid, text, text, jsonb) from public;
+revoke all on function public.registrar_pedido(uuid, text, text, jsonb) from public, authenticated;
 -- Solo la clave publica (anon): el sitio no usa usuarios con sesion.
 grant execute on function public.registrar_pedido(uuid, text, text, jsonb) to anon;
 
