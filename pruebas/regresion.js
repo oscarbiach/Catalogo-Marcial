@@ -89,7 +89,7 @@ async function abrir(navegador, base, opciones) {
     const cuerpo = url.includes('/productos') ? filasSupabase() : configSupabase(o.sincronizadoEn);
     return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(cuerpo) });
   });
-  await contexto.route(/script\.google\.com/, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(APPS_SCRIPT) }));
+  await contexto.route(/script\.google\.com/, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(o.appsScript || APPS_SCRIPT) }));
   if (o.storage) {
     await contexto.addInitScript((datos) => {
       if (sessionStorage.getItem('__sembrado')) return;
@@ -147,6 +147,20 @@ caso('H01 Respaldo con reglas de una visita anterior: mantiene caja de 20 y $32.
   await pagina.locator('#carrito').click();
   assert.match(await pagina.locator('#pedido-total').innerText(), /32\.480/);
   await contexto.close();
+});
+
+caso('H01 Respaldo con contrato 2 (reglas en la planilla): caja de 20 sin reglas guardadas', async (nav, base) => {
+  const contrato2 = JSON.parse(JSON.stringify(APPS_SCRIPT));
+  contrato2.contrato = 2;
+  contrato2.productos[0].soloCaja = true; contrato2.productos[0].unidadesCaja = 20; contrato2.productos[0].kgCaja = 0;
+  contrato2.productos[1].soloCaja = true; contrato2.productos[1].kgCaja = 1.25;
+  const { pagina } = await abrir(nav, base, { supabase: 'caido', appsScript: contrato2 });
+  await esperarCatalogo(pagina);
+  assert.match(await pagina.locator('.pieza[data-id="105"] .pieza-unit').innerText(), /caja de 20/);
+  assert.strictEqual(await pagina.locator('#aviso-datos').isHidden(), true);
+  await sumar(pagina, '200', 3);
+  await pagina.locator('#carrito').click();
+  assert.match(await pagina.locator('#pedido-lineas .pedido-subtotal').innerText(), /0,39/);
 });
 
 caso('H02 Enviar: registra con p_ref, muestra "registrado" y reenviar no cambia la ref', async (nav, base) => {

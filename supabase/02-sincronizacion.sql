@@ -60,9 +60,16 @@ revoke all on caja_cerrada_kg from anon, authenticated;
 -- productos.solo_caja y kg_caja se completan solos a partir de las dos listas (trigger).
 alter table productos add column if not exists solo_caja boolean not null default false;
 alter table productos add column if not exists kg_caja numeric(8,3) not null default 0;
+-- [AUDITORIA H01] Con contrato 2, aplicar_catalogo trae solo_caja y kg_caja
+-- de la planilla y lo avisa con catalogo.reglas_planilla = '1' (local a la
+-- transaccion): ahi el trigger no los pisa. Si no, se calculan desde las
+-- listas, como antes.
 create or replace function public.productos_marcar_solo_caja() returns trigger
 language plpgsql security definer set search_path = public as $$
 begin
+  if coalesce(current_setting('catalogo.reglas_planilla', true), '') = '1' then
+    return new;
+  end if;
   new.kg_caja := coalesce((select k.kg from caja_cerrada_kg k where k.producto_id = new.id), 0);
   new.solo_caja := new.kg_caja > 0 or exists (select 1 from caja_cerrada c where c.producto_id = new.id);
   return new;
@@ -99,6 +106,9 @@ declare
   v_ahora     timestamptz := now();
   v_ocultos   int := 0;
   v_config    int := 0;
+  v_contrato  int;
+  v_reglas_antes  int;
+  v_reglas_nuevas int;
 begin
   if j is null
      or coalesce(j->>'ok', '') <> 'true'
@@ -121,6 +131,7 @@ begin
       (coalesce(p->>'precio', '') <> '' and (p->>'precio') !~ '^[0-9]+(\.[0-9]+)?$')
       or (coalesce(p->>'unidadesCaja', '') <> '' and (p->>'unidadesCaja') !~ '^[0-9]{1,6}$')
       or (coalesce(p->>'orden', '') <> '' and (p->>'orden') !~ '^-?[0-9]{1,9}$')
+      or (coalesce(p->>'kgCaja', '') <> '' and (p->>'kgCaja') !~ '^[0-9]{1,4}(\.[0-9]+)?$')
       or coalesce(btrim(p->>'nombre'), '') = ''
     );
   if v_malos is not null then
@@ -141,9 +152,39 @@ begin
     raise exception 'El catalogo llego con % productos validos y hay % publicados: no se sincroniza', v_unicos, v_pub;
   end if;
 
+  -- [AUDITORIA H01] Contrato 2: la planilla es la fuente de la venta por caja
+  -- cerrada (columnas solo_caja y kg_caja). Las tablas caja_cerrada y
+  -- caja_cerrada_kg pasan a ser una copia que se rehace en cada vuelta, ANTES
+  -- de actualizar productos, para que el trigger ya vea las reglas nuevas.
+  -- Con contrato 1 (o sin contrato) las tablas no se tocan, como antes.
+  -- Red de seguridad: si de golpe desaparece mas de la mitad de las reglas,
+  -- se rechaza el lote (igual que con los productos).
+  -- [AUDITORIA H01] Contrato 2: la planilla es la fuente de la venta por caja
+  -- cerrada. solo_caja y kg_caja se escriben directo en productos y el
+  -- trigger no los recalcula. Las tablas caja_cerrada* no se tocan: quedan
+  -- como estaban, para volver al contrato 1 si hiciera falta.
+  -- Red de seguridad: si de golpe desaparece mas de la mitad de los productos
+  -- marcados, se rechaza el lote (igual que con los productos).
+  v_contrato := case when coalesce(j->>'contrato', '') ~ '^[0-9]{1,3}$' then (j->>'contrato')::int else 1 end;
+  if v_contrato >= 2 then
+    select count(*) into v_reglas_nuevas
+    from jsonb_array_elements(j->'productos') p
+    where coalesce(p->>'id', '') <> ''
+      and lower(coalesce(p->>'soloCaja', '')) in ('true', 't', '1', 'yes', 'si')
+      and ((coalesce(p->>'kgCaja', '') <> '' and (p->>'kgCaja')::numeric > 0)
+           or (coalesce(p->>'unidadPrecio', '') <> 'kg' and coalesce(p->>'unidadesCaja', '') <> ''
+               and (p->>'unidadesCaja')::int > 1));
+    select count(*) into v_reglas_antes from productos where publicado and solo_caja;
+    if v_reglas_antes > 0 and v_reglas_nuevas < v_reglas_antes * 0.5 then
+      raise exception 'Los productos por caja cerrada bajarian de % a %: no se sincroniza', v_reglas_antes, v_reglas_nuevas;
+    end if;
+    perform set_config('catalogo.reglas_planilla', '1', true);
+  end if;
+
   insert into productos (id, sku, nombre, descripcion, categoria, marca, precio, moneda,
                          unidades_caja, presentacion, unidad_precio, imagenes, rubros,
-                         destacado, nuevo, sin_stock, posicion, orden, publicado, actualizado_en)
+                         destacado, nuevo, sin_stock, posicion, orden, publicado, actualizado_en,
+                         solo_caja, kg_caja)
   select p->>'id',
          coalesce(p->>'sku', ''),
          btrim(p->>'nombre'),
@@ -154,6 +195,7 @@ begin
          coalesce(nullif(p->>'moneda', ''), 'ARS'),
          case when coalesce(nullif(p->>'unidadesCaja', '')::int, 0) > 0
               then (p->>'unidadesCaja')::int
+              when v_contrato >= 2 then 0
               else coalesce((select c.unidades from caja_cerrada c where c.producto_id = p->>'id'), 0) end,
          coalesce(p->>'presentacion', ''),
          case when p->>'unidadPrecio' in ('kg', 'unidad', 'caja') then p->>'unidadPrecio' else '' end,
@@ -169,7 +211,10 @@ begin
          (t.i - 1)::int,
          coalesce(nullif(p->>'orden', '')::int, 0),
          true,
-         v_ahora
+         v_ahora,
+         -- Con contrato 1 el trigger los recalcula desde las listas.
+         lower(coalesce(p->>'soloCaja', '')) in ('true', 't', '1', 'yes', 'si'),
+         case when coalesce(p->>'kgCaja', '') <> '' then (p->>'kgCaja')::numeric else 0 end
   from jsonb_array_elements(j->'productos') with ordinality as t(p, i)
   where coalesce(p->>'id', '') <> ''
   on conflict (id) do update set
@@ -179,7 +224,10 @@ begin
     presentacion = excluded.presentacion, unidad_precio = excluded.unidad_precio, imagenes = excluded.imagenes, rubros = excluded.rubros,
     destacado = excluded.destacado, nuevo = excluded.nuevo, sin_stock = excluded.sin_stock,
     posicion = excluded.posicion, orden = excluded.orden, publicado = true,
-    actualizado_en = excluded.actualizado_en;
+    actualizado_en = excluded.actualizado_en,
+    solo_caja = excluded.solo_caja, kg_caja = excluded.kg_caja;
+
+  perform set_config('catalogo.reglas_planilla', '', true);
 
   -- Despublica por ausencia en el conjunto YA validado (misma transaccion).
   update productos set publicado = false where publicado and actualizado_en < v_ahora;
@@ -205,7 +253,8 @@ begin
   delete from config where clave not in (select clave from nuevas);
   select count(*) into v_config from config;
 
-  return jsonb_build_object('productos', v_unicos, 'ocultados', v_ocultos, 'config', v_config);
+  return jsonb_build_object('productos', v_unicos, 'ocultados', v_ocultos, 'config', v_config,
+                            'contrato', v_contrato, 'reglas_caja', v_reglas_nuevas);
 end;
 $$;
 
