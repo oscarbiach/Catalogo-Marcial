@@ -1,0 +1,57 @@
+# Pruebas de regresion de la auditoria (ver auditoria/PLAN-MAESTRO.md).
+# Corren en cada PR y en cada push a main que toque el sitio, el SQL o las
+# pruebas. No tocan produccion: el sitio se prueba con Supabase y Apps Script
+# simulados, y el SQL en un Postgres temporal dentro del runner.
+name: Pruebas
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'supabase/**'
+      - 'pruebas/**'
+      - '.github/workflows/pruebas.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  sitio:
+    name: Sitio (Playwright)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Sintaxis de app.js
+        run: node --check docs/assets/js/app.js
+      - name: Instalar Playwright
+        # Sin package.json a proposito: el sitio no tiene dependencias, esto
+        # es solo para las pruebas.
+        run: |
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Pruebas de regresion
+        run: node pruebas/regresion.js
+
+  base:
+    name: Base (Postgres)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Casos SQL
+        # El runner trae los binarios de PostgreSQL 16; el script arma una
+        # base temporal, aplica 01/02/03 y corre pruebas/sql/casos.sql.
+        run: |
+          salida=$(pruebas/sql/correr-local.sh)
+          echo "$salida"
+          # Cada caso imprime "ok" o "t"; cualquier otra cosa es una falla.
+          if echo "$salida" | grep -v '^{' | grep -Ev '\| (ok|t)$'; then
+            echo "::error::Hay casos SQL que no dieron ok"
+            exit 1
+          fi
