@@ -35,6 +35,13 @@ window.CATALOGO_CONFIG = {
 
   // Minutos que el navegador reutiliza el catalogo guardado antes de pedirlo
   // de nuevo. El contenido igual se refresca en segundo plano en cada visita.
+  // Avisos que se muestran en la ficha de ciertos productos. Cada regla mira el
+  // nombre (sin acentos ni mayusculas): `contiene` tiene que estar y `excluye`
+  // no. Para sumar otro aviso, agregar otra regla a la lista.
+  OBSERVACIONES: [
+    { contiene: ['panceta'], excluye: ['chips'], texto: 'Ofrecemos servicio de feteo!' },
+  ],
+
   MINUTOS_CACHE: 30,
 
 };

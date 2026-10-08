@@ -436,6 +436,13 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 .ficha-descripcion { margin: 18px 0 0; color: var(--tinta-2); font-size: 14.5px; white-space: pre-line; }
 .ficha-descripcion:empty { display: none; }
 
+.ficha-obs {
+  margin: 14px 0 0; padding: 10px 14px; border-radius: 10px;
+  background: var(--fondo-2, rgba(23, 41, 74, .07)); color: var(--tinta);
+  font-size: 14px; font-weight: 600; border-left: 3px solid currentColor;
+}
+.ficha-obs[hidden] { display: none; }
+
 .specs {
   margin: 20px 0 0; padding: 18px 0 0; border-top: 1px solid var(--linea);
   display: grid; grid-template-columns: auto 1fr; gap: 9px 22px; font-size: 13.5px;

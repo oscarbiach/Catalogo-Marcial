@@ -608,7 +608,7 @@
     var embutidos = [
       ['Jamón crudo', /jamon crudo|serrano/],
       ['Cortes frescos', /fresca|matambrito|solomillo|carre\b|pechito|^vacio\b|churrasquito|medallon|milanesa/],
-      ['Jamón cocido y paleta', /jamon|paleta|fiambre|pulpa/],
+      ['Jamón Cocido y Fiambre Cocido', /jamon|paleta|fiambre|pulpa/],
       ['Panceta', /panceta/],
       ['Lomo y bondiola', /lomo|bondiola|porchetta/],
       ['Chorizos, salchichas y morcillas', /chorizo|salchicha|morcilla|crespon|frankfurt/],
@@ -640,6 +640,19 @@
       ]
     };
   })();
+
+  /** Aviso de la ficha segun las reglas OBSERVACIONES de config.js ('' si no hay). */
+  function observacionDe(p) {
+    var nombre = normalizar(p.nombre);
+    var reglas = CFG.OBSERVACIONES || [];
+    for (var i = 0; i < reglas.length; i++) {
+      var r = reglas[i];
+      var esta = (r.contiene || []).every(function (t) { return nombre.indexOf(normalizar(t)) > -1; });
+      var excluido = (r.excluye || []).some(function (t) { return nombre.indexOf(normalizar(t)) > -1; });
+      if (esta && !excluido) return r.texto || '';
+    }
+    return '';
+  }
 
   function tipoDe(p) {
     if (p.tipo) return p.tipo;
@@ -687,8 +700,10 @@
 
   /**
    * Arma la grilla con titulos: una seccion por categoria y, dentro de las
-   * grandes, un bloque por tipo. Los tipos van ordenados por su producto mas
-   * vendido y, dentro de cada uno, lo mas vendido arriba.
+   * grandes, un bloque por tipo. Con "Mas pedidos" los tipos van ordenados por
+   * su producto mas vendido y, dentro de cada uno, lo mas vendido arriba. Con
+   * otro orden (A-Z, precio) se respeta ese orden: dentro de cada tipo, y los
+   * tipos segun su primer producto en ese orden.
    */
   function htmlAgrupado(lista) {
     var html = '';
@@ -708,17 +723,20 @@
         porTipo[t].push(p);
       });
 
+      var porVentas = estado.orden === 'destacados';
       var subdividir = deSeccion.length >= MIN_PARA_TIPOS && tipos.length > 1 && tipos[0] !== '';
       if (!subdividir) {
-        html += deSeccion.slice().sort(masVendidoPrimero).map(pieza).join('');
+        html += (porVentas ? deSeccion.slice().sort(masVendidoPrimero) : deSeccion).map(pieza).join('');
         return;
       }
 
-      tipos.forEach(function (t) { porTipo[t].sort(masVendidoPrimero); });
+      if (porVentas) tipos.forEach(function (t) { porTipo[t].sort(masVendidoPrimero); });
+      var ordenInicial = tipos.slice();
       tipos.sort(function (a, b) {
         if (a === 'Otros') return 1;
         if (b === 'Otros') return -1;
-        return masVendidoPrimero(porTipo[a][0], porTipo[b][0]);
+        // Con otro orden, "tipos" ya viene segun el primer producto de cada uno.
+        return porVentas ? masVendidoPrimero(porTipo[a][0], porTipo[b][0]) : ordenInicial.indexOf(a) - ordenInicial.indexOf(b);
       });
       tipos.forEach(function (t) {
         html += '<h3 class="tipo-tit">' + escapar(t) +
@@ -733,9 +751,9 @@
     estado.visibles = filtrar();
     $('estado-vacio').hidden = estado.visibles.length > 0;
 
-    // Con el orden por defecto y sin buscar, se muestra por secciones y tipos.
-    // Con otro orden (A-Z, precio) o con una busqueda, una lista corrida.
-    var agrupar = estado.orden === 'destacados' && !estado.filtro.texto.trim();
+    // Sin buscar, se muestra por secciones y tipos con cualquier orden. Con una
+    // busqueda, una lista corrida.
+    var agrupar = !estado.filtro.texto.trim();
     $('grilla').classList.toggle('con-secciones', agrupar);
     $('grilla').innerHTML = agrupar
       ? htmlAgrupado(estado.visibles)
@@ -1149,6 +1167,9 @@
 
     $('ficha-nombre').textContent = p.nombre;
     $('ficha-descripcion').textContent = p.descripcion || '';
+    var obs = observacionDe(p);
+    $('ficha-obs').textContent = obs;
+    $('ficha-obs').hidden = !obs;
 
     var sub = [];
     if (p.categoria) sub.push(p.categoria);
