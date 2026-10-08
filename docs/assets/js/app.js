@@ -375,6 +375,7 @@
     // esa posicion para poder volver a ese orden sin conocer el numero, que a
     // proposito no viaja al navegador.
     (datos.productos || []).forEach(function (p, i) { p.posicion = i; });
+    marcarMasVendidos(datos.productos || []);
     aplicarConfig(datos.config || {});
     llenarCategorias(datos.categorias || []);
     llenarMarcas(datos.marcas || []);
@@ -588,10 +589,154 @@
     return String(config.mostrar_precios || 'si').toLowerCase() !== 'no';
   }
 
+  // -------------------------------------------------------------------------
+  // Secciones y tipos
+  // -------------------------------------------------------------------------
+
+  var MAS_VENDIDOS_POR_SECCION = 3;   // cuantos llevan la senia "Destacado" en cada seccion
+  var MIN_PARA_TIPOS = 10;            // una seccion con menos productos no se subdivide
+
+  /**
+   * Tipos de cada seccion. Cada regla es [nombre, patron]; gana la primera que
+   * coincida con el nombre (sin acentos ni mayusculas). Lo que no coincide va a
+   * "Otros". Si el producto trae su propio `tipo` desde la planilla, manda ese.
+   */
+  var TIPOS_POR_SECCION = (function () {
+    var embutidos = [
+      ['Jamón crudo', /jamon crudo|serrano/],
+      ['Cortes frescos', /fresca|matambrito|solomillo|carre\b|pechito|^vacio\b|churrasquito|medallon|milanesa/],
+      ['Jamón cocido y paleta', /jamon|paleta|fiambre|pulpa/],
+      ['Panceta', /panceta/],
+      ['Lomo y bondiola', /lomo|bondiola|porchetta/],
+      ['Chorizos, salchichas y morcillas', /chorizo|salchicha|morcilla|crespon|frankfurt/],
+      ['Salames y secos', /sala[mn]|sopresatta|spianatta|cantimpalo|milancito|longaniza|pepperoni|queso de cerdo/],
+      ['Mortadela', /mortadela/]
+    ];
+    return {
+      'Quesos y Lacteos': [
+        ['Manteca', /manteca/],
+        ['Dulce de leche', /dulce de leche/],
+        ['Cremas y untables', /crema de leche|^crema\b|queso crem|queso untable/],
+        ['Yogures', /yogur/],
+        ['Cheddar y salsas', /cheddar|pasta azul|pouch pasta/],
+        ['Mozzarella', /mozzarella/],
+        ['Quesos duros y rallados', /sardo|reggianito|romano|romanito|parmesano|provolone|pepato|rallad/],
+        ['Quesos blandos y semiduros', /cremoso|cuartirolo|salut|tybo|danbo|holanda|gouda|fynbo|criollo|barra|magro|gruyerito|pategras|brie|camembert|azul|provoleta|ricota|queso/]
+      ],
+      'Fiambres y Embutidos': embutidos,
+      'Cortes de Cerdo y Elaborados': embutidos,
+      'Mayonesas y Aderezos': [
+        ['Sachets individuales', /individual/],
+        ['Mayonesas', /mayonesa/],
+        ['Salsas y aderezos', /./]
+      ],
+      'Dulce de Leche': [
+        ['Repostero', /repostero/],
+        ['Heladero', /heladero/],
+        ['Familiar', /./]
+      ]
+    };
+  })();
+
+  function tipoDe(p) {
+    if (p.tipo) return p.tipo;
+    var reglas = TIPOS_POR_SECCION[p.categoria];
+    if (!reglas) return '';
+    var nombre = normalizar(p.nombre);
+    for (var i = 0; i < reglas.length; i++) {
+      if (reglas[i][1].test(nombre)) return reglas[i][0];
+    }
+    return 'Otros';
+  }
+
+  /** Los primeros de cada seccion, segun lo mas pedido, llevan la senia Destacado. */
+  function marcarMasVendidos(productos) {
+    var cuenta = {};
+    productos.slice().sort(function (a, b) { return a.posicion - b.posicion; }).forEach(function (p) {
+      p.masVendido = false;
+      if (p.sinStock) return;
+      var k = p.categoria || '';
+      cuenta[k] = (cuenta[k] || 0) + 1;
+      if (cuenta[k] <= MAS_VENDIDOS_POR_SECCION) p.masVendido = true;
+    });
+  }
+
+  /** El orden de las secciones es el de las pastillas de rubros. */
+  function ordenSecciones(lista) {
+    var orden = ((estado.datos && estado.datos.categorias) || []).map(function (c) {
+      return typeof c === 'string' ? c : (c && (c.nombre || c.id)) || '';
+    });
+    var vistas = [];
+    lista.forEach(function (p) {
+      var k = p.categoria || '';
+      if (vistas.indexOf(k) === -1) vistas.push(k);
+    });
+    return vistas.sort(function (a, b) {
+      var ia = orden.indexOf(a), ib = orden.indexOf(b);
+      return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+    });
+  }
+
+  function masVendidoPrimero(a, b) {
+    if (a.sinStock !== b.sinStock) return a.sinStock ? 1 : -1;
+    return a.posicion - b.posicion;
+  }
+
+  /**
+   * Arma la grilla con titulos: una seccion por categoria y, dentro de las
+   * grandes, un bloque por tipo. Los tipos van ordenados por su producto mas
+   * vendido y, dentro de cada uno, lo mas vendido arriba.
+   */
+  function htmlAgrupado(lista) {
+    var html = '';
+    ordenSecciones(lista).forEach(function (cat) {
+      var deSeccion = lista.filter(function (p) { return (p.categoria || '') === cat; });
+      if (!deSeccion.length) return;
+      if (cat) {
+        html += '<h2 class="seccion-tit">' + escapar(cat) +
+          '<span class="seccion-cuenta">' + deSeccion.length + '</span></h2>';
+      }
+
+      var tipos = [];
+      var porTipo = {};
+      deSeccion.forEach(function (p) {
+        var t = tipoDe(p);
+        if (!porTipo[t]) { porTipo[t] = []; tipos.push(t); }
+        porTipo[t].push(p);
+      });
+
+      var subdividir = deSeccion.length >= MIN_PARA_TIPOS && tipos.length > 1 && tipos[0] !== '';
+      if (!subdividir) {
+        html += deSeccion.slice().sort(masVendidoPrimero).map(pieza).join('');
+        return;
+      }
+
+      tipos.forEach(function (t) { porTipo[t].sort(masVendidoPrimero); });
+      tipos.sort(function (a, b) {
+        if (a === 'Otros') return 1;
+        if (b === 'Otros') return -1;
+        return masVendidoPrimero(porTipo[a][0], porTipo[b][0]);
+      });
+      tipos.forEach(function (t) {
+        html += '<h3 class="tipo-tit">' + escapar(t) +
+          '<span class="seccion-cuenta">' + porTipo[t].length + '</span></h3>';
+        html += porTipo[t].map(pieza).join('');
+      });
+    });
+    return html;
+  }
+
   function dibujar() {
     estado.visibles = filtrar();
     $('estado-vacio').hidden = estado.visibles.length > 0;
-    $('grilla').innerHTML = estado.visibles.map(pieza).join('');
+
+    // Con el orden por defecto y sin buscar, se muestra por secciones y tipos.
+    // Con otro orden (A-Z, precio) o con una busqueda, una lista corrida.
+    var agrupar = estado.orden === 'destacados' && !estado.filtro.texto.trim();
+    $('grilla').classList.toggle('con-secciones', agrupar);
+    $('grilla').innerHTML = agrupar
+      ? htmlAgrupado(estado.visibles)
+      : estado.visibles.map(pieza).join('');
   }
 
   // -------------------------------------------------------------------------
@@ -757,7 +902,7 @@
    */
   function pieza(p) {
     var senias = '';
-    if (p.destacado) senias += '<span class="senia senia-destacado">Destacado</span>';
+    if (p.destacado || p.masVendido) senias += '<span class="senia senia-destacado">Destacado</span>';
     if (p.nuevo) senias += '<span class="senia senia-nuevo">Nuevo</span>';
     if (p.sinStock) senias += '<span class="senia senia-sin-stock">Sin stock</span>';
 

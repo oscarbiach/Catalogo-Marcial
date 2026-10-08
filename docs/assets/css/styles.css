@@ -1553,3 +1553,53 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
   .ficha.entrando, .ficha.saliendo { transform: none; opacity: 0; }
   .ficha { transition: opacity .2s linear; }
 }
+
+/* ===========================================================================
+   Secciones y tipos en la vista "Todo". Los titulos ocupan el ancho completo
+   de la grilla; los productos siguen flotando debajo, sin tarjetas.
+   =========================================================================== */
+.grilla .seccion-tit, .grilla .tipo-tit {
+  grid-column: 1 / -1; margin: 0; display: flex; align-items: baseline; gap: 10px;
+  color: var(--tinta); letter-spacing: -.02em;
+}
+.grilla .seccion-tit {
+  font: 800 clamp(22px, 2.6vw, 28px)/1.15 var(--display);
+  padding: 34px 3px 10px; border-bottom: 1px solid var(--linea);
+}
+.grilla .seccion-tit:first-child { padding-top: 6px; }
+.grilla .seccion-tit { margin-bottom: -14px; }
+.grilla .tipo-tit { margin-bottom: -16px; }
+.grilla .tipo-tit {
+  font: 700 15px/1.2 var(--display); color: var(--tinta-2);
+  padding: 14px 3px 0; letter-spacing: 0;
+}
+.seccion-cuenta {
+  font: 600 12px/1 var(--datos); color: var(--tinta-3); letter-spacing: .02em;
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 620px) {
+  .grilla .seccion-tit { font-size: 21px; padding: 26px 2px 8px; }
+  .grilla .seccion-tit:first-child { padding-top: 2px; }
+  .grilla .tipo-tit { font-size: 14px; padding-top: 10px; }
+}
+
+/* ===========================================================================
+   Ficha en el celular: que se vea entera. La foto ya no se estira a un
+   cuadrado de todo el ancho (comia media pantalla) sino que toma como mucho el
+   40% del alto, y la barra con "Sumar al pedido" queda siempre a la vista
+   abajo, aunque el texto sea largo y haya que deslizar.
+   =========================================================================== */
+@media (max-width: 620px) {
+  .ficha { max-height: 96dvh; }
+  .ficha-visual { padding: 22px 14px 6px; gap: 8px; }
+  .ficha-marco { aspect-ratio: auto; flex: none; height: min(40dvh, calc(100vw - 28px)); }
+  .ficha-tira { width: 42px; height: 42px; }
+  .ficha-texto { padding: 12px 18px 0; }
+  .ficha-texto h2 { font-size: 20px; margin-top: 4px; }
+  .ficha-precio { font-size: 22px; }
+  .ficha-acciones {
+    position: sticky; bottom: 0; z-index: 3; margin-top: auto;
+    padding: 12px 0 calc(12px + env(safe-area-inset-bottom));
+    background: var(--losa); border-top: 1px solid var(--linea);
+  }
+}
