@@ -424,3 +424,78 @@ function ef_hormas_(aplicar) {
 }
 function ef_hormas_simular() { ef_hormas_(false); }
 function ef_hormas_aplicar() { ef_hormas_(true); }
+
+
+// ------------------- Kalis (panes) y Marcial: ajuste puntual -----------------
+// Pone KALIS adelante del nombre de los 6 panes Kalis, deja 48 panes por caja en
+// los de 10 cm y 28 en los XL de 12 cm (nombre, presentacion y unidades por
+// caja), y oculta los panes de marca Marcial (activo = no). No toca precios.
+// Primero ef_kalis_simular (no escribe nada), despues ef_kalis_aplicar.
+var EF_KALIS = {
+  '214': { nombre: 'KALIS Liso Clasico (10cm) x 48u', unidades: 48, presentacion: 'Caja de 48 panes' },
+  '211': { nombre: 'KALIS Liso Golden (10cm) x 48u', unidades: 48, presentacion: 'Caja de 48 panes' },
+  '215': { nombre: 'KALIS Max Clasico (10cm) x 48u', unidades: 48, presentacion: 'Caja de 48 panes' },
+  '212': { nombre: 'KALIS Max Golden (10cm) x 48u', unidades: 48, presentacion: 'Caja de 48 panes' },
+  '216': { nombre: 'KALIS Liso XL Clasico (12cm) x 28u', unidades: 28, presentacion: 'Caja de 28 panes' },
+  '213': { nombre: 'KALIS Liso XL Golden (12cm) x 28u', unidades: 28, presentacion: 'Caja de 28 panes' }
+};
+var EF_OCULTAR = ['208', '209', '210'];   // panes Marcial
+
+/** Como se escribe "inactivo" en la hoja, imitando lo que ya hay en la columna activo. */
+function ef_inactivo_(actual) {
+  if (actual === true || actual === false) return false;
+  var t = String(actual).trim();
+  if (/^true$/i.test(t)) return 'FALSE';
+  if (/^verdadero$/i.test(t)) return 'FALSO';
+  if (/^s[ií]$/i.test(t)) return t === t.toUpperCase() ? 'NO' : (t === t.toLowerCase() ? 'no' : 'No');
+  if (t === '1') return '0';
+  return false;
+}
+
+function ef_kalis_(aplicar) {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(20000)) throw new Error('La planilla esta ocupada, proba de nuevo.');
+  try {
+    var hoja = ef_hoja_(), col = ef_columnas_(hoja);
+    ['id', 'nombre', 'presentacion', 'unidades_caja', 'activo'].forEach(function (k) {
+      if (!col[k]) throw new Error('Falta la columna "' + k + '".');
+    });
+    var n = hoja.getLastRow() - 1;
+    var leer = function (k) { return hoja.getRange(2, col[k], n, 1).getValues().map(function (f) { return f[0]; }); };
+    var ids = leer('id').map(function (v) { return String(v).trim(); });
+    var nombres = leer('nombre'), pres = leer('presentacion'), uni = leer('unidades_caja'), act = leer('activo');
+    var cambios = [], lineas = [], ahora = new Date(), faltan = [];
+
+    var poner = function (i, campo, antes, despues, texto) {
+      if (String(antes).trim() === String(despues).trim()) return;
+      if (aplicar) hoja.getRange(i + 2, col[campo]).setValue(despues);
+      cambios.push([ahora, ids[i], String(nombres[i]), campo, String(antes), String(despues)]);
+      lineas.push('  ' + nombres[i] + ' -> ' + texto);
+    };
+
+    Object.keys(EF_KALIS).forEach(function (id) {
+      var i = ids.indexOf(id);
+      if (i === -1) { faltan.push(id); return; }
+      var c = EF_KALIS[id];
+      poner(i, 'nombre', nombres[i], c.nombre, 'nombre: ' + c.nombre);
+      poner(i, 'unidades_caja', uni[i], c.unidades, 'unidades por caja: ' + c.unidades);
+      poner(i, 'presentacion', pres[i], c.presentacion, 'presentacion: ' + c.presentacion);
+    });
+    EF_OCULTAR.forEach(function (id) {
+      var i = ids.indexOf(id);
+      if (i === -1) { faltan.push(id); return; }
+      if (ef_verdadero_(act[i])) poner(i, 'activo', act[i], ef_inactivo_(act[i]), 'se oculta (activo = no)');
+    });
+
+    if (aplicar && cambios.length) {
+      ef_anotar_(cambios);
+      if (typeof invalidarCache === 'function') invalidarCache();
+    }
+    Logger.log((aplicar ? 'APLICADO' : 'SIMULACION (no se escribio nada)') + ': ' + cambios.length + ' cambio(s).\n' +
+      lineas.join('\n') + (faltan.length ? '\nNo encontrados (ids): ' + faltan.join(', ') : ''));
+  } finally {
+    lock.releaseLock();
+  }
+}
+function ef_kalis_simular() { ef_kalis_(false); }
+function ef_kalis_aplicar() { ef_kalis_(true); }
