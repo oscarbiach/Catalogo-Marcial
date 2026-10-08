@@ -232,7 +232,7 @@
           marca: p.marca || '',
           precio: p.precio === null || p.precio === undefined ? null : Number(p.precio),
           moneda: p.moneda || 'ARS',
-          unidadesCaja: p.unidades_caja || 0,
+          unidadesCaja: p.unidades_caja || cajaDePresentacion(p.presentacion),
           presentacion: p.presentacion || '',
           unidadPrecio: p.unidad_precio || '',
           imagenes: p.imagenes || [],
@@ -938,8 +938,9 @@
         '<div class="pieza-pie">' +
           '<div class="pieza-precios">' +
             '<span class="pieza-precio">' + precio + '</span>' +
-            (precio ? '<span class="pieza-unit">por ' + escapar(unidadDe(p, 1)) +
-              (p.unidadPrecio === 'unidad' && p.unidadesCaja > 1 ? ' &middot; caja de ' + p.unidadesCaja : '') + '</span>' : '') +
+            (precio ? '<span class="pieza-unit">' + (soloPorCaja(p)
+              ? 'por unidad &middot; se pide por caja de ' + p.unidadesCaja
+              : 'por ' + escapar(unidadDe(p, 1))) + '</span>' : '') +
           '</div>' +
           (pedidosActivos() ? '<div class="pieza-mando">' + mando(p) + '</div>' : '') +
         '</div>' +
@@ -1155,7 +1156,10 @@
     var precio = '';
     if (mostrarPrecios() && p.precio !== null && p.precio !== undefined && p.precio !== '') {
       precio = escapar(formatearPrecio(p.precio, p.moneda));
-      if (p.unidadPrecio === 'unidad' && p.unidadesCaja > 1) {
+      if (soloPorCaja(p)) {
+        precio += '<small>por unidad. Se pide por caja de ' + p.unidadesCaja + ': ' +
+          escapar(formatearPrecio(p.precio * p.unidadesCaja, p.moneda)) + '</small>';
+      } else if (p.unidadPrecio === 'unidad' && p.unidadesCaja > 1) {
         precio += '<small>por unidad. Caja de ' + p.unidadesCaja + ': ' +
           escapar(formatearPrecio(p.precio * p.unidadesCaja, p.moneda)) + '</small>';
       } else if (p.unidadPrecio === 'kg') {
@@ -1433,6 +1437,7 @@
   var UNIDADES_PRECIO = { kg: ['kg', 'kg'], unidad: ['unidad', 'unidades'], caja: ['caja', 'cajas'] };
 
   function unidadDe(p, cantidad) {
+    if (soloPorCaja(p)) return cantidad === 1 ? 'caja' : 'cajas';
     var u = UNIDADES_PRECIO[p.unidadPrecio];
     if (u) return cantidad === 1 ? u[0] : u[1];
     if (p.unidadesCaja > 1) return cantidad === 1 ? 'caja' : 'cajas';
@@ -1441,8 +1446,29 @@
     return cantidad === 1 ? 'unidad' : 'unidades';
   }
 
+  /**
+   * Precio por unidad pero venta solo por caja cerrada: un producto con precio
+   * "por unidad" y unidades por caja conocidas (cargadas, o escritas en la
+   * presentacion como "caja de 12 unidades") se pide de a cajas. El precio que
+   * se muestra sigue siendo el de la unidad; el subtotal es precio x unidades
+   * de la caja x cajas. Sin unidades por caja, se pide de a unidades.
+   */
+  function soloPorCaja(p) {
+    return p.unidadPrecio === 'unidad' && p.unidadesCaja > 1;
+  }
+
+  /** Unidades por caja escritas en la presentacion, si el dato no esta cargado. */
+  function cajaDePresentacion(texto) {
+    var t = String(texto || '');
+    var m = /caja de (\d{1,4}) unidades?/i.exec(t);
+    if (m) return parseInt(m[1], 10);
+    m = /(\d{1,3}) unidades por bl[i\u00ed]ster y (\d{1,3}) bl[i\u00ed]steres por caja/i.exec(t);
+    return m ? parseInt(m[1], 10) * parseInt(m[2], 10) : 0;
+  }
+
   /** True si la cantidad del pedido de este producto se cuenta en cajas. */
   function seCuentaPorCaja(p) {
+    if (soloPorCaja(p)) return true;
     return p.unidadPrecio ? p.unidadPrecio === 'caja' : p.unidadesCaja > 1;
   }
 
@@ -1556,7 +1582,7 @@
       lineas.push({
         producto: producto,
         cantidad: estado.pedido[id],
-        subtotal: tienePrecio ? producto.precio * estado.pedido[id] : null,
+        subtotal: tienePrecio ? producto.precio * estado.pedido[id] * (soloPorCaja(producto) ? producto.unidadesCaja : 1) : null,
       });
     });
 
