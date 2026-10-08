@@ -125,23 +125,39 @@ function probarSinGuardar() {
 
 // ------------------------------- internos ----------------------------------
 
-/** Baja la hoja como CSV (solo lectura) y devuelve los valores tal como se ven. */
+/**
+ * Baja la hoja como CSV (solo lectura) y se queda con las celdas del RANGO.
+ * El recorte se hace aca, no en la descarga, que es el camino mas seguro.
+ */
 function leerHoja_() {
-  var url = urlExportacion_('csv');
-  var r = UrlFetchApp.fetch(url, {
+  var r = UrlFetchApp.fetch(urlExportacion_('csv'), {
     headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
     muteHttpExceptions: true
   });
   if (r.getResponseCode() !== 200) {
-    throw new Error('No se pudo leer la planilla (HTTP ' + r.getResponseCode() + '). Revisar SPREADSHEET_ID y GID.');
+    throw new Error('No se pudo leer la planilla (HTTP ' + r.getResponseCode() + '). Revisar SPREADSHEET_ID y GID. ' +
+      r.getContentText().replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').slice(0, 200));
   }
-  return { valores: Utilities.parseCsv(r.getContentText()) };
+  return { valores: recortar_(Utilities.parseCsv(r.getContentText()), CONFIG.RANGO) };
+}
+
+/** Deja solo las filas y columnas del rango (formato A1:J720). Vacio = todo. */
+function recortar_(valores, rango) {
+  var m = /^([A-Za-z]+)(\d+):([A-Za-z]+)(\d+)$/.exec(String(rango || '').trim());
+  if (!m) return valores;
+  var col = function (letras) {
+    var n = 0;
+    letras.toUpperCase().split('').forEach(function (c) { n = n * 26 + (c.charCodeAt(0) - 64); });
+    return n - 1;
+  };
+  var c1 = col(m[1]), c2 = col(m[3]), f1 = Number(m[2]) - 1, f2 = Number(m[4]);
+  return valores.slice(f1, f2).map(function (fila) { return fila.slice(c1, c2 + 1); });
 }
 
 function urlExportacion_(formato) {
   var partes = ['format=' + formato, 'gid=' + CONFIG.GID];
-  if (CONFIG.RANGO) partes.push('range=' + encodeURIComponent(CONFIG.RANGO));
   if (formato === 'pdf') {
+    if (CONFIG.RANGO) partes.push('range=' + encodeURIComponent(CONFIG.RANGO));
     partes.push('size=A4', 'portrait=true', 'fitw=true', 'gridlines=false', 'printtitle=false',
       'sheetnames=false', 'pagenum=UNDEFINED',
       'top_margin=0.5', 'bottom_margin=0.5', 'left_margin=0.5', 'right_margin=0.5');
