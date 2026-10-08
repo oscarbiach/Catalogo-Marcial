@@ -17,7 +17,7 @@ window.CATALOGO_CONFIG = {
   // portada pasa a decir "Ver lista de precios" y abre el PDF en otra pestania.
   // Vacio: el boton sigue llevando al catalogo. Es un enlace de Drive con
   // acceso "cualquiera con el enlace"; el PDF no debe incluir costos.
-  LISTA_PDF: '',
+  LISTA_PDF: 'https://drive.google.com/file/d/14-p_lETa106qwpU9Laeomd9Cw8iyOF5i/view',
 
   // --- Supabase (la base nueva) -----------------------------------------
   // Se lee primero de aca; si falla o esta apagada, se lee de Apps Script.
