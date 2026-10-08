@@ -29,24 +29,26 @@
   .progreso small { opacity:.95; white-space:nowrap; font-size:12.5px; }
 
   /* Filtros en pastillas de colores */
-  .filtros { display:flex; gap:8px; align-items:center; flex-wrap:wrap; padding:10px 18px; background:var(--losa); border-bottom:1px solid var(--linea); }
-  .pill { border:2px solid var(--linea); background:#fff; color:var(--tinta); border-radius:99px; padding:6px 14px; cursor:pointer; font-weight:600; transition:.15s; }
+  .filtros { display:flex; gap:8px; align-items:center; flex-wrap:wrap; padding:6px 18px; background:var(--losa); border-bottom:1px solid var(--linea); }
+  .pill { border:2px solid var(--linea); background:#fff; color:var(--tinta); border-radius:99px; padding:3px 10px; font-size:13px; cursor:pointer; font-weight:600; transition:.15s; }
   .pill:hover { border-color:var(--azul); }
   .pill b { margin-left:6px; background:var(--fondo); border-radius:99px; padding:1px 8px; font-size:12px; }
   .pill.on { background:var(--azul); border-color:var(--azul); color:#fff; }
   .pill.on b { background:rgba(255,255,255,.25); color:#fff; }
   .pill.naranja.on { background:var(--naranja); border-color:var(--naranja); }
   .pill.violeta.on { background:var(--violeta); border-color:var(--violeta); }
-  .filtros select, .filtros input { border:2px solid var(--linea); border-radius:10px; padding:7px 10px; background:#fff; color:var(--tinta); }
-  .filtros input { min-width:190px; }
+  .filtros select, .filtros input { border:2px solid var(--linea); border-radius:10px; padding:4px 8px; font-size:13px; background:#fff; color:var(--tinta); }
+  .filtros input { min-width:150px; }
   .filtros .sep { margin-left:auto; display:flex; gap:8px; flex-wrap:wrap; }
 
-  main { flex:1; display:grid; grid-template-columns:minmax(380px, 50%) 1fr; gap:16px; padding:14px 18px; min-height:0; overflow:auto; align-items:start; }
+  main { flex:1; display:grid; grid-template-columns:minmax(380px, 46%) 1fr; gap:14px; padding:10px 14px; min-height:0; overflow:auto; align-items:start; }
   .tarjeta { background:var(--losa); border-radius:16px; box-shadow:0 2px 10px rgba(30,63,158,.08); overflow:hidden; display:flex; flex-direction:column; }
-  .tarjeta > h3 { margin:0; padding:10px 16px; font-size:14px; letter-spacing:.3px; text-transform:uppercase; color:#fff; }
+  .tarjeta > h3 { margin:0; padding:6px 14px; font-size:14px; letter-spacing:.3px; text-transform:uppercase; color:#fff; }
   .t-fotos > h3 { background:linear-gradient(90deg, var(--violeta), #9a6bff); }
   .t-datos > h3 { background:linear-gradient(90deg, var(--verde-osc), var(--verde)); }
-  .cuerpo { padding:14px 16px; display:flex; flex-direction:column; gap:12px; }
+  .cuerpo { padding:10px 14px; display:flex; flex-direction:column; gap:8px; }
+  .lnombre { display:block; font-weight:800; margin-bottom:4px; }
+  #nombre { font-weight:700; font-size:16px; }
 
   /* Fotos */
   .galeria { display:grid; grid-template-columns:1fr 108px; gap:12px; align-items:start; }
@@ -83,32 +85,34 @@
   /* Datos */
   h1 { font-size:21px; margin:0; line-height:1.25; }
   .chips { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
+  .campo label { margin-bottom:3px; }
   .chip { background:var(--azul-claro); color:var(--azul-osc); border-radius:99px; padding:3px 11px; font-size:12.5px; font-weight:600; }
   .chip.precio { background:var(--verde-claro); color:var(--verde-osc); }
   .chip.estado-ok { background:var(--verde-claro); color:var(--verde-osc); }
   .chip.estado-falta { background:var(--naranja-claro); color:#a85a00; }
   .campo label { display:flex; align-items:center; gap:6px; font-weight:800; margin-bottom:5px; }
   .campo .ayuda { color:var(--tinta2); font-size:12.5px; margin-top:4px; }
-  textarea, input[type=text], input[type=number] { width:100%; border:2px solid var(--linea); border-radius:12px; padding:10px 12px; background:#fbfcff; color:var(--tinta); transition:.15s; }
+  textarea, input[type=text], input[type=number] { width:100%; border:2px solid var(--linea); border-radius:12px; padding:7px 10px; background:#fbfcff; color:var(--tinta); transition:.15s; }
   textarea:focus, input[type=text]:focus, input[type=number]:focus { outline:none; border-color:var(--azul); background:#fff; box-shadow:0 0 0 3px var(--azul-claro); }
-  textarea { resize:vertical; min-height:130px; }
+  textarea { resize:vertical; min-height:54px; height:54px; }
   .fila { display:grid; grid-template-columns:1fr 170px; gap:14px; }
-  .contador { text-align:right; font-size:12px; color:var(--tinta2); margin-top:2px; }
+  .contador { text-align:right; font-size:11.5px; color:var(--tinta2); line-height:1.2; }
   .unidad-grupo { display:flex; gap:8px; flex-wrap:wrap; }
-  .unidad-op { border:2px solid var(--linea); background:#fff; color:var(--tinta); border-radius:12px; padding:8px 14px; cursor:pointer; font-weight:700; transition:.15s; }
+  .unidad-op { border:2px solid var(--linea); background:#fff; color:var(--tinta); border-radius:12px; padding:5px 12px; cursor:pointer; font-weight:700; transition:.15s; }
   .unidad-op:hover { border-color:var(--azul); }
   .unidad-op.on[data-u=""] { background:#e9edf7; border-color:#9aa7c6; }
   .unidad-op.on[data-u="kg"] { background:var(--verde); border-color:var(--verde); color:#fff; }
   .unidad-op.on[data-u="unidad"] { background:var(--azul); border-color:var(--azul); color:#fff; }
   .unidad-op.on[data-u="caja"] { background:var(--naranja); border-color:var(--naranja); color:#fff; }
   .unidad-op[disabled] { opacity:.5; cursor:default; }
-  .unidad-vista { margin-top:8px; background:var(--azul-claro); color:var(--azul-osc); border-radius:10px; padding:8px 12px; font-size:13px; }
+  .unidad-vista { margin-top:6px; background:var(--azul-claro); color:var(--azul-osc); border-radius:10px; padding:5px 10px; font-size:12.5px; }
   .unidad-aviso { margin-top:8px; background:var(--rojo-claro); color:var(--rojo); border-radius:10px; padding:8px 12px; font-size:13px; font-weight:600; }
   .estado { min-height:22px; font-weight:700; }
   .estado.ok { color:var(--verde-osc); }
   .estado.err { color:var(--rojo); background:var(--rojo-claro); border-radius:10px; padding:8px 12px; }
   .estado.trabajando { color:var(--azul); }
-  .aviso { background:var(--naranja-claro); color:#7a4400; border-radius:10px; padding:8px 12px; font-size:12.5px; }
+  .aviso { background:var(--naranja-claro); color:#7a4400; border-radius:10px; padding:5px 10px; font-size:12px; }
+  .estado { min-height:0; }
 
   footer { display:flex; gap:10px; padding:12px 18px; background:var(--losa); border-top:1px solid var(--linea); align-items:center; }
   footer .espacio { margin-right:auto; color:var(--tinta2); font-size:12.5px; }
@@ -165,7 +169,8 @@
     <h3>📋 Datos de la ficha</h3>
     <div class="cuerpo">
       <div>
-        <h1 id="nombre"></h1>
+        <label for="nombre" class="lnombre">✏️ Nombre del producto</label>
+        <input type="text" id="nombre" maxlength="150" placeholder="Nombre que ve el cliente">
         <div class="chips" id="chips"></div>
       </div>
 
@@ -183,25 +188,23 @@
 
       <div class="campo">
         <label for="descripcion">📝 Descripción</label>
-        <textarea id="descripcion" maxlength="800" placeholder="Qué es, para qué sirve, cómo viene. Ej.: Queso cremoso ideal para pizzas, de buen derretido."></textarea>
+        <textarea id="descripcion" maxlength="800" placeholder="Opcional: qué es, para qué sirve, cómo viene."></textarea>
         <div class="contador"><span id="cuenta-desc">0</span> / 800</div>
       </div>
 
       <div class="fila">
         <div class="campo">
-          <label for="presentacion">📦 Presentación y peso aproximado</label>
+          <label for="presentacion">📦 Presentación y peso aprox.</label>
           <input type="text" id="presentacion" maxlength="120" placeholder="Ej.: Pieza de aprox. 4 kg · Caja x 12 u · Bolsa de 1 kg">
-          <div class="ayuda">Lo que ve el cliente: cómo viene y cuánto pesa más o menos.</div>
         </div>
         <div class="campo">
           <label for="unidades">🔢 Unidades por caja</label>
           <input type="number" id="unidades" min="0" step="1" placeholder="Ej.: 12">
-          <div class="ayuda">Vacío si no aplica.</div>
         </div>
       </div>
 
       <div class="estado" id="estado" role="status"></div>
-      <div class="aviso">Se guardan la descripción, la presentación, las unidades por caja y el orden de las fotos. Quitar una foto solo la saca de este producto: el archivo sigue en Drive. Cada cambio queda en la hoja «Historial fichas».</div>
+      <div class="aviso">Quitar una foto solo la saca de este producto (el archivo sigue en Drive). Todo cambio queda en «Historial fichas».</div>
     </div>
   </section>
 </main>
@@ -264,12 +267,13 @@
 
   // ---------- formulario ----------
   function formaActual() {
-    return { descripcion: $('descripcion').value, presentacion: $('presentacion').value, unidadesCaja: $('unidades').value, imagenes: fotosEdit.slice(), unidadPrecio: unidadSel };
+    return { nombre: $('nombre').value, descripcion: $('descripcion').value, presentacion: $('presentacion').value, unidadesCaja: $('unidades').value, imagenes: fotosEdit.slice(), unidadPrecio: unidadSel };
   }
   function hayCambios() {
     if (!original) return false;
     var a = formaActual();
-    return a.descripcion.trim() !== original.descripcion.trim() ||
+    return a.nombre.trim() !== original.nombre.trim() ||
+           a.descripcion.trim() !== original.descripcion.trim() ||
            a.presentacion.trim() !== original.presentacion.trim() ||
            String(a.unidadesCaja).trim() !== String(original.unidadesCaja) ||
            a.imagenes.join('|') !== original.imagenes.join('|') ||
@@ -383,17 +387,17 @@
     contadores();
     $('pos').textContent = lista.length ? 'Producto ' + (pos + 1) + ' de ' + lista.length : 'Sin productos';
     var hay = lista.length > 0;
-    ['anterior', 'siguiente', 'guardar-sig', 'descripcion', 'presentacion', 'unidades'].forEach(function (id) { $(id).disabled = !hay; });
+    ['anterior', 'siguiente', 'guardar-sig', 'nombre', 'descripcion', 'presentacion', 'unidades'].forEach(function (id) { $(id).disabled = !hay; });
     if (!hay) {
-      $('nombre').textContent = 'No hay productos con este filtro 🎉';
-      $('chips').innerHTML = '<span class="chip">Cambiá el filtro de arriba para ver otros</span>';
+      $('nombre').value = ''; $('chips').innerHTML = '';
+      $('chips').innerHTML = '<span class="chip">No hay productos con este filtro 🎉 Cambiá el filtro de arriba</span>';
       $('foto-grande').innerHTML = '<div class="vacia">—</div>'; $('tiras').innerHTML = '';
       $('descripcion').value = ''; $('presentacion').value = ''; $('unidades').value = '';
       fotosEdit = []; original = null; unidadSel = ''; pintarUnidad(); estado('');
       return;
     }
     var p = lista[pos];
-    $('nombre').textContent = p.nombre;
+    $('nombre').value = p.nombre;
     var chips = [];
     if (p.categoria) chips.push('<span class="chip">' + esc(p.categoria) + '</span>');
     if (p.marca) chips.push('<span class="chip">' + esc(p.marca) + '</span>');
@@ -407,7 +411,7 @@
     $('cuenta-desc').textContent = $('descripcion').value.length;
     fotosEdit = p.imagenes.slice(); fotoSel = 0; confirmar = -1;
     unidadSel = p.unidadPrecio || '';
-    original = { descripcion: p.descripcion, presentacion: p.presentacion, unidadesCaja: p.unidadesCaja === '' ? '' : p.unidadesCaja, imagenes: p.imagenes.slice(), unidadPrecio: unidadSel };
+    original = { nombre: p.nombre, descripcion: p.descripcion, presentacion: p.presentacion, unidadesCaja: p.unidadesCaja === '' ? '' : p.unidadesCaja, imagenes: p.imagenes.slice(), unidadPrecio: unidadSel };
     pintarUnidad();
     estado('');
     pintarTiras(); pintarFotoGrande();
@@ -420,15 +424,19 @@
     var p = lista[pos], f = formaActual();
     var cambioFotos = f.imagenes.join('|') !== original.imagenes.join('|');
     var envio = { descripcion: f.descripcion, presentacion: f.presentacion, unidadesCaja: f.unidadesCaja };
+    if (f.nombre.trim() !== original.nombre.trim()) {
+      if (!f.nombre.trim()) { estado('El nombre no puede quedar vacío.', 'err'); return Promise.resolve(false); }
+      envio.nombre = f.nombre;
+    }
     if (cambioFotos) envio.imagenes = f.imagenes;
     if (hayColumnaUnidad && f.unidadPrecio !== original.unidadPrecio) envio.unidadPrecio = f.unidadPrecio;
     estado('Guardando…', 'trabajando');
     return llamar('ef_guardar', p.fila, p.id, envio).then(function () {
-      p.descripcion = f.descripcion.trim(); p.presentacion = f.presentacion.trim();
+      p.nombre = f.nombre.trim() || p.nombre; p.descripcion = f.descripcion.trim(); p.presentacion = f.presentacion.trim();
       p.unidadesCaja = String(f.unidadesCaja).trim() === '' ? '' : Number(f.unidadesCaja);
       p.imagenes = f.imagenes.slice();
       p.unidadPrecio = hayColumnaUnidad ? f.unidadPrecio : p.unidadPrecio;
-      original = { descripcion: p.descripcion, presentacion: p.presentacion, unidadesCaja: p.unidadesCaja, imagenes: p.imagenes.slice(), unidadPrecio: p.unidadPrecio || '' };
+      original = { nombre: p.nombre, descripcion: p.descripcion, presentacion: p.presentacion, unidadesCaja: p.unidadesCaja, imagenes: p.imagenes.slice(), unidadPrecio: p.unidadPrecio || '' };
       estado('¡Guardado! ✓', 'ok');
       return true;
     }, function (e) { estado(e.message, 'err'); return false; });
@@ -452,6 +460,7 @@
   $('anterior').addEventListener('click', function () { ir(-1); });
   $('siguiente').addEventListener('click', function () { ir(1); });
   $('guardar-sig').addEventListener('click', function () { ir(1); });
+  $('nombre').addEventListener('input', function () { estado(''); });
   $('descripcion').addEventListener('input', function () { $('cuenta-desc').textContent = this.value.length; estado(''); });
   document.addEventListener('keydown', function (e) {
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); ir(1); }

@@ -29,7 +29,8 @@ var EF = {
   CAMPOS: ['descripcion', 'presentacion', 'unidades_caja'],
   UNIDADES_PRECIO: ['', 'kg', 'unidad', 'caja'],   // '' = automatico
   MAX_DESCRIPCION: 800,
-  MAX_PRESENTACION: 120
+  MAX_PRESENTACION: 120,
+  MAX_NOMBRE: 150
 };
 
 // ------------------------------- menu --------------------------------------
@@ -285,6 +286,18 @@ function ef_guardar(fila, id, datos) {
 
     var nombre = String(hoja.getRange(fila, col.nombre).getValue());
     var cambios = [];
+
+    // Nombre (opcional): no vacio, sin "=" ni forma de fecha al inicio
+    if (datos.nombre !== undefined && datos.nombre !== null) {
+      var nuevoNombre = ef_texto_(datos.nombre, EF.MAX_NOMBRE).replace(/\s*\n\s*/g, ' ');
+      if (!nuevoNombre) throw new Error('El nombre no puede quedar vacio.');
+      if (nuevoNombre.charAt(0) === '=') throw new Error('El nombre no puede empezar con "=".');
+      if (/^\d{1,2}[\/\-]\d{1,2}([\/\-]\d{1,4})?$/.test(nuevoNombre)) throw new Error('El nombre se leeria como una fecha. Agregale una palabra.');
+      if (nuevoNombre !== nombre.trim()) {
+        hoja.getRange(fila, col.nombre).setValue(nuevoNombre);
+        cambios.push([new Date(), String(id), nombre, 'nombre', nombre, nuevoNombre]);
+      }
+    }
 
     // Unidad del precio: kg, unidad o caja ('' = automatico)
     if (datos.unidadPrecio !== undefined && datos.unidadPrecio !== null) {
