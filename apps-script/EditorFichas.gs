@@ -364,3 +364,63 @@ function ef_anotar_(filas) {
   }
   hoja.getRange(hoja.getLastRow() + 1, 1, filas.length, 6).setValues(filas);
 }
+
+
+// ------------------- hormas: presentacion y descripcion en bloque ------------
+// Para los quesos que se venden por horma. Solo toca, en esas filas:
+//   presentacion  -> "Por horma"
+//   unidad_precio -> "kg"  (solo si estaba vacia: el precio sigue siendo por kilo)
+//   descripcion   -> "Horma de kg aprox."  (solo si estaba vacia: no pisa nada)
+// No toca precios ni nombres. Cada cambio queda en "Historial fichas".
+var EF_HORMAS = [
+  '19', '20', '21', '23', '24', '25', '26', '27', '28',                 // Don Solano
+  '35', '36',                                                           // Maciaense
+  '38', '40', '42', '43', '45', '47', '53', '55', '57', '59', '60',     // Tremblay
+  '61', '62', '63', '64', '66', '67',
+  '234', '235', '236', '237', '238', '239',       // Armando
+  '240', '241', '243', '244', '245', '246'
+];
+
+function ef_hormas_(aplicar) {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(20000)) throw new Error('La planilla esta ocupada, proba de nuevo.');
+  try {
+    var hoja = ef_hoja_(), col = ef_columnas_(hoja);
+    ['id', 'nombre', 'presentacion', 'descripcion', 'unidad_precio'].forEach(function (k) {
+      if (!col[k]) throw new Error('Falta la columna "' + k + '". Si es unidad_precio, ejecuta ef_prepararColumnas.');
+    });
+    var n = hoja.getLastRow() - 1;
+    var leer = function (k) { return hoja.getRange(2, col[k], n, 1).getValues().map(function (f) { return String(f[0] === null ? '' : f[0]).trim(); }); };
+    var ids = leer('id'), nombres = leer('nombre'), pres = leer('presentacion'), desc = leer('descripcion'), uni = leer('unidad_precio');
+    var cambios = [], lineas = [], tocados = 0, noEncontrados = [];
+    var ahora = new Date();
+    EF_HORMAS.forEach(function (id) {
+      var i = ids.indexOf(id);
+      if (i === -1) { noEncontrados.push(id); return; }
+      var fila = i + 2, hizo = [];
+      if (pres[i] !== 'Por horma') {
+        if (aplicar) hoja.getRange(fila, col.presentacion).setValue('Por horma');
+        cambios.push([ahora, id, nombres[i], 'presentacion', pres[i], 'Por horma']); hizo.push('presentacion');
+      }
+      if (uni[i] === '') {
+        if (aplicar) hoja.getRange(fila, col.unidad_precio).setValue('kg');
+        cambios.push([ahora, id, nombres[i], 'unidad_precio', '', 'kg']); hizo.push('unidad kg');
+      }
+      if (desc[i] === '') {
+        if (aplicar) hoja.getRange(fila, col.descripcion).setValue('Horma de kg aprox.');
+        cambios.push([ahora, id, nombres[i], 'descripcion', '', 'Horma de kg aprox.']); hizo.push('descripcion');
+      }
+      if (hizo.length) { tocados++; lineas.push('  ' + nombres[i] + ' -> ' + hizo.join(', ')); }
+    });
+    if (aplicar && cambios.length) {
+      ef_anotar_(cambios);
+      if (typeof invalidarCache === 'function') invalidarCache();
+    }
+    Logger.log((aplicar ? 'APLICADO' : 'SIMULACION (no se escribio nada)') + ': ' + tocados + ' producto(s) de ' + EF_HORMAS.length + '.\n' +
+      lineas.join('\n') + (noEncontrados.length ? '\nNo encontrados (ids): ' + noEncontrados.join(', ') : ''));
+  } finally {
+    lock.releaseLock();
+  }
+}
+function ef_hormas_simular() { ef_hormas_(false); }
+function ef_hormas_aplicar() { ef_hormas_(true); }
