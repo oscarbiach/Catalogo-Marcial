@@ -7,7 +7,8 @@
  *
  *   NODE_PATH=$(npm root -g) node pruebas/regresion.js
  *
- * Requiere el paquete `playwright` (global o local) y Chromium.
+ * Requiere el paquete `playwright` (global o local) y Chromium. En GitHub
+ * corre solo en cada PR (.github/workflows/pruebas.yml).
  */
 'use strict';
 

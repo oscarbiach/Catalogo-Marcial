@@ -8,7 +8,9 @@ DIR="$(mktemp -d)"
 COMO=""
 if [ "$(id -u)" = "0" ]; then chown postgres "$DIR"; COMO="su postgres -c"; fi
 correr() { if [ -n "$COMO" ]; then $COMO "$*"; else bash -c "$*"; fi; }
-correr "$BIN/initdb -D $DIR/data -A trust >/dev/null"
+# -U postgres: sin esto, corriendo como otro usuario (el runner de CI) el
+# superusuario se llamaria como ese usuario y psql -U postgres no entraria.
+correr "$BIN/initdb -D $DIR/data -A trust -U postgres >/dev/null"
 correr "$BIN/pg_ctl -D $DIR/data -o '-k $DIR -c listen_addresses=' -l $DIR/log -w start >/dev/null"
 trap 'correr "$BIN/pg_ctl -D $DIR/data -m fast stop >/dev/null"; rm -rf "$DIR"' EXIT
 PSQL="psql -h $DIR -U postgres -v ON_ERROR_STOP=1 -q -X"
