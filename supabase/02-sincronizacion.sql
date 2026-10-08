@@ -249,7 +249,7 @@ $$;
 
 -- [AUDITORIA H06] Para monitorear: cuanto hace de la ultima sincronizacion
 -- buena y cuantas fallaron seguidas. Solo lo ve quien entra al SQL Editor.
-create or replace view public.estado_sincronizacion as
+create or replace view public.estado_sincronizacion with (security_invoker = true) as
 select
   (select max(creado_en) from sincronizacion_log where ok)                       as ultima_ok,
   now() - (select max(creado_en) from sincronizacion_log where ok)               as antiguedad,
