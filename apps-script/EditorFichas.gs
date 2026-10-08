@@ -245,14 +245,27 @@ function ef_texto_(v, max) {
 }
 
 /**
- * Guarda los tres campos de UN producto. Antes de escribir comprueba que en esa
+ * Guarda los campos de UN producto. Antes de escribir comprueba que en esa
  * fila siga estando el mismo id: si alguien reordeno la hoja mientras tanto, no
  * escribe y avisa.
+ *
+ * [AUDITORIA H13] Va en dos fases. Primero se lee y se valida TODO (textos,
+ * nombre, unidad, fotos, conflictos) sin escribir nada; recien si todo esta
+ * bien se escribe, se anota el historial y se invalida la cache. Antes el
+ * nombre y la unidad se escribian antes de validar las fotos: un error a
+ * mitad de camino dejaba la hoja cambiada, sin historial y sin invalidar.
+ *
+ * [AUDITORIA H14] `datos.antes` trae los valores que el editor vio al abrir
+ * la ficha. Si la celda ya no tiene ese valor (otro editor la cambio) y
+ * tampoco el que se quiere poner, no se pisa: se avisa para recargar.
+ * Sin `datos.antes` (editor viejo) se mantiene el comportamiento anterior.
  */
 function ef_guardar(fila, id, datos) {
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(20000)) throw new Error('La planilla esta ocupada, proba de nuevo en unos segundos.');
   try {
+    datos = datos || {};
+    var antesVisto = datos.antes || null;
     var hoja = ef_hoja_();
     var col = ef_columnas_(hoja);
     fila = Number(fila);
@@ -263,6 +276,22 @@ function ef_guardar(fila, id, datos) {
       throw new Error('La hoja cambio mientras editabas (el producto ya no esta en esa fila). Cerra y volve a abrir el editor.');
     }
 
+    var comoTexto = function (v) { return String(v === null || v === undefined ? '' : v).trim(); };
+    var esFecha = function (t) { return /^\d{1,2}[\/\-]\d{1,2}([\/\-]\d{1,4})?$/.test(t); };
+    var nombre = String(hoja.getRange(fila, col.nombre).getValue());
+    var escrituras = [];   // { celda, valor, registro } — se aplican al final
+
+    /** Conflicto si la celda cambio desde que se abrio la ficha y no es lo que se quiere poner. */
+    var revisarConflicto = function (campo, clave, actual, nuevo) {
+      if (!antesVisto || !(clave in antesVisto)) return;
+      var visto = comoTexto(antesVisto[clave]);
+      if (comoTexto(actual) !== visto && comoTexto(actual) !== comoTexto(nuevo)) {
+        throw new Error('Otra persona cambio "' + campo + '" de este producto mientras lo editabas. ' +
+          'Recarga el editor para ver la version actual. No se guardo nada.');
+      }
+    };
+
+    // ── Fase 1: validar y planear (no escribe nada) ──────────────────────
     var nuevos = {
       descripcion: ef_texto_(datos.descripcion, EF.MAX_DESCRIPCION),
       presentacion: ef_texto_(datos.presentacion, EF.MAX_PRESENTACION),
@@ -273,29 +302,25 @@ function ef_guardar(fila, id, datos) {
     ['descripcion', 'presentacion'].forEach(function (campo) {
       var t = nuevos[campo];
       if (t.charAt(0) === '=') throw new Error('El texto de "' + campo + '" no puede empezar con "=".');
-      if (/^\d{1,2}[\/\-]\d{1,2}([\/\-]\d{1,4})?$/.test(t)) {
-        throw new Error('"' + t + '" se leeria como una fecha. Agregale una palabra, por ejemplo "' + t + ' pieza".');
-      }
+      if (esFecha(t)) throw new Error('"' + t + '" se leeria como una fecha. Agregale una palabra, por ejemplo "' + t + ' pieza".');
     });
-    var uc = String(datos.unidadesCaja === null || datos.unidadesCaja === undefined ? '' : datos.unidadesCaja).trim();
+    var uc = comoTexto(datos.unidadesCaja);
     if (uc !== '') {
       var n = Number(uc);
       if (!isFinite(n) || n < 0 || Math.floor(n) !== n) throw new Error('Las unidades por caja tienen que ser un numero entero.');
       nuevos.unidades_caja = n;
     }
 
-    var nombre = String(hoja.getRange(fila, col.nombre).getValue());
-    var cambios = [];
-
     // Nombre (opcional): no vacio, sin "=" ni forma de fecha al inicio
     if (datos.nombre !== undefined && datos.nombre !== null) {
       var nuevoNombre = ef_texto_(datos.nombre, EF.MAX_NOMBRE).replace(/\s*\n\s*/g, ' ');
       if (!nuevoNombre) throw new Error('El nombre no puede quedar vacio.');
       if (nuevoNombre.charAt(0) === '=') throw new Error('El nombre no puede empezar con "=".');
-      if (/^\d{1,2}[\/\-]\d{1,2}([\/\-]\d{1,4})?$/.test(nuevoNombre)) throw new Error('El nombre se leeria como una fecha. Agregale una palabra.');
+      if (esFecha(nuevoNombre)) throw new Error('El nombre se leeria como una fecha. Agregale una palabra.');
       if (nuevoNombre !== nombre.trim()) {
-        hoja.getRange(fila, col.nombre).setValue(nuevoNombre);
-        cambios.push([new Date(), String(id), nombre, 'nombre', nombre, nuevoNombre]);
+        revisarConflicto('nombre', 'nombre', nombre, nuevoNombre);
+        escrituras.push({ celda: hoja.getRange(fila, col.nombre), valor: nuevoNombre,
+          registro: [new Date(), String(id), nombre, 'nombre', nombre, nuevoNombre] });
       }
     }
 
@@ -307,8 +332,9 @@ function ef_guardar(fila, id, datos) {
       var celdaUnidad = hoja.getRange(fila, col.unidad_precio);
       var unidadAntes = String(celdaUnidad.getValue() || '').trim().toLowerCase();
       if (unidadAntes !== unidad) {
-        celdaUnidad.setValue(unidad);
-        cambios.push([new Date(), String(id), nombre, 'unidad_precio', unidadAntes, unidad]);
+        revisarConflicto('unidad del precio', 'unidadPrecio', unidadAntes, unidad);
+        escrituras.push({ celda: celdaUnidad, valor: unidad,
+          registro: [new Date(), String(id), nombre, 'unidad_precio', unidadAntes, unidad] });
       }
     }
 
@@ -325,27 +351,35 @@ function ef_guardar(fila, id, datos) {
         vistos[x] = true;
       });
       if (idsNuevos.join('|') !== idsAntes.join('|')) {
+        if (antesVisto && antesVisto.imagenes && (antesVisto.imagenes || []).map(String).join('|') !== idsAntes.join('|')) {
+          throw new Error('Otra persona cambio las fotos de este producto mientras lo editabas. Recarga el editor. No se guardo nada.');
+        }
         var formato = ef_formatoImagenes_(hoja.getRange(2, col.imagenes, hoja.getLastRow() - 1, 1).getValues().map(function (f) { return f[0]; }));
         var texto = ef_serializarImagenes_(idsNuevos, formato);
         // Comprobacion: lo que se va a escribir tiene que leerse igual que se leyo
         if (ef_idsImagen_(texto).join('|') !== idsNuevos.join('|')) throw new Error('No se pudo guardar el orden de las fotos con el formato de la hoja.');
-        celdaFotos.setValue(texto);
-        cambios.push([new Date(), String(id), nombre, 'imagenes', String(fotosAntes), texto]);
+        escrituras.push({ celda: celdaFotos, valor: texto,
+          registro: [new Date(), String(id), nombre, 'imagenes', String(fotosAntes), texto] });
       }
     }
 
+    var claveCliente = { descripcion: 'descripcion', presentacion: 'presentacion', unidades_caja: 'unidadesCaja' };
     EF.CAMPOS.forEach(function (campo) {
       var celda = hoja.getRange(fila, col[campo]);
       var antes = celda.getValue();
-      var igual = String(antes === null || antes === undefined ? '' : antes).trim() === String(nuevos[campo]).trim();
-      if (igual) return;
-      celda.setValue(nuevos[campo]);
-      cambios.push([new Date(), String(id), nombre, campo, String(antes), String(nuevos[campo])]);
+      if (comoTexto(antes) === comoTexto(nuevos[campo])) return;
+      revisarConflicto(campo, claveCliente[campo], antes, nuevos[campo]);
+      escrituras.push({ celda: celda, valor: nuevos[campo],
+        registro: [new Date(), String(id), nombre, campo, String(antes), String(nuevos[campo])] });
     });
 
-    if (cambios.length) ef_anotar_(cambios);
-    if (cambios.length && typeof invalidarCache === 'function') invalidarCache();
-    return { cambios: cambios.length };
+    // ── Fase 2: escribir (todo validado) ─────────────────────────────────
+    if (!escrituras.length) return { cambios: 0 };
+    escrituras.forEach(function (e) { e.celda.setValue(e.valor); });
+    SpreadsheetApp.flush();
+    ef_anotar_(escrituras.map(function (e) { return e.registro; }));
+    if (typeof invalidarCache === 'function') invalidarCache();
+    return { cambios: escrituras.length };
   } finally {
     lock.releaseLock();
   }

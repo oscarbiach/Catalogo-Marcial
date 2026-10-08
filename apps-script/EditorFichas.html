@@ -423,7 +423,9 @@
     if (!original || !hayCambios()) return Promise.resolve(true);
     var p = lista[pos], f = formaActual();
     var cambioFotos = f.imagenes.join('|') !== original.imagenes.join('|');
-    var envio = { descripcion: f.descripcion, presentacion: f.presentacion, unidadesCaja: f.unidadesCaja };
+    // [AUDITORIA H14] `antes` = lo que se vio al abrir la ficha: el servidor
+    // no pisa una celda que otra persona cambio mientras tanto.
+    var envio = { descripcion: f.descripcion, presentacion: f.presentacion, unidadesCaja: f.unidadesCaja, antes: original };
     if (f.nombre.trim() !== original.nombre.trim()) {
       if (!f.nombre.trim()) { estado('El nombre no puede quedar vacío.', 'err'); return Promise.resolve(false); }
       envio.nombre = f.nombre;
@@ -466,8 +468,13 @@
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); ir(1); }
   });
 
+  // [AUDITORIA H14] Mismo candado que la navegacion: un filtro no puede
+  // disparar un guardado mientras otro sigue en curso.
   function refiltrar() {
+    if (ocupado) { clearTimeout(t); t = setTimeout(refiltrar, 300); return; }
+    ocupado = true;
     guardarActual().then(function (ok) {
+      ocupado = false;
       if (!ok) return;
       aplicarFiltro(); pos = 0; pintar();
     });

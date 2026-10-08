@@ -8,7 +8,7 @@
 --    productos          lo que se muestra en el catalogo (lo llena la planilla)
 --    config             textos del sitio: nombre, WhatsApp, titulo, listas
 --    pedidos_catalogo   pedidos que los clientes mandan desde el sitio
---    registrar_pedido   la unica forma de que el sitio escriba un pedido
+--    (registrar_pedido, la unica forma de que el sitio escriba un pedido, esta en 03-pedidos.sql)
 --
 --  Es seguro correrlo mas de una vez. No borra datos.
 --  Pegar entero en: Supabase > SQL Editor > New query > Run.
@@ -96,70 +96,11 @@ revoke all on productos, config, pedidos_catalogo, pedidos_catalogo_items from a
 grant select on productos, config to anon, authenticated;
 
 -- ── REGISTRAR UN PEDIDO ─────────────────────────────────────────────
--- Recibe solo ids y cantidades. Nombre y precio los pone la base con lo que
--- hay en productos, asi nadie puede mandar un precio inventado.
--- Ejemplo de llamada:
---   select registrar_pedido('Panaderia Sur', 'Entregar a la tarde',
---          '[{"id":"p1","cantidad":2}]'::jsonb);
-create or replace function registrar_pedido(p_cliente text, p_nota text, p_items jsonb)
-returns void
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  v_id     uuid;
-  v_total  numeric(14,2) := 0;
-  v_validos int := 0;
-  r        record;
-begin
-  if p_items is null or jsonb_typeof(p_items) <> 'array' then
-    raise exception 'El pedido no tiene el formato esperado.';
-  end if;
-  if jsonb_array_length(p_items) < 1 or jsonb_array_length(p_items) > 100 then
-    raise exception 'El pedido tiene una cantidad de productos fuera de rango.';
-  end if;
-
-  insert into pedidos_catalogo (cliente, nota)
-  values (left(coalesce(p_cliente, ''), 300), left(coalesce(p_nota, ''), 300))
-  returning id into v_id;
-
-  for r in
-    select pr.id, pr.nombre,
-           -- Precio por unidad vendido por caja cerrada: la linea guarda el precio de la caja.
-           case when pr.solo_caja and pr.unidad_precio = 'unidad' and pr.unidades_caja > 1
-                  then pr.precio * pr.unidades_caja
-                when pr.solo_caja and pr.unidad_precio = 'kg' and pr.kg_caja > 0
-                  then round(pr.precio * pr.kg_caja, 2)
-                else pr.precio end as precio,
-           it.cantidad
-    from (
-      select e->>'id' as id,
-             case when (e->>'cantidad') ~ '^[0-9]{1,3}$' and (e->>'cantidad')::int >= 1
-                  then (e->>'cantidad')::int else 1 end as cantidad
-      from jsonb_array_elements(p_items) e
-    ) it
-    join productos pr on pr.id = it.id and pr.publicado
-  loop
-    insert into pedidos_catalogo_items (pedido_id, producto_id, nombre, precio, cantidad)
-    values (v_id, r.id, r.nombre, r.precio, r.cantidad);
-
-    v_total   := v_total + coalesce(r.precio, 0) * r.cantidad;
-    v_validos := v_validos + 1;
-
-  end loop;
-
-  if v_validos = 0 then
-    raise exception 'Ningun producto del pedido existe en el catalogo.';
-  end if;
-
-  update pedidos_catalogo set total_estimado = v_total where id = v_id;
-end;
-$$;
-
-revoke all on function registrar_pedido(text, text, jsonb) from public;
--- Solo la clave publica (anon): el sitio no usa usuarios con sesion.
-grant execute on function registrar_pedido(text, text, jsonb) to anon;
+-- [AUDITORIA H03/H07] La funcion registrar_pedido vive en 03-pedidos.sql:
+-- depende de columnas que crea 02-sincronizacion.sql (solo_caja, kg_caja) y
+-- ahora tiene limite de frecuencia, idempotencia y validacion estricta.
+-- Antes estaba aca; volver a correr este archivo ya no la recrea ni le
+-- devuelve permisos a la version vieja.
 
 -- ── CONTROL ─────────────────────────────────────────────────────────
 -- Despues de correr esto: 4 tablas con la seguridad activada ("t").
