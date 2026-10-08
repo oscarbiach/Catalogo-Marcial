@@ -47,12 +47,22 @@ create table if not exists caja_cerrada (
 alter table caja_cerrada enable row level security;
 revoke all on caja_cerrada from anon, authenticated;
 
--- productos.solo_caja se completa solo a partir de caja_cerrada (trigger).
+-- Productos con precio por kilo que se piden por caja cerrada (kilos de la caja).
+create table if not exists caja_cerrada_kg (
+  producto_id text primary key,
+  kg          numeric(8,3) not null check (kg > 0)
+);
+alter table caja_cerrada_kg enable row level security;
+revoke all on caja_cerrada_kg from anon, authenticated;
+
+-- productos.solo_caja y kg_caja se completan solos a partir de las dos listas (trigger).
 alter table productos add column if not exists solo_caja boolean not null default false;
+alter table productos add column if not exists kg_caja numeric(8,3) not null default 0;
 create or replace function public.productos_marcar_solo_caja() returns trigger
 language plpgsql security definer set search_path = public as $$
 begin
-  new.solo_caja := exists (select 1 from caja_cerrada c where c.producto_id = new.id);
+  new.kg_caja := coalesce((select k.kg from caja_cerrada_kg k where k.producto_id = new.id), 0);
+  new.solo_caja := new.kg_caja > 0 or exists (select 1 from caja_cerrada c where c.producto_id = new.id);
   return new;
 end $$;
 create trigger productos_solo_caja before insert or update on productos

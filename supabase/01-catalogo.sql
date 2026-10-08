@@ -128,7 +128,10 @@ begin
     select pr.id, pr.nombre,
            -- Precio por unidad vendido por caja cerrada: la linea guarda el precio de la caja.
            case when pr.solo_caja and pr.unidad_precio = 'unidad' and pr.unidades_caja > 1
-                then pr.precio * pr.unidades_caja else pr.precio end as precio,
+                  then pr.precio * pr.unidades_caja
+                when pr.solo_caja and pr.unidad_precio = 'kg' and pr.kg_caja > 0
+                  then round(pr.precio * pr.kg_caja, 2)
+                else pr.precio end as precio,
            it.cantidad
     from (
       select e->>'id' as id,

@@ -234,6 +234,7 @@
           moneda: p.moneda || 'ARS',
           unidadesCaja: p.unidades_caja || 0,
           soloCaja: !!p.solo_caja,
+          kgCaja: Number(p.kg_caja) || 0,
           presentacion: p.presentacion || '',
           unidadPrecio: p.unidad_precio || '',
           imagenes: p.imagenes || [],
@@ -940,7 +941,7 @@
           '<div class="pieza-precios">' +
             '<span class="pieza-precio">' + precio + '</span>' +
             (precio ? '<span class="pieza-unit">' + (soloPorCaja(p)
-              ? 'por unidad &middot; se pide por caja de ' + p.unidadesCaja
+              ? 'por ' + (p.unidadPrecio === 'kg' ? 'kg' : 'unidad') + ' &middot; se pide por caja de ' + contenidoCaja(p)
               : 'por ' + escapar(unidadDe(p, 1))) + '</span>' : '') +
           '</div>' +
           (pedidosActivos() ? '<div class="pieza-mando">' + mando(p) + '</div>' : '') +
@@ -1158,8 +1159,8 @@
     if (mostrarPrecios() && p.precio !== null && p.precio !== undefined && p.precio !== '') {
       precio = escapar(formatearPrecio(p.precio, p.moneda));
       if (soloPorCaja(p)) {
-        precio += '<small>por unidad. Se pide por caja de ' + p.unidadesCaja + ': ' +
-          escapar(formatearPrecio(p.precio * p.unidadesCaja, p.moneda)) + '</small>';
+        precio += '<small>por ' + (p.unidadPrecio === 'kg' ? 'kilo' : 'unidad') + '. Se pide por caja de ' +
+          contenidoCaja(p) + ': ' + escapar(formatearPrecio(p.precio * factorCaja(p), p.moneda)) + '</small>';
       } else if (p.unidadPrecio === 'unidad' && p.unidadesCaja > 1) {
         precio += '<small>por unidad. Caja de ' + p.unidadesCaja + ': ' +
           escapar(formatearPrecio(p.precio * p.unidadesCaja, p.moneda)) + '</small>';
@@ -1454,7 +1455,21 @@
    * precio x unidades de la caja x cajas.
    */
   function soloPorCaja(p) {
-    return !!p.soloCaja && p.unidadPrecio === 'unidad' && p.unidadesCaja > 1;
+    if (!p.soloCaja) return false;
+    return (p.unidadPrecio === 'unidad' && p.unidadesCaja > 1) ||
+           (p.unidadPrecio === 'kg' && p.kgCaja > 0);
+  }
+
+  /** Cuanto vale una caja en veces el precio: sus unidades, o sus kilos. */
+  function factorCaja(p) {
+    return p.unidadPrecio === 'kg' ? p.kgCaja : p.unidadesCaja;
+  }
+
+  /** "12" o "3,6 kg": lo que trae la caja, para mostrarlo al cliente. */
+  function contenidoCaja(p) {
+    return p.unidadPrecio === 'kg'
+      ? p.kgCaja.toLocaleString('es-AR') + ' kg'
+      : String(p.unidadesCaja);
   }
 
   /** True si la cantidad del pedido de este producto se cuenta en cajas. */
@@ -1573,7 +1588,7 @@
       lineas.push({
         producto: producto,
         cantidad: estado.pedido[id],
-        subtotal: tienePrecio ? producto.precio * estado.pedido[id] * (soloPorCaja(producto) ? producto.unidadesCaja : 1) : null,
+        subtotal: tienePrecio ? producto.precio * estado.pedido[id] * (soloPorCaja(producto) ? factorCaja(producto) : 1) : null,
       });
     });
 
@@ -1789,7 +1804,8 @@
       if (compacto) { partes.push(l.cantidad + 'x ' + p.nombre); return; }
       var titulo = (i + 1) + '. ' + p.nombre + (p.sku ? ' (' + p.sku + ')' : '');
       var renglon = '   ' + l.cantidad + ' ' + unidadDe(p, l.cantidad);
-      if (seCuentaPorCaja(p) && p.unidadesCaja > 1) renglon += ' de ' + p.unidadesCaja;
+      if (soloPorCaja(p)) renglon += ' de ' + contenidoCaja(p);
+      else if (seCuentaPorCaja(p) && p.unidadesCaja > 1) renglon += ' de ' + p.unidadesCaja;
       if (conPrecios && l.subtotal !== null) renglon += ' - ' + formatearPrecio(l.subtotal, p.moneda);
       partes.push(titulo, renglon);
     });
