@@ -127,7 +127,7 @@ begin
   for r in
     select pr.id, pr.nombre,
            -- Precio por unidad vendido por caja cerrada: la linea guarda el precio de la caja.
-           case when pr.unidad_precio = 'unidad' and pr.unidades_caja > 1
+           case when pr.solo_caja and pr.unidad_precio = 'unidad' and pr.unidades_caja > 1
                 then pr.precio * pr.unidades_caja else pr.precio end as precio,
            it.cantidad
     from (

@@ -232,7 +232,8 @@
           marca: p.marca || '',
           precio: p.precio === null || p.precio === undefined ? null : Number(p.precio),
           moneda: p.moneda || 'ARS',
-          unidadesCaja: p.unidades_caja || cajaDePresentacion(p.presentacion),
+          unidadesCaja: p.unidades_caja || 0,
+          soloCaja: !!p.solo_caja,
           presentacion: p.presentacion || '',
           unidadPrecio: p.unidad_precio || '',
           imagenes: p.imagenes || [],
@@ -1447,23 +1448,13 @@
   }
 
   /**
-   * Precio por unidad pero venta solo por caja cerrada: un producto con precio
-   * "por unidad" y unidades por caja conocidas (cargadas, o escritas en la
-   * presentacion como "caja de 12 unidades") se pide de a cajas. El precio que
-   * se muestra sigue siendo el de la unidad; el subtotal es precio x unidades
-   * de la caja x cajas. Sin unidades por caja, se pide de a unidades.
+   * Precio por unidad pero venta solo por caja cerrada. Lo decide la lista
+   * caja_cerrada de la base (solo_caja): no todo producto con caja se vende
+   * asi. El precio que se muestra sigue siendo el de la unidad; el subtotal es
+   * precio x unidades de la caja x cajas.
    */
   function soloPorCaja(p) {
-    return p.unidadPrecio === 'unidad' && p.unidadesCaja > 1;
-  }
-
-  /** Unidades por caja escritas en la presentacion, si el dato no esta cargado. */
-  function cajaDePresentacion(texto) {
-    var t = String(texto || '');
-    var m = /caja de (\d{1,4}) unidades?/i.exec(t);
-    if (m) return parseInt(m[1], 10);
-    m = /(\d{1,3}) unidades por bl[i\u00ed]ster y (\d{1,3}) bl[i\u00ed]steres por caja/i.exec(t);
-    return m ? parseInt(m[1], 10) * parseInt(m[2], 10) : 0;
+    return !!p.soloCaja && p.unidadPrecio === 'unidad' && p.unidadesCaja > 1;
   }
 
   /** True si la cantidad del pedido de este producto se cuenta en cajas. */

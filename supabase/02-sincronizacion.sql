@@ -37,15 +37,26 @@ revoke all on sincronizacion_log from anon, authenticated;
 -- Columna nueva: por que unidad es el precio (kg, unidad o caja). Vacio = automatico.
 alter table productos add column if not exists unidad_precio text not null default '' check (unidad_precio in ('', 'kg', 'unidad', 'caja'));
 
--- Unidades por caja escritas en la presentacion ("caja de 12 unidades"), para
--- los productos que no tienen el dato cargado. 0 si no dice nada.
-create or replace function public.caja_de_presentacion(p text) returns int
-language sql immutable as $$
-  select coalesce(
-    (select (m)[1]::int from regexp_matches(coalesce(p, ''), 'caja de (\d{1,4}) unidades?', 'i') m limit 1),
-    (select (m)[1]::int * (m)[2]::int from regexp_matches(coalesce(p, ''), '(\d{1,3}) unidades por bl[ií]ster y (\d{1,3}) bl[ií]steres por caja', 'i') m limit 1),
-    0)
-$$;
+-- Productos que se piden solo por caja cerrada aunque la planilla no tenga
+-- cargadas las unidades por caja. Si la planilla trae el dato, manda la planilla.
+-- Se administra a mano (SQL Editor); nadie con la clave publica la ve.
+create table if not exists caja_cerrada (
+  producto_id text primary key,
+  unidades    int not null check (unidades > 1)
+);
+alter table caja_cerrada enable row level security;
+revoke all on caja_cerrada from anon, authenticated;
+
+-- productos.solo_caja se completa solo a partir de caja_cerrada (trigger).
+alter table productos add column if not exists solo_caja boolean not null default false;
+create or replace function public.productos_marcar_solo_caja() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  new.solo_caja := exists (select 1 from caja_cerrada c where c.producto_id = new.id);
+  return new;
+end $$;
+create trigger productos_solo_caja before insert or update on productos
+  for each row execute function public.productos_marcar_solo_caja();
 
 create or replace function public.sincronizar_catalogo()
 returns jsonb
@@ -102,7 +113,7 @@ begin
            coalesce(nullif(p->>'moneda', ''), 'ARS'),
            case when coalesce(nullif(p->>'unidadesCaja', '')::int, 0) > 0
                 then (p->>'unidadesCaja')::int
-                else public.caja_de_presentacion(p->>'presentacion') end,
+                else coalesce((select c.unidades from caja_cerrada c where c.producto_id = p->>'id'), 0) end,
            coalesce(p->>'presentacion', ''),
            case when p->>'unidadPrecio' in ('kg', 'unidad', 'caja') then p->>'unidadPrecio' else '' end,
            case when jsonb_typeof(p->'imagenes') = 'array'
