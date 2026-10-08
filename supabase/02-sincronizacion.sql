@@ -34,6 +34,9 @@ create table if not exists sincronizacion_log (
 alter table sincronizacion_log enable row level security;
 revoke all on sincronizacion_log from anon, authenticated;
 
+-- Columna nueva: por que unidad es el precio (kg, unidad o caja). Vacio = automatico.
+alter table productos add column if not exists unidad_precio text not null default '' check (unidad_precio in ('', 'kg', 'unidad', 'caja'));
+
 create or replace function public.sincronizar_catalogo()
 returns jsonb
 language plpgsql
@@ -77,7 +80,7 @@ begin
     end if;
 
     insert into productos (id, sku, nombre, descripcion, categoria, marca, precio, moneda,
-                           unidades_caja, presentacion, imagenes, rubros,
+                           unidades_caja, presentacion, unidad_precio, imagenes, rubros,
                            destacado, nuevo, sin_stock, posicion, orden, publicado, actualizado_en)
     select p->>'id',
            coalesce(p->>'sku', ''),
@@ -89,6 +92,7 @@ begin
            coalesce(nullif(p->>'moneda', ''), 'ARS'),
            coalesce(nullif(p->>'unidadesCaja', '')::int, 0),
            coalesce(p->>'presentacion', ''),
+           case when p->>'unidadPrecio' in ('kg', 'unidad', 'caja') then p->>'unidadPrecio' else '' end,
            case when jsonb_typeof(p->'imagenes') = 'array'
                 then coalesce((select array_agg(x) from jsonb_array_elements_text(p->'imagenes') x), '{}'::text[])
                 else '{}'::text[] end,
@@ -108,7 +112,7 @@ begin
       sku = excluded.sku, nombre = excluded.nombre, descripcion = excluded.descripcion,
       categoria = excluded.categoria, marca = excluded.marca, precio = excluded.precio,
       moneda = excluded.moneda, unidades_caja = excluded.unidades_caja,
-      presentacion = excluded.presentacion, imagenes = excluded.imagenes, rubros = excluded.rubros,
+      presentacion = excluded.presentacion, unidad_precio = excluded.unidad_precio, imagenes = excluded.imagenes, rubros = excluded.rubros,
       destacado = excluded.destacado, nuevo = excluded.nuevo, sin_stock = excluded.sin_stock,
       posicion = excluded.posicion, orden = excluded.orden, publicado = true,
       actualizado_en = excluded.actualizado_en;

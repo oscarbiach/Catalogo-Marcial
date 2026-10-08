@@ -49,3 +49,19 @@ no chocar con las existentes.
 - La X pide confirmacion y solo saca la foto de ese producto.
 - Se vuelve a escribir en el mismo formato en que ya estaban las fotos en la hoja
   (`ef_probar` muestra el formato detectado).
+
+## Unidad del precio (kg, unidad o caja)
+
+Cada producto puede decir por que unidad es su precio y en que se cuenta el pedido.
+Si no se elige ("Automatico") queda el comportamiento anterior.
+
+Pasos (una sola vez):
+1. Ejecutar `ef_prepararColumnas`: agrega el titulo `unidad_precio` en la primera
+   columna libre de la hoja `Productos` (no toca nada mas).
+2. En `Codigo.gs`:
+   - en `COLUMNAS`, agregar `'unidad_precio'` al final de la lista;
+   - en `despublicar`, agregar `unidadPrecio: p.unidad_precio,` junto a `presentacion`.
+3. Elegir la unidad producto por producto en el editor ("El precio es por...").
+
+Del lado de Supabase la columna `unidad_precio` y la sincronizacion ya estan en
+`supabase/02-sincronizacion.sql`.

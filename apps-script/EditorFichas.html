@@ -94,6 +94,16 @@
   textarea { resize:vertical; min-height:130px; }
   .fila { display:grid; grid-template-columns:1fr 170px; gap:14px; }
   .contador { text-align:right; font-size:12px; color:var(--tinta2); margin-top:2px; }
+  .unidad-grupo { display:flex; gap:8px; flex-wrap:wrap; }
+  .unidad-op { border:2px solid var(--linea); background:#fff; color:var(--tinta); border-radius:12px; padding:8px 14px; cursor:pointer; font-weight:700; transition:.15s; }
+  .unidad-op:hover { border-color:var(--azul); }
+  .unidad-op.on[data-u=""] { background:#e9edf7; border-color:#9aa7c6; }
+  .unidad-op.on[data-u="kg"] { background:var(--verde); border-color:var(--verde); color:#fff; }
+  .unidad-op.on[data-u="unidad"] { background:var(--azul); border-color:var(--azul); color:#fff; }
+  .unidad-op.on[data-u="caja"] { background:var(--naranja); border-color:var(--naranja); color:#fff; }
+  .unidad-op[disabled] { opacity:.5; cursor:default; }
+  .unidad-vista { margin-top:8px; background:var(--azul-claro); color:var(--azul-osc); border-radius:10px; padding:8px 12px; font-size:13px; }
+  .unidad-aviso { margin-top:8px; background:var(--rojo-claro); color:var(--rojo); border-radius:10px; padding:8px 12px; font-size:13px; font-weight:600; }
   .estado { min-height:22px; font-weight:700; }
   .estado.ok { color:var(--verde-osc); }
   .estado.err { color:var(--rojo); background:var(--rojo-claro); border-radius:10px; padding:8px 12px; }
@@ -127,6 +137,7 @@
 <div class="filtros">
   <button class="pill naranja" data-f="falta-desc" type="button">📝 Sin descripción <b id="n-desc">0</b></button>
   <button class="pill violeta" data-f="sin-foto" type="button">🖼️ Sin foto <b id="n-foto">0</b></button>
+  <button class="pill" data-f="sin-unidad" type="button">💲 Sin unidad <b id="n-unidad">0</b></button>
   <button class="pill" data-f="falta-algo" type="button">⚠️ Falta algo <b id="n-algo">0</b></button>
   <button class="pill" data-f="todos" type="button">📋 Todos <b id="n-todos">0</b></button>
   <div class="sep">
@@ -156,6 +167,18 @@
       <div>
         <h1 id="nombre"></h1>
         <div class="chips" id="chips"></div>
+      </div>
+
+      <div class="campo">
+        <label>💲 El precio es por…</label>
+        <div class="unidad-grupo" id="unidad-grupo">
+          <button type="button" class="unidad-op" data-u="kg">⚖️ Kilo</button>
+          <button type="button" class="unidad-op" data-u="unidad">🧩 Unidad</button>
+          <button type="button" class="unidad-op" data-u="caja">📦 Caja</button>
+          <button type="button" class="unidad-op" data-u="">🤖 Automático</button>
+        </div>
+        <div class="unidad-vista" id="unidad-vista"></div>
+        <div class="unidad-aviso" id="unidad-aviso" hidden>Falta preparar la planilla: ejecutá <b>ef_prepararColumnas</b> una sola vez desde el Apps Script y volvé a abrir el editor.</div>
       </div>
 
       <div class="campo">
@@ -194,6 +217,7 @@
 (function () {
   var todos = [], lista = [], pos = 0, original = null, fotos = {}, ocupado = false;
   var filtro = 'falta-desc', fotosEdit = [], fotoSel = 0, confirmar = -1, arrastrando = -1;
+  var unidadSel = '', hayColumnaUnidad = true;
   var $ = function (id) { return document.getElementById(id); };
 
   function llamar(nombre) {
@@ -210,6 +234,7 @@
   function cumple(p, f) {
     if (f === 'falta-desc') return vacio(p.descripcion);
     if (f === 'sin-foto') return !p.imagenes.length;
+    if (f === 'sin-unidad') return !p.unidadPrecio;
     if (f === 'falta-algo') return vacio(p.descripcion) || vacio(p.presentacion) || !p.imagenes.length;
     return true;
   }
@@ -227,6 +252,7 @@
     var cuenta = function (f) { return act.filter(function (p) { return cumple(p, f); }).length; };
     $('n-desc').textContent = cuenta('falta-desc');
     $('n-foto').textContent = cuenta('sin-foto');
+    $('n-unidad').textContent = cuenta('sin-unidad');
     $('n-algo').textContent = cuenta('falta-algo');
     $('n-todos').textContent = act.length;
     var hechas = act.length - cuenta('falta-desc');
@@ -238,7 +264,7 @@
 
   // ---------- formulario ----------
   function formaActual() {
-    return { descripcion: $('descripcion').value, presentacion: $('presentacion').value, unidadesCaja: $('unidades').value, imagenes: fotosEdit.slice() };
+    return { descripcion: $('descripcion').value, presentacion: $('presentacion').value, unidadesCaja: $('unidades').value, imagenes: fotosEdit.slice(), unidadPrecio: unidadSel };
   }
   function hayCambios() {
     if (!original) return false;
@@ -246,7 +272,8 @@
     return a.descripcion.trim() !== original.descripcion.trim() ||
            a.presentacion.trim() !== original.presentacion.trim() ||
            String(a.unidadesCaja).trim() !== String(original.unidadesCaja) ||
-           a.imagenes.join('|') !== original.imagenes.join('|');
+           a.imagenes.join('|') !== original.imagenes.join('|') ||
+           a.unidadPrecio !== original.unidadPrecio;
   }
   function estado(texto, tipo) { var e = $('estado'); e.textContent = texto || ''; e.className = 'estado' + (tipo ? ' ' + tipo : ''); }
 
@@ -325,6 +352,32 @@
   }
   $('hacer-principal').addEventListener('click', function () { mover(fotoSel, 0); });
 
+  // ---------- unidad del precio ----------
+  function textoUnidad(p, u) {
+    var uc = Number($('unidades').value) || 0;
+    var precio = p.precio !== null ? '$ ' + p.precio.toLocaleString('es-AR') : 'el precio';
+    if (u === 'kg') return 'En el catálogo: ' + precio + ' por kg. El cliente pide en kilos.';
+    if (u === 'unidad') return 'En el catálogo: ' + precio + ' por unidad. El cliente pide en unidades' + (uc > 1 && p.precio !== null ? ' (una caja de ' + uc + ' sale $ ' + (p.precio * uc).toLocaleString('es-AR') + ').' : '.');
+    if (u === 'caja') return 'En el catálogo: ' + precio + ' por caja' + (uc > 1 ? ' de ' + uc : '') + '. El cliente pide en cajas.';
+    return 'Automático: si tiene unidades por caja se pide por caja; si la presentación dice “Por kg”, por kilo; si no, por unidad.';
+  }
+  function pintarUnidad() {
+    Array.prototype.forEach.call(document.querySelectorAll('.unidad-op'), function (b) {
+      b.classList.toggle('on', b.getAttribute('data-u') === unidadSel);
+      b.disabled = !hayColumnaUnidad || !lista.length;
+    });
+    $('unidad-aviso').hidden = hayColumnaUnidad;
+    $('unidad-vista').textContent = lista.length ? textoUnidad(lista[pos], unidadSel) : '';
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('.unidad-op'), function (b) {
+    b.addEventListener('click', function () {
+      if (!hayColumnaUnidad) return;
+      unidadSel = b.getAttribute('data-u');
+      pintarUnidad(); estado('Cambiaste la unidad del precio. Se guarda al tocar “Guardar”.');
+    });
+  });
+  $('unidades').addEventListener('input', function () { if (lista.length) pintarUnidad(); });
+
   // ---------- pantalla del producto ----------
   function pintar() {
     contadores();
@@ -336,7 +389,7 @@
       $('chips').innerHTML = '<span class="chip">Cambiá el filtro de arriba para ver otros</span>';
       $('foto-grande').innerHTML = '<div class="vacia">—</div>'; $('tiras').innerHTML = '';
       $('descripcion').value = ''; $('presentacion').value = ''; $('unidades').value = '';
-      fotosEdit = []; original = null; estado('');
+      fotosEdit = []; original = null; unidadSel = ''; pintarUnidad(); estado('');
       return;
     }
     var p = lista[pos];
@@ -353,7 +406,9 @@
     $('unidades').value = p.unidadesCaja === '' ? '' : p.unidadesCaja;
     $('cuenta-desc').textContent = $('descripcion').value.length;
     fotosEdit = p.imagenes.slice(); fotoSel = 0; confirmar = -1;
-    original = { descripcion: p.descripcion, presentacion: p.presentacion, unidadesCaja: p.unidadesCaja === '' ? '' : p.unidadesCaja, imagenes: p.imagenes.slice() };
+    unidadSel = p.unidadPrecio || '';
+    original = { descripcion: p.descripcion, presentacion: p.presentacion, unidadesCaja: p.unidadesCaja === '' ? '' : p.unidadesCaja, imagenes: p.imagenes.slice(), unidadPrecio: unidadSel };
+    pintarUnidad();
     estado('');
     pintarTiras(); pintarFotoGrande();
     var sig = lista[pos + 1];
@@ -366,12 +421,14 @@
     var cambioFotos = f.imagenes.join('|') !== original.imagenes.join('|');
     var envio = { descripcion: f.descripcion, presentacion: f.presentacion, unidadesCaja: f.unidadesCaja };
     if (cambioFotos) envio.imagenes = f.imagenes;
+    if (hayColumnaUnidad && f.unidadPrecio !== original.unidadPrecio) envio.unidadPrecio = f.unidadPrecio;
     estado('Guardando…', 'trabajando');
     return llamar('ef_guardar', p.fila, p.id, envio).then(function () {
       p.descripcion = f.descripcion.trim(); p.presentacion = f.presentacion.trim();
       p.unidadesCaja = String(f.unidadesCaja).trim() === '' ? '' : Number(f.unidadesCaja);
       p.imagenes = f.imagenes.slice();
-      original = { descripcion: p.descripcion, presentacion: p.presentacion, unidadesCaja: p.unidadesCaja, imagenes: p.imagenes.slice() };
+      p.unidadPrecio = hayColumnaUnidad ? f.unidadPrecio : p.unidadPrecio;
+      original = { descripcion: p.descripcion, presentacion: p.presentacion, unidadesCaja: p.unidadesCaja, imagenes: p.imagenes.slice(), unidadPrecio: p.unidadPrecio || '' };
       estado('¡Guardado! ✓', 'ok');
       return true;
     }, function (e) { estado(e.message, 'err'); return false; });
@@ -414,7 +471,7 @@
   $('buscar').addEventListener('input', function () { clearTimeout(t); t = setTimeout(refiltrar, 250); });
 
   llamar('ef_listar').then(function (r) {
-    todos = r.productos;
+    todos = r.productos; hayColumnaUnidad = !!r.tieneColumnaUnidad;
     $('categoria').innerHTML += r.categorias.map(function (c) { return '<option>' + esc(c) + '</option>'; }).join('');
     $('cargando').hidden = true; $('principal').hidden = false;
     aplicarFiltro();

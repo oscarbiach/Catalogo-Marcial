@@ -234,6 +234,7 @@
           moneda: p.moneda || 'ARS',
           unidadesCaja: p.unidades_caja || 0,
           presentacion: p.presentacion || '',
+          unidadPrecio: p.unidad_precio || '',
           imagenes: p.imagenes || [],
           rubros: p.rubros || [],
           destacado: !!p.destacado,
@@ -937,7 +938,8 @@
         '<div class="pieza-pie">' +
           '<div class="pieza-precios">' +
             '<span class="pieza-precio">' + precio + '</span>' +
-            (precio ? '<span class="pieza-unit">por ' + escapar(unidadDe(p, 1)) + '</span>' : '') +
+            (precio ? '<span class="pieza-unit">por ' + escapar(unidadDe(p, 1)) +
+              (p.unidadPrecio === 'unidad' && p.unidadesCaja > 1 ? ' &middot; caja de ' + p.unidadesCaja : '') + '</span>' : '') +
           '</div>' +
           (pedidosActivos() ? '<div class="pieza-mando">' + mando(p) + '</div>' : '') +
         '</div>' +
@@ -1153,7 +1155,12 @@
     var precio = '';
     if (mostrarPrecios() && p.precio !== null && p.precio !== undefined && p.precio !== '') {
       precio = escapar(formatearPrecio(p.precio, p.moneda));
-      if (p.unidadesCaja > 1) {
+      if (p.unidadPrecio === 'unidad' && p.unidadesCaja > 1) {
+        precio += '<small>por unidad. Caja de ' + p.unidadesCaja + ': ' +
+          escapar(formatearPrecio(p.precio * p.unidadesCaja, p.moneda)) + '</small>';
+      } else if (p.unidadPrecio === 'kg') {
+        precio += '<small>por kilo</small>';
+      } else if (seCuentaPorCaja(p) && p.unidadesCaja > 1) {
         precio += '<small>' + escapar(formatearPrecio(p.precio / p.unidadesCaja, p.moneda)) +
           ' por unidad, caja de ' + p.unidadesCaja + '</small>';
       }
@@ -1414,16 +1421,29 @@
   }
 
   /**
-   * Como se cuenta este producto: "3 cajas", "3 kg", "3 unidades".
-   * La mayoria del catalogo se vende por peso y viene con la presentacion
-   * escrita como "Por kg", asi que de ahi se saca la unidad. Un producto con
-   * presentacion "10kg" en cambio es un envase: se cuenta por unidad.
+   * Por que unidad es el precio y en que se cuenta el pedido. Lo elige quien
+   * carga el producto (columna unidad_precio): kg, unidad o caja. El precio
+   * siempre es por esa unidad, y las cantidades del pedido se cuentan en ella:
+   * un pan con precio por unidad se pide de a unidades, aunque venga en caja.
+   *
+   * Sin elegir ("automatico") queda el comportamiento de antes: con unidades
+   * por caja se cuenta por caja; si la presentacion dice "Por kg" se cuenta
+   * por kilo; si no, por unidad.
    */
+  var UNIDADES_PRECIO = { kg: ['kg', 'kg'], unidad: ['unidad', 'unidades'], caja: ['caja', 'cajas'] };
+
   function unidadDe(p, cantidad) {
+    var u = UNIDADES_PRECIO[p.unidadPrecio];
+    if (u) return cantidad === 1 ? u[0] : u[1];
     if (p.unidadesCaja > 1) return cantidad === 1 ? 'caja' : 'cajas';
     var porAlgo = /^por\s+(.+)$/i.exec(String(p.presentacion || '').trim());
     if (porAlgo) return porAlgo[1].toLowerCase();
     return cantidad === 1 ? 'unidad' : 'unidades';
+  }
+
+  /** True si la cantidad del pedido de este producto se cuenta en cajas. */
+  function seCuentaPorCaja(p) {
+    return p.unidadPrecio ? p.unidadPrecio === 'caja' : p.unidadesCaja > 1;
   }
 
   function leerPedido() {
@@ -1591,6 +1611,7 @@
                   '" data-accion="fijar" aria-label="Cantidad de ' + escapar(p.nombre) + '">' +
                 '<button class="paso-btn" type="button" data-accion="sumar" aria-label="Sumar uno">' + svgMas() + '</button>' +
               '</div>' +
+              '<span class="pedido-unidad">' + escapar(unidadDe(p, l.cantidad)) + '</span>' +
               derecha +
             '</div>' +
           '</div>' +
@@ -1751,7 +1772,7 @@
       if (compacto) { partes.push(l.cantidad + 'x ' + p.nombre); return; }
       var titulo = (i + 1) + '. ' + p.nombre + (p.sku ? ' (' + p.sku + ')' : '');
       var renglon = '   ' + l.cantidad + ' ' + unidadDe(p, l.cantidad);
-      if (p.unidadesCaja > 1) renglon += ' de ' + p.unidadesCaja;
+      if (seCuentaPorCaja(p) && p.unidadesCaja > 1) renglon += ' de ' + p.unidadesCaja;
       if (conPrecios && l.subtotal !== null) renglon += ' - ' + formatearPrecio(l.subtotal, p.moneda);
       partes.push(titulo, renglon);
     });

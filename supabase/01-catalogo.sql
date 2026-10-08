@@ -26,6 +26,7 @@ create table if not exists productos (
   moneda         text not null default 'ARS',
   unidades_caja  int  not null default 0,
   presentacion   text not null default '',
+  unidad_precio  text not null default '' check (unidad_precio in ('', 'kg', 'unidad', 'caja')), -- por que unidad es el precio y se pide ('' = automatico)
   imagenes       text[] not null default '{}',-- ids de archivo de Google Drive
   rubros         text[] not null default '{}',
   destacado      boolean not null default false,
@@ -36,6 +37,8 @@ create table if not exists productos (
   publicado      boolean not null default true,
   actualizado_en timestamptz not null default now()
 );
+
+alter table productos add column if not exists unidad_precio text not null default '' check (unidad_precio in ('', 'kg', 'unidad', 'caja'));
 
 create index if not exists productos_orden_idx on productos (posicion, nombre) where publicado;
 

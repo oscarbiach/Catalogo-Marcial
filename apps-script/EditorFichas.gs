@@ -27,6 +27,7 @@ var EF = {
   HOJA: 'Productos',
   HISTORIAL: 'Historial fichas',
   CAMPOS: ['descripcion', 'presentacion', 'unidades_caja'],
+  UNIDADES_PRECIO: ['', 'kg', 'unidad', 'caja'],   // '' = automatico
   MAX_DESCRIPCION: 800,
   MAX_PRESENTACION: 120
 };
@@ -111,6 +112,26 @@ function ef_idsImagen_(valor) {
 }
 
 /**
+ * Se corre UNA vez: agrega a la hoja Productos la columna "unidad_precio" (por que
+ * unidad es el precio: kg, unidad o caja). Solo escribe el titulo en la primera
+ * columna libre, a la derecha de todas las que ya existen. No toca nada mas.
+ */
+function ef_prepararColumnas() {
+  var hoja = ef_hoja_();
+  var col = ef_columnas_(hoja);
+  if (col.unidad_precio) {
+    Logger.log('La columna unidad_precio ya existe (columna ' + col.unidad_precio + '). No se hizo nada.');
+    return;
+  }
+  var titulos = hoja.getRange(1, 1, 1, hoja.getLastColumn()).getValues()[0];
+  var ultimaConTitulo = 0;
+  titulos.forEach(function (t, i) { if (String(t).trim() !== '') ultimaConTitulo = i + 1; });
+  var nueva = ultimaConTitulo + 1;
+  hoja.getRange(1, nueva).setValue('unidad_precio');
+  Logger.log('Listo: se agrego el titulo "unidad_precio" en la columna ' + nueva + ' de la hoja ' + EF.HOJA + '.');
+}
+
+/**
  * Mira como estan escritas las fotos en toda la columna imagenes (lista JSON,
  * separadas por coma, por punto y coma o una por linea) para volver a escribirlas
  * exactamente igual.
@@ -147,7 +168,7 @@ function ef_listar() {
     if (!col[k]) throw new Error('En la hoja "' + EF.HOJA + '" falta la columna "' + k + '".');
   });
   var ultima = hoja.getLastRow();
-  if (ultima < 2) return { productos: [], categorias: [] };
+  if (ultima < 2) return { productos: [], categorias: [], tieneColumnaUnidad: !!col.unidad_precio };
 
   var valores = hoja.getRange(2, 1, ultima - 1, hoja.getLastColumn()).getValues();
   var dato = function (fila, k) { return col[k] ? fila[col[k] - 1] : ''; };
@@ -170,12 +191,13 @@ function ef_listar() {
       descripcion: String(dato(fila, 'descripcion') || ''),
       presentacion: String(dato(fila, 'presentacion') || ''),
       unidadesCaja: dato(fila, 'unidades_caja') === '' ? '' : Number(dato(fila, 'unidades_caja')),
+      unidadPrecio: col.unidad_precio ? String(dato(fila, 'unidad_precio') || '').trim().toLowerCase() : '',
       imagenes: ef_idsImagen_(dato(fila, 'imagenes')),
       activo: col.activo ? ef_verdadero_(dato(fila, 'activo')) : true
     });
   });
 
-  return { productos: productos, categorias: Object.keys(categorias).sort() };
+  return { productos: productos, categorias: Object.keys(categorias).sort(), tieneColumnaUnidad: !!col.unidad_precio };
 }
 
 /** Prueba segura: solo lee y cuenta. Sirve para revisar que todo este bien antes de usar el editor. */
@@ -193,6 +215,7 @@ function ef_probar() {
     var muestra = crudo.filter(function (v) { return String(v).trim() !== ''; })[0];
     Logger.log('Formato de las fotos: ' + ef_formatoImagenes_(crudo) + ' | ejemplo: ' + String(muestra).slice(0, 120));
   }
+  Logger.log('Columna unidad_precio: ' + (col.unidad_precio ? 'existe (columna ' + col.unidad_precio + ')' : 'NO existe todavia: ejecutar ef_prepararColumnas'));
   Logger.log('No se modifico nada.');
 }
 
@@ -262,6 +285,19 @@ function ef_guardar(fila, id, datos) {
 
     var nombre = String(hoja.getRange(fila, col.nombre).getValue());
     var cambios = [];
+
+    // Unidad del precio: kg, unidad o caja ('' = automatico)
+    if (datos.unidadPrecio !== undefined && datos.unidadPrecio !== null) {
+      var unidad = String(datos.unidadPrecio).trim().toLowerCase();
+      if (EF.UNIDADES_PRECIO.indexOf(unidad) === -1) throw new Error('La unidad del precio tiene que ser kg, unidad o caja.');
+      if (!col.unidad_precio) throw new Error('Falta la columna "unidad_precio" en la hoja. Ejecuta ef_prepararColumnas una sola vez desde el Apps Script.');
+      var celdaUnidad = hoja.getRange(fila, col.unidad_precio);
+      var unidadAntes = String(celdaUnidad.getValue() || '').trim().toLowerCase();
+      if (unidadAntes !== unidad) {
+        celdaUnidad.setValue(unidad);
+        cambios.push([new Date(), String(id), nombre, 'unidad_precio', unidadAntes, unidad]);
+      }
+    }
 
     // Fotos: solo reordenar o quitar las que el producto ya tiene. Nunca agregar.
     if (datos.imagenes && col.imagenes) {
