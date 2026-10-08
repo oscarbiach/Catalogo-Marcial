@@ -1,0 +1,256 @@
+/**
+ * Editor de fichas de producto
+ * ---------------------------------------------------------------------------
+ * Una ventana dentro de la planilla del catalogo para completar, producto por
+ * producto y viendo sus fotos, la descripcion, la presentacion y las unidades
+ * por caja. Se abre desde el menu "Fichas de producto".
+ *
+ * QUE TOCA Y QUE NO
+ *  - Escribe SOLO en tres columnas de la hoja Productos: descripcion,
+ *    presentacion y unidades_caja, y solo en la fila del producto que se esta
+ *    editando (verifica que el id coincida antes de escribir).
+ *  - No cambia precios, orden, categorias, fotos, formulas ni la estructura.
+ *  - Cada cambio queda anotado en una hoja nueva "Historial fichas" (fecha,
+ *    producto, campo, valor anterior y nuevo): sirve para deshacer. Se puede
+ *    borrar esa hoja cuando quieras.
+ *  - Despues de guardar vacia el cache del catalogo para que el sitio y la
+ *    sincronizacion lo tomen en la proxima vuelta.
+ *
+ * INSTALACION: ver apps-script/LEEME-EDITOR.md
+ *  - Todas las funciones empiezan con ef_ para no chocar con las existentes.
+ */
+
+var EF = {
+  HOJA: 'Productos',
+  HISTORIAL: 'Historial fichas',
+  CAMPOS: ['descripcion', 'presentacion', 'unidades_caja'],
+  MAX_DESCRIPCION: 800,
+  MAX_PRESENTACION: 120
+};
+
+// ------------------------------- menu --------------------------------------
+
+/** Se corre UNA vez: crea el activador que arma el menu cada vez que se abre la planilla. */
+function ef_instalarMenu() {
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'ef_crearMenu') ScriptApp.deleteTrigger(t);
+  });
+  var planilla = ef_planilla_();
+  ScriptApp.newTrigger('ef_crearMenu').forSpreadsheet(planilla).onOpen().create();
+  ef_crearMenu();
+  Logger.log('Listo. Recarga la planilla (F5): aparece el menu "Fichas de producto".');
+}
+
+function ef_quitarMenu() {
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'ef_crearMenu') ScriptApp.deleteTrigger(t);
+  });
+  Logger.log('Menu desactivado.');
+}
+
+function ef_crearMenu() {
+  SpreadsheetApp.getUi()
+    .createMenu('Fichas de producto')
+    .addItem('Abrir el editor de fichas', 'ef_abrir')
+    .addToUi();
+}
+
+function ef_abrir() {
+  var html = HtmlService.createHtmlOutputFromFile('EditorFichas')
+    .setWidth(1000)
+    .setHeight(700);
+  SpreadsheetApp.getUi().showModalDialog(html, 'Editor de fichas de producto');
+}
+
+// ------------------------------ lectura ------------------------------------
+
+function ef_planilla_() {
+  var activa = SpreadsheetApp.getActiveSpreadsheet();
+  if (activa) return activa;
+  var id = PropertiesService.getScriptProperties().getProperty('PLANILLA_ID');
+  if (id) return SpreadsheetApp.openById(id);
+  throw new Error('Este script no esta unido a la planilla del catalogo.');
+}
+
+function ef_hoja_() {
+  var hoja = ef_planilla_().getSheetByName(EF.HOJA);
+  if (!hoja) throw new Error('No existe la hoja "' + EF.HOJA + '".');
+  return hoja;
+}
+
+/** Posicion (1, 2, 3...) de cada columna segun su titulo, sin depender del orden. */
+function ef_columnas_(hoja) {
+  var titulos = hoja.getRange(1, 1, 1, hoja.getLastColumn()).getValues()[0];
+  var mapa = {};
+  titulos.forEach(function (t, i) {
+    var clave = String(t).trim().toLowerCase();
+    if (clave && !mapa[clave]) mapa[clave] = i + 1;
+  });
+  return mapa;
+}
+
+function ef_verdadero_(v) {
+  if (v === true) return true;
+  var s = String(v).trim().toLowerCase();
+  return s === 'true' || s === 'si' || s === 'sí' || s === '1' || s === 'x' || s === 'verdadero';
+}
+
+/** Saca los ids de Drive de la celda de imagenes, sea lista JSON, separada por comas o enlaces. */
+function ef_idsImagen_(valor) {
+  if (valor === '' || valor === null || valor === undefined) return [];
+  var texto = String(valor).trim();
+  if (texto.charAt(0) === '[') {
+    try {
+      return JSON.parse(texto).map(String).filter(Boolean);
+    } catch (e) { /* sigue con el metodo general */ }
+  }
+  return (texto.match(/[-\w]{25,}/g) || []);
+}
+
+/** Todos los productos, con lo necesario para editarlos. No modifica nada. */
+function ef_listar() {
+  var hoja = ef_hoja_();
+  var col = ef_columnas_(hoja);
+  ['id', 'nombre', 'descripcion', 'presentacion', 'unidades_caja'].forEach(function (k) {
+    if (!col[k]) throw new Error('En la hoja "' + EF.HOJA + '" falta la columna "' + k + '".');
+  });
+  var ultima = hoja.getLastRow();
+  if (ultima < 2) return { productos: [], categorias: [] };
+
+  var valores = hoja.getRange(2, 1, ultima - 1, hoja.getLastColumn()).getValues();
+  var dato = function (fila, k) { return col[k] ? fila[col[k] - 1] : ''; };
+  var categorias = {};
+
+  var productos = [];
+  valores.forEach(function (fila, i) {
+    var id = String(dato(fila, 'id')).trim();
+    if (!id) return;
+    var cat = String(dato(fila, 'categoria') || '').trim();
+    if (cat) categorias[cat] = true;
+    productos.push({
+      fila: i + 2,
+      id: id,
+      sku: String(dato(fila, 'sku') || ''),
+      nombre: String(dato(fila, 'nombre') || ''),
+      categoria: cat,
+      marca: String(dato(fila, 'marca') || ''),
+      precio: dato(fila, 'precio') === '' ? null : Number(dato(fila, 'precio')),
+      descripcion: String(dato(fila, 'descripcion') || ''),
+      presentacion: String(dato(fila, 'presentacion') || ''),
+      unidadesCaja: dato(fila, 'unidades_caja') === '' ? '' : Number(dato(fila, 'unidades_caja')),
+      imagenes: ef_idsImagen_(dato(fila, 'imagenes')),
+      activo: col.activo ? ef_verdadero_(dato(fila, 'activo')) : true
+    });
+  });
+
+  return { productos: productos, categorias: Object.keys(categorias).sort() };
+}
+
+/** Prueba segura: solo lee y cuenta. Sirve para revisar que todo este bien antes de usar el editor. */
+function ef_probar() {
+  var r = ef_listar();
+  var p = r.productos;
+  var sinDesc = p.filter(function (x) { return !x.descripcion.trim(); }).length;
+  var sinPres = p.filter(function (x) { return !x.presentacion.trim(); }).length;
+  var sinFoto = p.filter(function (x) { return !x.imagenes.length; }).length;
+  Logger.log('Productos: ' + p.length + ' | sin descripcion: ' + sinDesc + ' | sin presentacion: ' + sinPres + ' | sin foto: ' + sinFoto);
+  Logger.log('Primer producto: ' + JSON.stringify(p[0]));
+  Logger.log('No se modifico nada.');
+}
+
+/**
+ * Foto de un producto como imagen incrustada. Se pide desde el servidor porque
+ * dentro de esta ventana el navegador no siempre deja cargar fotos de Drive.
+ */
+function ef_foto(id, ancho) {
+  try {
+    var r = UrlFetchApp.fetch('https://drive.google.com/thumbnail?id=' + encodeURIComponent(id) + '&sz=w' + (ancho || 700), {
+      headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
+      muteHttpExceptions: true
+    });
+    if (r.getResponseCode() !== 200) return null;
+    var blob = r.getBlob();
+    return 'data:' + blob.getContentType() + ';base64,' + Utilities.base64Encode(blob.getBytes());
+  } catch (e) {
+    return null;
+  }
+}
+
+// ------------------------------ escritura ----------------------------------
+
+function ef_texto_(v, max) {
+  return String(v === null || v === undefined ? '' : v).replace(/\r\n/g, '\n').trim().slice(0, max);
+}
+
+/**
+ * Guarda los tres campos de UN producto. Antes de escribir comprueba que en esa
+ * fila siga estando el mismo id: si alguien reordeno la hoja mientras tanto, no
+ * escribe y avisa.
+ */
+function ef_guardar(fila, id, datos) {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(20000)) throw new Error('La planilla esta ocupada, proba de nuevo en unos segundos.');
+  try {
+    var hoja = ef_hoja_();
+    var col = ef_columnas_(hoja);
+    fila = Number(fila);
+    if (!fila || fila < 2 || fila > hoja.getLastRow()) throw new Error('La fila ya no existe. Recarga el editor.');
+
+    var idEnHoja = String(hoja.getRange(fila, col.id).getValue()).trim();
+    if (idEnHoja !== String(id).trim()) {
+      throw new Error('La hoja cambio mientras editabas (el producto ya no esta en esa fila). Cerra y volve a abrir el editor.');
+    }
+
+    var nuevos = {
+      descripcion: ef_texto_(datos.descripcion, EF.MAX_DESCRIPCION),
+      presentacion: ef_texto_(datos.presentacion, EF.MAX_PRESENTACION),
+      unidades_caja: ''
+    };
+    // Google Sheets convierte en formula un texto que empieza con "=" y en fecha
+    // algo como "1/2": se frena antes de escribir para no romper la celda.
+    ['descripcion', 'presentacion'].forEach(function (campo) {
+      var t = nuevos[campo];
+      if (t.charAt(0) === '=') throw new Error('El texto de "' + campo + '" no puede empezar con "=".');
+      if (/^\d{1,2}[\/\-]\d{1,2}([\/\-]\d{1,4})?$/.test(t)) {
+        throw new Error('"' + t + '" se leeria como una fecha. Agregale una palabra, por ejemplo "' + t + ' pieza".');
+      }
+    });
+    var uc = String(datos.unidadesCaja === null || datos.unidadesCaja === undefined ? '' : datos.unidadesCaja).trim();
+    if (uc !== '') {
+      var n = Number(uc);
+      if (!isFinite(n) || n < 0 || Math.floor(n) !== n) throw new Error('Las unidades por caja tienen que ser un numero entero.');
+      nuevos.unidades_caja = n;
+    }
+
+    var nombre = String(hoja.getRange(fila, col.nombre).getValue());
+    var cambios = [];
+    EF.CAMPOS.forEach(function (campo) {
+      var celda = hoja.getRange(fila, col[campo]);
+      var antes = celda.getValue();
+      var igual = String(antes === null || antes === undefined ? '' : antes).trim() === String(nuevos[campo]).trim();
+      if (igual) return;
+      celda.setValue(nuevos[campo]);
+      cambios.push([new Date(), String(id), nombre, campo, String(antes), String(nuevos[campo])]);
+    });
+
+    if (cambios.length) ef_anotar_(cambios);
+    if (cambios.length && typeof invalidarCache === 'function') invalidarCache();
+    return { cambios: cambios.length };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/** Agrega los cambios al final de la hoja "Historial fichas" (la crea la primera vez). */
+function ef_anotar_(filas) {
+  var planilla = ef_planilla_();
+  var hoja = planilla.getSheetByName(EF.HISTORIAL);
+  if (!hoja) {
+    hoja = planilla.insertSheet(EF.HISTORIAL);
+    hoja.getRange(1, 1, 1, 6).setValues([['fecha', 'id', 'producto', 'campo', 'antes', 'despues']]).setFontWeight('bold');
+    hoja.setFrozenRows(1);
+    // La hoja de historial va al final y no se pone al frente.
+    planilla.setActiveSheet(planilla.getSheetByName(EF.HOJA) || planilla.getSheets()[0]);
+  }
+  hoja.getRange(hoja.getLastRow() + 1, 1, filas.length, 6).setValues(filas);
+}

@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root { --tinta:#14213a; --tinta2:#51607a; --linea:#d7dde8; --fondo:#f4f6fa; --losa:#fff; --marca:#14294b; --ok:#177a45; --err:#b3261e; --aviso:#fff4d6; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:14px/1.4 "Google Sans", Roboto, Arial, sans-serif; color:var(--tinta); background:var(--fondo); height:100vh; display:flex; flex-direction:column; }
+  header { display:flex; gap:10px; align-items:center; padding:10px 14px; background:var(--losa); border-bottom:1px solid var(--linea); flex-wrap:wrap; }
+  header .cuenta { font-weight:700; margin-right:auto; }
+  header .cuenta small { font-weight:400; color:var(--tinta2); margin-left:6px; }
+  select, input, textarea, button { font:inherit; }
+  select, input[type=text], input[type=number], input[type=search], textarea { border:1px solid var(--linea); border-radius:8px; padding:8px 10px; background:#fff; color:var(--tinta); width:100%; }
+  header select, header input[type=search] { width:auto; min-width:150px; }
+  textarea { resize:vertical; min-height:120px; }
+  main { flex:1; display:grid; grid-template-columns: minmax(280px, 42%) 1fr; gap:16px; padding:14px; min-height:0; }
+  .fotos { background:var(--losa); border:1px solid var(--linea); border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:10px; min-height:0; }
+  .foto-grande { flex:1; min-height:200px; display:grid; place-items:center; background:#f0f2f7; border-radius:8px; overflow:hidden; position:relative; }
+  .foto-grande img { width:100%; height:100%; object-fit:contain; }
+  .foto-grande .vacia { color:var(--tinta2); text-align:center; padding:20px; }
+  .tiras { display:flex; gap:6px; flex-wrap:wrap; }
+  .tiras button { width:54px; height:54px; padding:0; border:2px solid transparent; border-radius:8px; overflow:hidden; background:#f0f2f7; cursor:pointer; }
+  .tiras button.viva { border-color:var(--marca); }
+  .tiras img { width:100%; height:100%; object-fit:cover; }
+  .datos { background:var(--losa); border:1px solid var(--linea); border-radius:12px; padding:16px; overflow:auto; display:flex; flex-direction:column; gap:12px; min-height:0; }
+  h1 { font-size:19px; margin:0; line-height:1.25; }
+  .sub { color:var(--tinta2); margin-top:2px; }
+  .campo label { display:block; font-weight:700; margin-bottom:4px; }
+  .campo .ayuda { color:var(--tinta2); font-size:12px; margin-top:3px; }
+  .fila { display:grid; grid-template-columns: 1fr 160px; gap:12px; }
+  .contador { text-align:right; font-size:12px; color:var(--tinta2); }
+  .estado { min-height:20px; font-size:13px; }
+  .estado.ok { color:var(--ok); }
+  .estado.err { color:var(--err); font-weight:700; }
+  footer { display:flex; gap:8px; padding:10px 14px; background:var(--losa); border-top:1px solid var(--linea); align-items:center; }
+  footer .espacio { margin-right:auto; color:var(--tinta2); font-size:12px; }
+  button.b { border:1px solid var(--linea); background:#fff; color:var(--tinta); border-radius:8px; padding:9px 14px; cursor:pointer; }
+  button.b:hover { background:#f0f2f7; }
+  button.b[disabled] { opacity:.5; cursor:default; }
+  button.primario { background:var(--marca); border-color:var(--marca); color:#fff; font-weight:700; }
+  button.primario:hover { background:#1c3a68; }
+  .aviso { background:var(--aviso); border-radius:8px; padding:6px 10px; font-size:12px; }
+  .cargando { padding:40px; text-align:center; color:var(--tinta2); }
+  @media (max-width: 760px) { main { grid-template-columns:1fr; overflow:auto; } .fila { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="cuenta" id="cuenta">Cargando…</div>
+  <select id="filtro" aria-label="Mostrar">
+    <option value="falta-desc">Sin descripción</option>
+    <option value="falta-pres">Sin presentación</option>
+    <option value="falta-algo">Falta algo</option>
+    <option value="todos">Todos</option>
+  </select>
+  <select id="categoria" aria-label="Categoría"><option value="">Todas las categorías</option></select>
+  <input type="search" id="buscar" placeholder="Buscar por nombre o código" aria-label="Buscar">
+</header>
+
+<div class="cargando" id="cargando">Cargando los productos de la planilla…</div>
+
+<main id="principal" hidden>
+  <section class="fotos" aria-label="Fotos del producto">
+    <div class="foto-grande" id="foto-grande"><div class="vacia">Sin foto</div></div>
+    <div class="tiras" id="tiras"></div>
+  </section>
+
+  <section class="datos">
+    <div>
+      <h1 id="nombre"></h1>
+      <div class="sub" id="sub"></div>
+    </div>
+
+    <div class="campo">
+      <label for="descripcion">Descripción</label>
+      <textarea id="descripcion" maxlength="800" placeholder="Qué es, para qué sirve, cómo viene. Ej.: Queso cremoso ideal para pizzas, de buen derretido."></textarea>
+      <div class="contador"><span id="cuenta-desc">0</span> / 800</div>
+    </div>
+
+    <div class="fila">
+      <div class="campo">
+        <label for="presentacion">Presentación y peso aproximado</label>
+        <input type="text" id="presentacion" maxlength="120" placeholder="Ej.: Pieza de aprox. 4 kg · Caja x 12 u · Bolsa de 1 kg">
+        <div class="ayuda">Lo que ve el cliente en la ficha: cómo viene y cuánto pesa más o menos.</div>
+      </div>
+      <div class="campo">
+        <label for="unidades">Unidades por caja</label>
+        <input type="number" id="unidades" min="0" step="1" placeholder="Ej.: 12">
+        <div class="ayuda">Vacío si no aplica.</div>
+      </div>
+    </div>
+
+    <div class="estado" id="estado" role="status"></div>
+    <div class="aviso">Solo se guardan estos tres campos. No se toca el precio, el orden ni las fotos. Cada cambio queda anotado en la hoja «Historial fichas».</div>
+  </section>
+</main>
+
+<footer>
+  <button class="b" id="anterior">← Anterior</button>
+  <button class="b" id="siguiente">Siguiente →</button>
+  <span class="espacio" id="espacio">Al cambiar de producto se guarda solo lo que modificaste.</span>
+  <button class="b primario" id="guardar-sig">Guardar y siguiente</button>
+</footer>
+
+<script>
+(function () {
+  var todos = [], lista = [], pos = 0, original = null, fotos = {}, ocupado = false;
+  var $ = function (id) { return document.getElementById(id); };
+
+  function llamar(nombre) {
+    var args = Array.prototype.slice.call(arguments, 1);
+    return new Promise(function (ok, mal) {
+      var r = google.script.run.withSuccessHandler(ok).withFailureHandler(function (e) { mal(new Error(e && e.message ? e.message : String(e))); });
+      r[nombre].apply(r, args);
+    });
+  }
+
+  function vacio(s) { return !String(s || '').trim(); }
+
+  function aplicarFiltro() {
+    var f = $('filtro').value, cat = $('categoria').value, q = $('buscar').value.trim().toLowerCase();
+    lista = todos.filter(function (p) {
+      if (!p.activo && f !== 'todos') return false;
+      if (cat && p.categoria !== cat) return false;
+      if (q && (p.nombre + ' ' + p.sku + ' ' + p.id).toLowerCase().indexOf(q) === -1) return false;
+      if (f === 'falta-desc') return vacio(p.descripcion);
+      if (f === 'falta-pres') return vacio(p.presentacion);
+      if (f === 'falta-algo') return vacio(p.descripcion) || vacio(p.presentacion);
+      return true;
+    });
+  }
+
+  function resumen() {
+    var activos = todos.filter(function (p) { return p.activo; });
+    var faltan = activos.filter(function (p) { return vacio(p.descripcion); }).length;
+    return activos.length + ' productos · faltan ' + faltan + ' descripciones';
+  }
+
+  function formaActual() {
+    return { descripcion: $('descripcion').value, presentacion: $('presentacion').value, unidadesCaja: $('unidades').value };
+  }
+  function hayCambios() {
+    if (!original) return false;
+    var a = formaActual();
+    return a.descripcion.trim() !== original.descripcion.trim() ||
+           a.presentacion.trim() !== original.presentacion.trim() ||
+           String(a.unidadesCaja).trim() !== String(original.unidadesCaja);
+  }
+
+  function estado(texto, tipo) { var e = $('estado'); e.textContent = texto || ''; e.className = 'estado' + (tipo ? ' ' + tipo : ''); }
+
+  function foto(id, ancho) {
+    if (fotos[id + ancho] !== undefined) return Promise.resolve(fotos[id + ancho]);
+    return llamar('ef_foto', id, ancho).then(function (d) { fotos[id + ancho] = d; return d; }, function () { return null; });
+  }
+
+  function pintarFotos(p) {
+    var g = $('foto-grande'), t = $('tiras');
+    g.innerHTML = p.imagenes.length ? '<div class="vacia">Cargando foto…</div>' : '<div class="vacia">Este producto no tiene foto</div>';
+    t.innerHTML = '';
+    p.imagenes.forEach(function (id, i) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.setAttribute('aria-label', 'Foto ' + (i + 1));
+      b.className = i === 0 ? 'viva' : '';
+      b.addEventListener('click', function () { mostrarFoto(p, i); });
+      t.appendChild(b);
+      foto(id, 120).then(function (d) { if (d) b.innerHTML = '<img src="' + d + '" alt="">'; });
+    });
+    if (p.imagenes.length) mostrarFoto(p, 0);
+  }
+
+  function mostrarFoto(p, i) {
+    var g = $('foto-grande');
+    Array.prototype.forEach.call($('tiras').children, function (b, k) { b.className = k === i ? 'viva' : ''; });
+    var id = p.imagenes[i];
+    foto(id, 800).then(function (d) {
+      if (lista[pos] !== p) return;
+      g.innerHTML = d ? '<img src="' + d + '" alt="Foto ' + (i + 1) + ' de ' + p.imagenes.length + '">' : '<div class="vacia">No se pudo cargar la foto</div>';
+    });
+  }
+
+  function pintar() {
+    $('cuenta').innerHTML = (lista.length ? (pos + 1) + ' de ' + lista.length : '0 de 0') + '<small>' + resumen() + '</small>';
+    var hay = lista.length > 0;
+    ['anterior', 'siguiente', 'guardar-sig', 'descripcion', 'presentacion', 'unidades'].forEach(function (id) { $(id).disabled = !hay; });
+    if (!hay) {
+      $('nombre').textContent = 'No hay productos con ese filtro';
+      $('sub').textContent = 'Cambiá el filtro de arriba para ver otros.';
+      $('foto-grande').innerHTML = '<div class="vacia">—</div>'; $('tiras').innerHTML = '';
+      $('descripcion').value = ''; $('presentacion').value = ''; $('unidades').value = '';
+      original = null; estado('');
+      return;
+    }
+    var p = lista[pos];
+    $('nombre').textContent = p.nombre;
+    $('sub').textContent = [p.categoria, p.marca, p.precio !== null ? '$ ' + p.precio.toLocaleString('es-AR') : '', p.sku].filter(Boolean).join(' · ');
+    $('descripcion').value = p.descripcion;
+    $('presentacion').value = p.presentacion;
+    $('unidades').value = p.unidadesCaja === '' ? '' : p.unidadesCaja;
+    $('cuenta-desc').textContent = $('descripcion').value.length;
+    original = { descripcion: p.descripcion, presentacion: p.presentacion, unidadesCaja: p.unidadesCaja === '' ? '' : p.unidadesCaja };
+    estado('');
+    pintarFotos(p);
+    // adelanta la foto del producto que viene, para que no haya espera
+    var sig = lista[pos + 1];
+    if (sig && sig.imagenes[0]) foto(sig.imagenes[0], 800);
+  }
+
+  // Guarda lo modificado del producto actual. Devuelve true si se puede seguir.
+  function guardarActual() {
+    if (!original || !hayCambios()) return Promise.resolve(true);
+    var p = lista[pos], f = formaActual();
+    estado('Guardando…');
+    return llamar('ef_guardar', p.fila, p.id, f).then(function () {
+      p.descripcion = f.descripcion.trim(); p.presentacion = f.presentacion.trim();
+      p.unidadesCaja = String(f.unidadesCaja).trim() === '' ? '' : Number(f.unidadesCaja);
+      original = { descripcion: p.descripcion, presentacion: p.presentacion, unidadesCaja: p.unidadesCaja };
+      estado('Guardado ✓', 'ok');
+      return true;
+    }, function (e) { estado(e.message, 'err'); return false; });
+  }
+
+  function ir(delta, guardar) {
+    if (ocupado) return;
+    ocupado = true;
+    (guardar ? guardarActual() : Promise.resolve(true)).then(function (ok) {
+      ocupado = false;
+      if (!ok) return;
+      var actualId = lista[pos] && lista[pos].id;
+      // Si el filtro es "sin descripcion", el producto recien completado sale de la lista
+      aplicarFiltro();
+      var idx = lista.findIndex(function (p) { return p.id === actualId; });
+      if (idx === -1) { pos = Math.min(pos, Math.max(lista.length - 1, 0)); if (delta < 0) pos = Math.max(pos - 1, 0); }
+      else pos = Math.min(Math.max(idx + delta, 0), lista.length - 1);
+      pintar();
+    });
+  }
+
+  $('anterior').addEventListener('click', function () { ir(-1, true); });
+  $('siguiente').addEventListener('click', function () { ir(1, true); });
+  $('guardar-sig').addEventListener('click', function () { ir(1, true); });
+  $('descripcion').addEventListener('input', function () { $('cuenta-desc').textContent = this.value.length; estado(''); });
+  document.addEventListener('keydown', function (e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); ir(1, true); }
+  });
+
+  function refiltrar() {
+    guardarActual().then(function (ok) {
+      if (!ok) return;
+      aplicarFiltro(); pos = 0; pintar();
+    });
+  }
+  $('filtro').addEventListener('change', refiltrar);
+  $('categoria').addEventListener('change', refiltrar);
+  var t = null;
+  $('buscar').addEventListener('input', function () { clearTimeout(t); t = setTimeout(refiltrar, 250); });
+
+  llamar('ef_listar').then(function (r) {
+    todos = r.productos;
+    $('categoria').innerHTML += r.categorias.map(function (c) { return '<option>' + c.replace(/</g, '&lt;') + '</option>'; }).join('');
+    $('cargando').hidden = true; $('principal').hidden = false;
+    aplicarFiltro();
+    if (!lista.length) { $('filtro').value = 'todos'; aplicarFiltro(); }
+    pintar();
+  }, function (e) {
+    $('cargando').textContent = 'No se pudo cargar: ' + e.message;
+  });
+})();
+</script>
+</body>
+</html>
