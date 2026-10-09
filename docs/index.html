@@ -18,7 +18,8 @@
 
 <!-- El ?v=N obliga al navegador a bajar los archivos nuevos. Subilo cada vez
      que actualices el sitio: si no, alguien que ya entro puede quedarse con
-     el HTML nuevo y el JavaScript viejo, y la pagina se rompe. -->
+     el HTML nuevo y el JavaScript viejo, y la pagina se rompe. Los modulos
+     de JavaScript llevan su ?v=N en el import map, al final del body. -->
 <!-- Identidad visual de Marcial: tokens (unico lugar con valores) y componentes
      base. Van antes que styles.css, que usa sus variables. -->
 <link rel="stylesheet" href="assets/marca/tokens.css?v=40">
@@ -302,7 +303,18 @@
 
 <div class="nota" id="aviso" hidden></div>
 
+<!-- app.js es un modulo e importa la logica pura de contrato.js y pedido.js.
+     El import map les pone la misma ?v=N a esos archivos: subila junto con la
+     de app.js cada vez que cambie cualquiera de los tres. -->
+<script type="importmap">
+{
+  "imports": {
+    "./assets/js/contrato.js": "./assets/js/contrato.js?v=44",
+    "./assets/js/pedido.js": "./assets/js/pedido.js?v=44"
+  }
+}
+</script>
 <script src="config.js?v=42"></script>
-<script src="assets/js/app.js?v=43"></script>
+<script type="module" src="assets/js/app.js?v=44"></script>
 </body>
 </html>

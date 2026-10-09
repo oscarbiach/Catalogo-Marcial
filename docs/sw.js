@@ -30,6 +30,9 @@ function archivosDelHtml(html) {
     var ruta = m[1].trim();
     if (ruta && ruta.charAt(0) !== '/' && ruta.indexOf('//') === -1) vistos[ruta] = true;
   }
+  // Los modulos de JavaScript: los valores del import map ("...": "./assets/...").
+  var mapa = /:\s*"(\.\/[^"#]+)"/g;
+  while ((m = mapa.exec(html))) vistos[m[1].slice(2)] = true;
   // La fuente la pide tokens.css; el HTML solo la precarga, igual se incluye.
   return Object.keys(vistos);
 }
