@@ -248,35 +248,15 @@ body.scrolleado .barra::before { opacity: .98; box-shadow: var(--flota-2); }
 
 /* ---------- Portada ---------- */
 
-
 /* ---------- Rail de filtros ---------- */
 .rail {
   position: sticky; top: 62px; z-index: 30;
-  background: var(--piso);   /* sin esto, lo que pasa por debajo se asoma entre los chips */
+  background: var(--piso);   /* sin esto, lo que pasa por debajo se asoma entre los filtros */
   max-width: var(--ancho); margin: 0 auto; padding: 10px 24px 14px;
-  display: flex; align-items: center; gap: 12px;
+  display: flex; align-items: center; gap: 7px;
 }
-.rail-pistas {
-  display: flex; gap: 7px; overflow-x: auto; flex: 1 1 auto; padding: 4px;
-  scrollbar-width: none; -ms-overflow-style: none;
-  mask-image: linear-gradient(to right, #000 calc(100% - 34px), transparent);
-  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 34px), transparent);
-}
-.rail-pistas::-webkit-scrollbar { display: none; }
 
-.pista {
-  appearance: none; border: 0; cursor: pointer; white-space: nowrap;
-  font-family: var(--display); font-size: 13px; font-weight: 600;
-  letter-spacing: 0; text-transform: none;
-  min-height: 36px; padding: 0 16px; border-radius: var(--m-r-pill);
-  border: 1px solid var(--borde);
-  background: var(--losa); color: var(--tinta-2);
-  transition: transform .18s var(--curva), box-shadow .18s var(--curva),
-              background .18s var(--curva), color .18s var(--curva);
-}
-.pista:hover { border-color: var(--m-azul-300); color: var(--tinta); }
-.pista.viva { background: var(--marca); border-color: var(--marca); color: var(--marca-tinta); }
-
+.rail-categoria { display: flex; flex: 0 0 auto; }
 .rail-fin { display: flex; gap: 7px; flex: 0 0 auto; }
 .menu {
   appearance: none; border: 0; cursor: pointer;
@@ -605,7 +585,7 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
   :root:not([data-theme="light"]) .banner { background: var(--marino-hondo); }
   :root:not([data-theme="light"]) .pieza-losa.sin-foto { background: var(--losa-2); }
   :root:not([data-theme="light"]) .pieza-losa:not(.sin-foto)::before { background: radial-gradient(ellipse at center, rgba(0, 0, 0, .5), rgba(0, 0, 0, 0) 70%); }
-  :root:not([data-theme="light"]) .cajon { background: var(--piso-alto); }
+  
 }
 
 :root[data-theme="dark"] .nota { background: var(--m-azul-200); color: var(--marino-hondo); }
@@ -613,7 +593,6 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 :root[data-theme="dark"] .banner { background: var(--marino-hondo); }
 :root[data-theme="dark"] .pieza-losa.sin-foto { background: var(--losa-2); }
 :root[data-theme="dark"] .pieza-losa:not(.sin-foto)::before { background: radial-gradient(ellipse at center, rgba(0, 0, 0, .5), rgba(0, 0, 0, 0) 70%); }
-:root[data-theme="dark"] .cajon { background: var(--piso-alto); }
 
 /* ---------- Responsive ---------- */
 @media (max-width: 900px) {
@@ -635,9 +614,8 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
   #buscar { font-size: 16px; padding: 8px 12px 8px 32px; }  /* 16px evita el zoom de iOS */
   .lupa { left: 11px; width: 14px; height: 14px; }
 
-
   .rail { top: 52px; padding: 8px 10px 12px; gap: 8px; flex-wrap: wrap; }
-  .rail-pistas { width: 100%; flex: 1 1 100%; }
+  
   .rail-fin { width: 100%; }
   .rail-fin .menu { flex: 1; text-align: left; }
 
@@ -677,7 +655,6 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
   .pedido-pie { padding: 12px 16px calc(16px + env(safe-area-inset-bottom)); }
   .campo { font-size: 16px; }   /* evita el zoom al enfocar en iOS */
   .boton, .boton-fantasma { min-height: 44px; }
-
 
   .pie { padding: 0 18px 40px; }
   .nota { bottom: 84px; font-size: 12.5px; }
@@ -908,7 +885,6 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 .pieza-pie { padding: 0 3px; min-height: 20px; }
 .pieza-unit { font-family: var(--datos); font-size: 10.5px; color: var(--tinta-3); }
 
-
 @media (hover: hover) and (pointer: fine) {
   .pieza:hover .pieza-losa img { transform: translateY(-8px) scale(1.03); }
   .pieza:hover .pieza-losa:not(.sin-foto)::before { transform: scaleX(1.18); opacity: .55; }
@@ -973,7 +949,6 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 }
 .pedido.entrando, .pedido.saliendo { opacity: 0; transform: translateY(14px) scale(.96); }
 
-
 /* El aviso se dispara seguido, asi que va por transicion y no por keyframes:
    una transicion retoma desde donde esta, un keyframe vuelve a empezar. */
 .nota { opacity: 1; transition: opacity .2s var(--curva-fuerte), transform .2s var(--curva-fuerte); }
@@ -982,18 +957,18 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 /* Respuesta al toque: sin esto los botones se sienten muertos al hacer clic.
    Va despues de `.boton:active { transform: translateY(0) }`, que era un
    apagado y no una respuesta. */
-.boton, .boton-fantasma, .pista, .cerrar, .paso-btn, .ficha-tira {
+.boton, .boton-fantasma, .cerrar, .paso-btn, .ficha-tira {
   transition: transform .16s var(--curva-fuerte), box-shadow .18s var(--curva),
               background .18s var(--curva), color .18s var(--curva);
 }
-.boton:active, .boton-fantasma:active, .pista:active,
+.boton:active, .boton-fantasma:active,
 .cerrar:active, .paso-btn:active, .ficha-tira:active { transform: scale(.96); }
 .dest:active { transform: translateY(-2px) scale(.99); }
 
 /* En pantallas tactiles el hover se queda pegado despues de tocar: el color
    puede quedarse (sirve de feedback), el movimiento no. */
 @media (hover: none) {
-  .pista:hover, .dest:hover, .ficha-tira:hover,
+   .dest:hover, .ficha-tira:hover,
   .cerrar:hover, .mas:hover, .boton:hover, .boton-fantasma:hover { transform: none; }
   .pieza:hover .pieza-losa img { transform: none; }
 }
@@ -1003,70 +978,15 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
   .ficha.entrando, .ficha.saliendo { transform: translate(-50%, -50%); }
   .pedido.entrando, .pedido.saliendo { transform: none; }
   .nota.entrando, .nota.saliendo { transform: translateX(-50%); }
-  .boton:active, .boton-fantasma:active, .pista:active,
+  .boton:active, .boton-fantasma:active,
   .cerrar:active, .paso-btn:active, .ficha-tira:active,
   .dest:active { transform: none; }
 }
 
 /* ===========================================================================
-   Hamburguesa, cajon de rubros e interruptor de tema
+   Interruptor de tema. Oculto mientras el modo oscuro este apagado (meta
+   catalogo-modo-oscuro en index.html); se deja para poder volver a ofrecerlo.
    =========================================================================== */
-
-.hamburguesa {
-  flex: 0 0 auto; width: 40px; height: 40px; padding: 0;
-  appearance: none; border: 0; cursor: pointer; border-radius: var(--r-chico);
-  background: transparent; color: var(--tinta);
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
-  transition: background 160ms var(--curva), transform 160ms var(--curva-fuerte);
-}
-.hamburguesa span {
-  display: block; width: 18px; height: 1.8px; border-radius: 2px; background: currentColor;
-}
-.hamburguesa:active { transform: scale(.94); }
-@media (hover: hover) and (pointer: fine) {
-  .hamburguesa:hover { background: rgba(23, 41, 74, .07); }
-}
-
-/* El cajon entra desde la izquierda porque de ahi sale el boton: el movimiento
-   explica de donde vino. */
-.cajon {
-  position: fixed; z-index: 60; left: 0; top: 0; bottom: 0;
-  width: min(320px, 86vw);
-  background: var(--losa); box-shadow: var(--flota-4);
-  display: flex; flex-direction: column;
-  padding: 20px 18px 24px;
-  opacity: 1; transform: none;
-  transition: opacity .24s var(--curva-fuerte), transform .26s var(--curva-fuerte);
-}
-.cajon.entrando, .cajon.saliendo { opacity: 0; transform: translateX(-100%); }
-
-.cajon-cabeza { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.cajon-titulo {
-  margin: 0; font-family: var(--display); font-weight: 700; font-size: 13px;
-  letter-spacing: .16em; text-transform: uppercase;
-}
-.cajon-bajada { margin: 6px 0 18px; font-size: 13px; color: var(--tinta-2); }
-.cajon-lista { display: flex; flex-direction: column; gap: 4px; overflow-y: auto; }
-
-.rubro {
-  appearance: none; border: 0; cursor: pointer; text-align: left;
-  display: flex; align-items: center; gap: 10px;
-  padding: 12px 14px; border-radius: var(--r-chico);
-  background: transparent; color: var(--tinta);
-  font-family: var(--display); font-size: 13px; font-weight: 600; letter-spacing: .04em;
-  transition: background 160ms var(--curva), color 160ms var(--curva), transform 160ms var(--curva-fuerte);
-}
-.rubro-cuenta {
-  margin-left: auto; font-family: var(--datos); font-size: 10.5px; font-weight: 400;
-  color: var(--tinta-3); letter-spacing: 0;
-}
-.rubro.viva { background: var(--marca); color: var(--marca-tinta); }
-.rubro.viva .rubro-cuenta { color: inherit; opacity: .65; }
-.rubro:active { transform: scale(.98); }
-@media (hover: hover) and (pointer: fine) {
-  .rubro:hover { background: rgba(23, 41, 74, .07); }
-  .rubro.viva:hover { background: var(--marca); }
-}
 
 /* Interruptor claro / oscuro. La bola se mueve con transform, nunca con left. */
 .tema {
@@ -1089,50 +1009,10 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 .tema[aria-checked="true"] .tema-bola { transform: translateX(18px); }
 
 @media (max-width: 620px) {
-  .cajon { width: min(300px, 88vw); padding: 18px 14px 20px; }
+  
   .tema-pista { width: 38px; height: 22px; }
   .tema-bola { width: 16px; height: 16px; }
   .tema[aria-checked="true"] .tema-bola { transform: translateX(16px); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .cajon.entrando, .cajon.saliendo { transform: none; }
-}
-
-/* ===========================================================================
-   Boton flotante de WhatsApp
-   ---------------------------------------------------------------------------
-   Abajo a la izquierda, en la esquina que queda libre: el boton del pedido y el
-   panel viven a la derecha, y encimarlos taparia el carrito.
-   El verde es el de WhatsApp y no sale de la paleta de la marca a proposito —
-   es un logo ajeno y tenirlo de marino lo volveria irreconocible.
-   =========================================================================== */
-.wasap {
-  position: fixed; left: 24px; bottom: 24px; z-index: 45;
-  width: 52px; height: 52px; border-radius: 50%;
-  display: grid; place-items: center;
-  background: #25d366; color: #fff;
-  box-shadow: var(--flota-3);
-  transition: transform .2s var(--curva-fuerte), box-shadow .2s var(--curva);
-}
-.wasap svg { width: 30px; height: 30px; fill: currentColor; }
-
-/* Con la ficha, el pedido o el cajon abiertos el boton queda debajo del velo:
-   se ve como una mancha verde apagada y no se puede tocar. Mejor sacarlo. Los
-   tres velos estan antes en el HTML, por eso alcanza con el hermano. */
-.velo:not([hidden]) ~ .wasap { display: none; }
-.wasap:active { transform: scale(.94); }
-@media (hover: hover) and (pointer: fine) {
-  .wasap:hover { transform: translateY(-3px); box-shadow: var(--flota-4); }
-}
-
-@media (max-width: 620px) {
-  .wasap { left: 16px; bottom: 18px; width: 48px; height: 48px; }
-  .wasap svg { width: 27px; height: 27px; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .wasap { transition-duration: .12s; }
 }
 
 /* ===========================================================================
@@ -1155,7 +1035,7 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 .ficha-precio { font-weight: 800; font-size: 30px; letter-spacing: -.03em; }
 .pedido-subtotal { font-weight: 700; }
 .pedido-total { font-weight: 800; }
-.pieza-meta, .pieza-unit, .remito-linea, .destacados-nota, .rubro-cuenta {
+.pieza-meta, .pieza-unit, .remito-linea, .destacados-nota {
   font-family: var(--texto); letter-spacing: 0;
 }
 .pieza-meta { font-size: 12.5px; font-weight: 500; }
@@ -1214,8 +1094,7 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 .ficha-marco { box-shadow: none; border: 1px solid var(--linea); }
 .specs dt { font-family: var(--texto); font-size: 12px; font-weight: 700; letter-spacing: .01em; text-transform: none; }
 .pedido-cabeza h2 { font-size: 19px; letter-spacing: -.02em; }
-.cajon-titulo { text-transform: none; letter-spacing: -.01em; font-size: 17px; font-weight: 800; }
-.rubro { font-size: 14px; font-weight: 600; letter-spacing: 0; border-radius: var(--m-r-md); }
+
 .enviado h3 { letter-spacing: -.01em; font-size: 20px; }
 .campo { border: 1px solid var(--borde); box-shadow: none; border-radius: var(--m-r-md); min-height: 40px; }
 .campo:focus { border-color: var(--m-azul-500); box-shadow: var(--m-foco); }
@@ -1234,6 +1113,37 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 .pie-contacto a { color: var(--tinta-2); font-weight: 600; }
 .pie-contacto a:hover { color: var(--azul); }
 .pie-nota { font-size: 13px; }
+
+/* ---------- Contacto: el numero es una pastilla que abre WhatsApp ----------
+   El verde es solo el del logo de WhatsApp (ajeno a la paleta a proposito:
+   tenido de marino no se reconoce). El texto queda en la tinta del sitio. */
+.pie-titulo {
+  margin: 8px 0 0; font-family: var(--display); font-size: 17px; font-weight: 800;
+  letter-spacing: -.01em; color: var(--tinta);
+}
+.pie-whatsapp {
+  display: inline-flex; align-items: center; gap: 12px;
+  min-height: 56px; padding: 8px 22px 8px 9px; border-radius: var(--m-r-pill);
+  background: var(--losa); border: 1px solid var(--borde); box-shadow: var(--flota-1);
+  color: var(--tinta); text-decoration: none; text-align: left;
+  transition: border-color .18s var(--curva), box-shadow .18s var(--curva), transform .18s var(--curva-fuerte);
+}
+.pie-whatsapp[hidden] { display: none; }
+.pie-whatsapp svg {
+  flex: 0 0 auto; width: 40px; height: 40px; padding: 7px; border-radius: 50%;
+  background: #25d366; fill: #fff;
+}
+.pie-whatsapp-txt { display: flex; flex-direction: column; gap: 1px; }
+.pie-whatsapp-numero { font-weight: 800; font-size: 16px; letter-spacing: .01em; font-variant-numeric: tabular-nums; }
+.pie-whatsapp-accion { font-size: 12.5px; font-weight: 600; color: var(--tinta-2); }
+.pie-whatsapp:active { transform: scale(.97); }
+.pie-whatsapp:focus-visible { outline: none; box-shadow: var(--m-foco); }
+@media (hover: hover) and (pointer: fine) {
+  .pie-whatsapp:hover { border-color: #25d366; box-shadow: var(--flota-2); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pie-whatsapp { transition-duration: .01s; }
+}
 
 @media (max-width: 620px) {
   .pieza-precio { font-size: 18px; }
@@ -1284,19 +1194,6 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 .salta { animation: salta .22s var(--curva-fuerte); }
 @keyframes salta { 0% { transform: scale(.8); } 60% { transform: scale(1.15); } 100% { transform: scale(1); } }
 
-/* ---------- Rubros: boton con texto, dice cual esta activo ---------- */
-.hamburguesa {
-  width: auto; min-width: 40px; height: 40px; padding: 0 14px;
-  flex-direction: row; gap: 9px;
-  border: 1px solid var(--borde); background: var(--losa);
-  border-radius: var(--m-r-md);
-  font: 700 14px/1 var(--texto); letter-spacing: -.005em; color: var(--tinta);
-}
-.hamburguesa .hamburguesa-rayas { display: flex; flex-direction: column; gap: 4px; width: auto; height: auto; background: none; border-radius: 0; }
-.hamburguesa .hamburguesa-rayas span { display: block; width: 16px; height: 1.8px; border-radius: 2px; background: currentColor; }
-.hamburguesa .hamburguesa-txt { width: auto; height: auto; background: none; border-radius: 0; white-space: nowrap; }
-.hamburguesa.activo { background: var(--marca); border-color: var(--marca); color: var(--marca-tinta); }
-
 /* ---------- Precio y boton en la misma fila ---------- */
 .pieza-pie { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 3px; min-height: 44px; }
 .pieza-precios { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
@@ -1320,17 +1217,12 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
   .banner-sub { font-size: 15.5px; margin: 12px 0 22px; }
 
   .carrito { display: none; }           /* en el telefono el pedido vive abajo */
-  .hamburguesa { padding: 0; width: 40px; justify-content: center; }
-  .hamburguesa .hamburguesa-txt { display: none; }
-  .hamburguesa.activo { width: auto; padding: 0 12px; }
-  .hamburguesa.activo .hamburguesa-txt { display: inline; max-width: 12ch; overflow: hidden; text-overflow: ellipsis; }
 
   .pieza-pie { flex-direction: row; align-items: center; gap: 10px; padding: 0 2px; }
   .pieza-losa img { margin-bottom: 14%; }
   .pieza-losa:not(.sin-foto)::before { bottom: 10%; }
 
   body { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
-  .wasap { display: none; }              /* el contacto esta en el menu de la hamburguesa */
   .nota { bottom: calc(76px + env(safe-area-inset-bottom)); }
 
   .barra-inferior {
@@ -1356,7 +1248,6 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
   .salta { animation: none; }
 }
 
-
 /* ===========================================================================
    Ficha: la foto entra completa. Antes la imagen alta se estiraba por encima
    del marco y quedaba cortada; ahora llena el marco sin pasarse (contain) y la
@@ -1370,28 +1261,11 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 .ficha-marco img.cargando { filter: blur(7px); transform: scale(1.03); }
 @media (prefers-reduced-motion: reduce) { .ficha-marco img { transition: none; } }
 
-/* ---------- Menu de la hamburguesa: contacto y tema ---------- */
-.cajon-pie { margin-top: auto; padding-top: 14px; border-top: 1px solid var(--linea); display: grid; gap: 4px; }
-.cajon-opcion {
-  appearance: none; border: 0; background: none; cursor: pointer; width: 100%;
-  display: flex; align-items: center; gap: 12px; padding: 12px 10px; border-radius: var(--m-r-md);
-  font: 600 14px/1.2 var(--texto); color: var(--tinta); text-decoration: none; text-align: left;
-  transition: background .16s var(--curva);
-}
-.cajon-opcion[hidden] { display: none; }
-.cajon-opcion .ico { width: 20px; height: 20px; flex: 0 0 auto; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.cajon-opcion:hover { background: rgba(23, 41, 74, .06); }
-:root[data-theme="dark"] .cajon-opcion:hover { background: rgba(236, 234, 228, .08); }
-#cajon-contacto .ico { stroke: #1faa59; }
-.cajon-tema .tema-pista { margin-left: auto; pointer-events: none; }
-.cajon-tema[aria-checked="true"] .tema-pista { background: var(--m-azul-500); }
-.cajon-tema[aria-checked="true"] .tema-bola { transform: translateX(18px); }
-
 /* ---------- Lupa y cierre del buscador (solo celular) ---------- */
 .buscar-abrir, .buscar-cerrar { display: none; }
 
 /* ===========================================================================
-   Barra superior del celular: con los colores normales del sitio, hamburguesa a la izquierda, logo al
+   Barra superior del celular: con los colores normales del sitio, logo al
    centro y lupa a la derecha. El carrito no va aca: el pedido esta abajo.
    =========================================================================== */
 @media (max-width: 620px) {
@@ -1403,22 +1277,16 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
   .barra::before { display: none; }
   body.scrolleado .barra { box-shadow: var(--flota-2); }
 
-  .barra .hamburguesa, .buscar-abrir {
+  /* Sola a la derecha: el logo va centrado aparte (position absolute) */
+  .buscar-abrir {
+    margin-left: auto;
     width: 44px; height: 44px; padding: 0; border-radius: 50%; color: var(--tinta);
     display: grid; place-items: center; border: 0; background: transparent;
   }
-  .barra .hamburguesa { display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; }
-  .barra .hamburguesa .hamburguesa-rayas { gap: 5px; }
-  .barra .hamburguesa .hamburguesa-rayas span { width: 20px; height: 2px; }
-  .barra .hamburguesa:hover, .buscar-abrir:hover { background: rgba(23, 41, 74, .07); }
-  .barra .hamburguesa:active, .buscar-abrir:active { background: rgba(23, 41, 74, .13); }
+
+   .buscar-abrir:hover { background: rgba(23, 41, 74, .07); }
+   .buscar-abrir:active { background: rgba(23, 41, 74, .13); }
   /* Con un rubro elegido: un puntito en vez del nombre, que no entra */
-  .barra .hamburguesa.activo { width: 44px; padding: 0; background: transparent; border: 0; color: var(--tinta); }
-  .barra .hamburguesa.activo .hamburguesa-txt { display: none; }
-  .barra .hamburguesa.activo::after {
-    content: ''; position: absolute; top: 9px; right: 9px; width: 9px; height: 9px;
-    border-radius: 50%; background: var(--marca); box-shadow: 0 0 0 2px var(--losa);
-  }
 
   .barra .marca {
     position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
@@ -1454,9 +1322,8 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
   #buscar::-webkit-search-cancel-button { display: none; }   /* ya hay una cruz propia */
 }
 @media (max-width: 620px) {
-  :root[data-theme="dark"] .barra .hamburguesa:hover, :root[data-theme="dark"] .buscar-abrir:hover { background: rgba(236, 234, 228, .1); }
+   :root[data-theme="dark"] .buscar-abrir:hover { background: rgba(236, 234, 228, .1); }
 }
-
 
 /* ===========================================================================
    Modo oscuro en grafito (gris carbon neutro) en vez del azul marino.
@@ -1496,10 +1363,9 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 }
 :root[data-theme="dark"] .banner { background: #1b1c20; }
 :root[data-theme="dark"] .nota { background: #ECEDF0; color: #16171a; }
-:root[data-theme="dark"] .cajon { background: #1b1c20; }
+
 :root[data-theme="dark"] .velo { background: rgba(0, 0, 0, .55); }
-:root[data-theme="dark"] .tema[aria-checked="true"] .tema-pista,
-:root[data-theme="dark"] .cajon-tema[aria-checked="true"] .tema-pista { background: #8B8F99; }
+:root[data-theme="dark"] .tema[aria-checked="true"] .tema-pista { background: #8B8F99; }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .velo { background: rgba(0, 0, 0, .55); }
 }
@@ -1518,21 +1384,20 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 }
 
 /* ===========================================================================
-   Celular: al bajar quedan fijos la barra de arriba y los rubros (Todo,
-   Salsas, ...). Los selectores de marca y orden pasan a ser parte de la pagina:
-   se ven arriba del todo y se van con el scroll en vez de ocupar pantalla.
-   En la PC no cambia nada: ahi siguen en la misma fila fija.
+   Celular: al bajar quedan fijos la barra de arriba y la categoria. Marca y
+   orden pasan a ser parte de la pagina: se ven arriba del todo y se van con el
+   scroll en vez de ocupar pantalla. En la PC los tres siguen en la misma fila
+   fija.
    =========================================================================== */
 @media (max-width: 620px) {
   .rail { display: contents; }
-  .rail-pistas {
+  .rail-categoria {
     position: sticky; top: 60px; z-index: 30;
-    background: var(--piso); mask-image: none; -webkit-mask-image: none;
-    width: auto; margin: 0; padding: 8px 10px;
+    background: var(--piso); padding: 8px 10px;
   }
+  .rail-categoria .menu { width: 100%; }
   .rail-fin { width: auto; padding: 0 10px 12px; }
 }
-
 
 /* ===========================================================================
    Los mas pedidos: el producto llena la foto de la tarjeta. Estaba al 76% del
