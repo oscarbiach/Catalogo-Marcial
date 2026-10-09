@@ -323,11 +323,44 @@ caso('H18 Filtro elegido sobre la cache se conserva al llegar el catalogo fresco
   await contexto.unrouteAll();
   const { pagina } = await abrir(nav, base, { contexto, demoraSupabase: 1500 });
   await esperarCatalogo(pagina);
-  await pagina.locator('#chips .pista[data-categoria="Panificados"]').click();
+  await pagina.locator('#filtro-categoria').selectOption('Panificados');
   await pagina.waitForTimeout(2200);
-  assert.strictEqual(await pagina.locator('#chips .pista.viva').getAttribute('data-categoria'), 'Panificados');
+  assert.strictEqual(await pagina.locator('#filtro-categoria').inputValue(), 'Panificados');
   assert.strictEqual(await pagina.locator('#grilla .pieza').count(), 1);
   await contexto.close();
+});
+
+caso('Filtros: tres listas (categoria, marca, orden) y sin menu de rubros', async (nav, base) => {
+  const { pagina, errores } = await abrir(nav, base);
+  await esperarCatalogo(pagina);
+  assert.strictEqual(await pagina.locator('.rail select:visible').count(), 3);
+  assert.strictEqual(await pagina.locator('#abrir-rubros, #rubros, #chips, .wasap').count(), 0);
+  await pagina.locator('#filtro-categoria').selectOption('Mayonesas y Aderezos');
+  assert.deepStrictEqual(await pagina.locator('#grilla .pieza').evaluateAll((els) => els.map((e) => e.dataset.id)), ['300']);
+  await pagina.locator('#filtro-categoria').selectOption('');
+  assert.strictEqual(await pagina.locator('#grilla .pieza').count(), 3);
+  assert.deepStrictEqual(errores, []);
+});
+
+caso('Modo oscuro apagado: con el telefono en oscuro el sitio queda claro y sin interruptor', async (nav, base) => {
+  const contexto = await nav.newContext({ serviceWorkers: 'block', colorScheme: 'dark' });
+  await contexto.addInitScript(() => localStorage.setItem('catalogo_tema_v1', 'oscuro'));
+  const { pagina } = await abrir(nav, base, { contexto });
+  await esperarCatalogo(pagina);
+  assert.strictEqual(await pagina.evaluate(() => document.documentElement.dataset.theme), 'light');
+  assert.strictEqual(await pagina.locator('#tema').isHidden(), true);
+  const fondo = await pagina.evaluate(() => getComputedStyle(document.body).backgroundColor);
+  assert.notStrictEqual(fondo, 'rgb(19, 20, 23)');
+  await contexto.close();
+});
+
+caso('Contacto: el numero del pie es una pastilla que abre WhatsApp', async (nav, base) => {
+  const { pagina } = await abrir(nav, base);
+  await esperarCatalogo(pagina);
+  const pastilla = pagina.locator('#contacto #pie-whatsapp');
+  assert.strictEqual(await pastilla.isVisible(), true);
+  assert.match(await pastilla.getAttribute('href'), /^https:\/\/wa\.me\/5491100000000\?text=/);
+  assert.strictEqual(await pagina.locator('#pie-whatsapp-numero').innerText(), '+54 9 11 0000-0000');
 });
 
 // ── Ejecucion ──────────────────────────────────────────────────────────

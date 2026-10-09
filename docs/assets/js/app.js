@@ -30,6 +30,12 @@ import {
   var CLAVE_REF = 'catalogo_pedido_ref_v1';
   var CLAVE_REGLAS_CAJA = 'catalogo_reglas_caja_v1';
   var CLAVE_TEMA = 'catalogo_tema_v1';
+  // El modo oscuro se habilita desde el <meta name="catalogo-modo-oscuro"> de
+  // index.html. Con "no" el sitio queda siempre claro y el interruptor oculto.
+  var MODO_OSCURO = (function () {
+    var meta = document.querySelector('meta[name="catalogo-modo-oscuro"]');
+    return !!meta && meta.content === 'si';
+  })();
 
   // Un pedido ya enviado se descarta solo pasado este tiempo. Antes de eso
   // sigue disponible, para que tocar "Enviar" por error no cueste rehacerlo.
@@ -55,7 +61,7 @@ import {
 
   var estado = {
     datos: null,
-    filtro: { texto: '', categoria: '', marca: '', rubro: '' },
+    filtro: { texto: '', categoria: '', marca: '' },
     orden: 'destacados',
     visibles: [],
     fichaActual: null,
@@ -76,7 +82,6 @@ import {
     // cerrando todavia no esta oculto, y quien pregunte se lleva la respuesta
     // de hace un momento.
     pedidoAbierto: false,
-    rubrosAbierto: false,
   };
 
   var $ = function (id) { return document.getElementById(id); };
@@ -702,7 +707,6 @@ import {
     aplicarConfig(datos.config);
     llenarCategorias(datos.categorias);
     llenarMarcas(datos.marcas);
-    llenarRubros(datos.rubros);
     dibujar();
     dibujarDestacados();
     dibujarPedido();   // el pedido guardado se resuelve contra el catalogo nuevo
@@ -732,8 +736,13 @@ import {
     // marino de Marcial) esta fijada en el CSS. Dejarlo configurable invitaba
     // a romperla desde el panel sin querer.
 
+    // El WhatsApp va en su propia pastilla (pie-whatsapp). El telefono se lista
+    // aparte solo si es otro numero.
+    var numero = String(config.whatsapp || '').replace(/[^0-9]/g, '');
     var contactos = [];
-    if (config.telefono) contactos.push({ etiqueta: config.telefono, url: 'tel:' + config.telefono.replace(/\s/g, '') });
+    if (config.telefono && String(config.telefono).replace(/[^0-9]/g, '') !== numero) {
+      contactos.push({ etiqueta: config.telefono, url: 'tel:' + config.telefono.replace(/\s/g, '') });
+    }
     if (config.email) contactos.push({ etiqueta: config.email, url: 'mailto:' + config.email });
     if (config.instagram) contactos.push({ etiqueta: '@' + config.instagram, url: 'https://instagram.com/' + config.instagram });
     if (config.direccion) contactos.push({ etiqueta: config.direccion, url: '' });
@@ -746,9 +755,8 @@ import {
 
     if (config.whatsapp) $('cta-whatsapp').href = enlaceWhatsapp(null);
 
-    // El boton flotante lleva un saludo fijo, no el mensaje del pedido: es
-    // para una consulta suelta, no para mandar un pedido armado.
-    var numero = String(config.whatsapp || '').replace(/[^0-9]/g, '');
+    // La pastilla de contacto lleva un saludo fijo, no el mensaje del pedido:
+    // es para una consulta suelta, no para mandar un pedido armado.
     var enlaceContacto = numero
       ? 'https://wa.me/' + numero + '?text=' + encodeURIComponent('Hola me comunico desde la pagina!')
       : '';
@@ -760,12 +768,25 @@ import {
       $('ver-lista-txt').textContent = 'Ver lista de precios';
     }
 
-    ['wasap', 'cajon-contacto'].forEach(function (id) {
-      var el = $(id);
-      if (!el) return;
-      el.hidden = !numero;
-      if (numero) el.href = enlaceContacto;
-    });
+    var pastilla = $('pie-whatsapp');
+    pastilla.hidden = !numero;
+    if (numero) {
+      pastilla.href = enlaceContacto;
+      $('pie-whatsapp-numero').textContent = numeroLegible(numero);
+      pastilla.setAttribute('aria-label', 'Escribinos por WhatsApp al ' + numeroLegible(numero));
+    }
+  }
+
+  /**
+   * 5493426288271 -> +54 9 342 628-8271. Para Argentina toma la caracteristica
+   * de 3 cifras (2 para el 11); otros formatos se muestran con un + adelante.
+   */
+  function numeroLegible(numero) {
+    var m = /^549(\d{10})$/.exec(numero);
+    if (!m) return '+' + numero;
+    var resto = m[1];
+    var area = resto.indexOf('11') === 0 ? 2 : 3;
+    return '+54 9 ' + resto.slice(0, area) + ' ' + resto.slice(area, -4) + '-' + resto.slice(-4);
   }
 
   function enlaceWhatsapp(producto) {
@@ -790,19 +811,19 @@ import {
   // -------------------------------------------------------------------------
 
   /**
-   * [AUDITORIA H18] Al refrescar el catalogo se rehacen las pastillas y el
-   * selector, pero respetando el filtro que ya estaba elegido. Antes la
+   * [AUDITORIA H18] Al refrescar el catalogo se rehacen los selectores, pero
+   * respetando el filtro que ya estaba elegido. Antes la
    * pantalla volvia a "Todo" mientras la grilla seguia filtrando. Si lo
    * elegido ya no existe, se suelta el filtro para no dejar la grilla vacia.
    */
   function llenarCategorias(categorias) {
     if (estado.filtro.categoria && categorias.indexOf(estado.filtro.categoria) === -1) estado.filtro.categoria = '';
-    var elegida = estado.filtro.categoria;
-    $('chips').innerHTML = '<button class="pista' + (elegida ? '' : ' viva') + '" type="button" data-categoria="">Todo</button>' +
+    $('filtro-categoria').innerHTML = '<option value="">Todas las categorías</option>' +
       categorias.map(function (c) {
-        return '<button class="pista' + (c === elegida ? ' viva' : '') + '" type="button" data-categoria="' +
-          escapar(c) + '">' + escapar(c) + '</button>';
+        return '<option value="' + escapar(c) + '">' + escapar(c) + '</option>';
       }).join('');
+    $('filtro-categoria').value = estado.filtro.categoria;
+    $('filtro-categoria').hidden = categorias.length < 2;
   }
 
   function llenarMarcas(marcas) {
@@ -815,14 +836,23 @@ import {
     $('filtro-marca').hidden = marcas.length < 2;
   }
 
-  $('chips').addEventListener('click', function (evento) {
-    var pista = evento.target.closest('.pista');
-    if (!pista) return;
-    Array.prototype.forEach.call($('chips').querySelectorAll('.pista'), function (p) {
-      p.classList.toggle('viva', p === pista);
-    });
-    estado.filtro.categoria = pista.dataset.categoria;
+  /**
+   * Con la lista ya bajada, al cambiar un filtro se vuelve al principio del
+   * catalogo: si no, el resultado nuevo puede quedar arriba, fuera de la vista.
+   */
+  function volverAlCatalogo() {
+    var catalogo = $('catalogo');
+    var fijo = $('filtro-categoria').closest('.rail-categoria').getBoundingClientRect().bottom;
+    var destino = catalogo.getBoundingClientRect().top + window.scrollY - Math.max(0, fijo) - 8;
+    if (window.scrollY > destino) {
+      window.scrollTo({ top: destino, behavior: quietud.matches ? 'auto' : 'smooth' });
+    }
+  }
+
+  $('filtro-categoria').addEventListener('change', function (e) {
+    estado.filtro.categoria = e.target.value;
     dibujar();
+    volverAlCatalogo();
   });
 
   var debounce = null;
@@ -838,21 +868,20 @@ import {
   $('filtro-marca').addEventListener('change', function (e) {
     estado.filtro.marca = e.target.value;
     dibujar();
+    volverAlCatalogo();
   });
 
   $('orden').addEventListener('change', function (e) {
     estado.orden = e.target.value;
     dibujar();
+    volverAlCatalogo();
   });
 
   $('limpiar-filtros').addEventListener('click', function () {
-    estado.filtro = { texto: '', categoria: '', marca: '', rubro: '' };
-    marcarRubro('');
+    estado.filtro = { texto: '', categoria: '', marca: '' };
     $('buscar').value = '';
+    $('filtro-categoria').value = '';
     $('filtro-marca').value = '';
-    Array.prototype.forEach.call($('chips').querySelectorAll('.pista'), function (p, i) {
-      p.classList.toggle('viva', i === 0);
-    });
     dibujar();
   });
 
@@ -870,9 +899,6 @@ import {
     var lista = productos.filter(function (p) {
       if (estado.filtro.categoria && p.categoria !== estado.filtro.categoria) return false;
       if (estado.filtro.marca && p.marca !== estado.filtro.marca) return false;
-      // Un producto puede servirle a varios rubros: alcanza con que este el
-      // elegido. Sin rubros cargados solo aparece en 'Todo el catalogo'.
-      if (estado.filtro.rubro && (p.rubros || []).indexOf(estado.filtro.rubro) === -1) return false;
       if (!palabras.length) return true;
       // [AUDITORIA H16] heno viene normalizado de normalizarCatalogo.
       return palabras.every(function (palabra) { return p.heno.indexOf(palabra) > -1; });
@@ -1008,7 +1034,7 @@ import {
     });
   }
 
-  /** El orden de las secciones es el de las pastillas de rubros. */
+  /** El orden de las secciones es el de la lista de categorias. */
   function ordenSecciones(lista) {
     var orden = ((estado.datos && estado.datos.categorias) || []).map(function (c) {
       return typeof c === 'string' ? c : (c && (c.nombre || c.id)) || '';
@@ -1794,8 +1820,7 @@ import {
   // Escape cierra lo que este abierto, primero el pedido y despues la ficha
   document.addEventListener('keydown', function (evento) {
     if (evento.key !== 'Escape') return;
-    if (estado.rubrosAbierto) cerrarRubros();
-    else if (estado.pedidoAbierto) cerrarPedido();
+    if (estado.pedidoAbierto) cerrarPedido();
     else if (estado.fichaActual) cerrarFicha();
   });
 
@@ -2401,6 +2426,7 @@ import {
   }
 
   function esOscuro() {
+    if (!MODO_OSCURO) return false;
     var guardado = temaGuardado();
     if (guardado) return guardado === 'oscuro';
     return window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -2408,21 +2434,17 @@ import {
 
   function aplicarTema(oscuro) {
     document.documentElement.setAttribute('data-theme', oscuro ? 'dark' : 'light');
-    ['tema', 'tema-cajon'].forEach(function (id) {
-      var boton = $(id);
-      if (!boton) return;
-      boton.setAttribute('aria-checked', oscuro ? 'true' : 'false');
-      if (id === 'tema') boton.setAttribute('aria-label', oscuro ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro');
-    });
+    var boton = $('tema');
+    boton.hidden = !MODO_OSCURO;
+    boton.setAttribute('aria-checked', oscuro ? 'true' : 'false');
+    boton.setAttribute('aria-label', oscuro ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro');
   }
 
-  ['tema', 'tema-cajon'].forEach(function (id) {
-    if (!$(id)) return;
-    $(id).addEventListener('click', function () {
-      var ahora = !esOscuro();
-      try { localStorage.setItem(CLAVE_TEMA, ahora ? 'oscuro' : 'claro'); } catch (err) { /* sin espacio: igual cambia */ }
-      aplicarTema(ahora);
-    });
+  $('tema').addEventListener('click', function () {
+    if (!MODO_OSCURO) return;
+    var ahora = !esOscuro();
+    try { localStorage.setItem(CLAVE_TEMA, ahora ? 'oscuro' : 'claro'); } catch (err) { /* sin espacio: igual cambia */ }
+    aplicarTema(ahora);
   });
 
   // ---------- Buscador del celular: una lupa que abre el campo sobre la barra ----------
@@ -2451,87 +2473,8 @@ import {
 
   // Mientras el usuario no haya elegido, el sitio sigue al sistema en vivo.
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function (e) {
-    if (!temaGuardado()) aplicarTema(e.matches);
+    if (MODO_OSCURO && !temaGuardado()) aplicarTema(e.matches);
   });
-
-  // -------------------------------------------------------------------------
-  // Cajon de rubros
-  // -------------------------------------------------------------------------
-
-  /** Cuantos productos activos le sirven a cada rubro. */
-  function contarRubro(rubro) {
-    var productos = (estado.datos && estado.datos.productos) || [];
-    if (!rubro) return productos.length;
-    return productos.filter(function (p) { return (p.rubros || []).indexOf(rubro) > -1; }).length;
-  }
-
-  function llenarRubros(rubros) {
-    var lista = $('rubros-lista');
-    if (!lista) return;
-
-    var botones = [{ valor: '', etiqueta: 'Todo el catalogo' }].concat(
-      rubros.map(function (r) { return { valor: r, etiqueta: r }; }));
-
-    lista.innerHTML = botones.map(function (b) {
-      return '<button class="rubro" type="button" data-rubro="' + escapar(b.valor) + '">' +
-        '<span>' + escapar(b.etiqueta) + '</span>' +
-        '<span class="rubro-cuenta">' + contarRubro(b.valor) + '</span>' +
-      '</button>';
-    }).join('');
-
-    if (estado.filtro.rubro && rubros.indexOf(estado.filtro.rubro) === -1) estado.filtro.rubro = '';
-    marcarRubro(estado.filtro.rubro);
-    // Sin rubros cargados el boton no tiene para que estar.
-    if ($('abrir-rubros')) $('abrir-rubros').hidden = rubros.length === 0;
-  }
-
-  function marcarRubro(rubro) {
-    var lista = $('rubros-lista');
-    if (!lista) return;
-    Array.prototype.forEach.call(lista.querySelectorAll('.rubro'), function (b) {
-      b.classList.toggle('viva', b.dataset.rubro === (rubro || ''));
-    });
-
-    // El boton de la barra dice el rubro elegido, asi el filtro no queda escondido
-    var boton = $('abrir-rubros');
-    if (boton) {
-      var texto = boton.querySelector('.hamburguesa-txt');
-      if (texto) texto.textContent = rubro || 'Rubros';
-      boton.classList.toggle('activo', !!rubro);
-      boton.setAttribute('aria-label', rubro ? 'Rubro: ' + rubro : 'Rubros');
-    }
-  }
-
-  function abrirRubros() {
-    mostrarSuave($('rubros-velo'));
-    mostrarSuave($('rubros'));
-    estado.rubrosAbierto = true;
-    $('abrir-rubros').setAttribute('aria-expanded', 'true');
-    $('rubros-cerrar').focus();
-  }
-
-  function cerrarRubros() {
-    estado.rubrosAbierto = false;
-    ocultarSuave($('rubros'), 260);
-    ocultarSuave($('rubros-velo'), 260);
-    $('abrir-rubros').setAttribute('aria-expanded', 'false');
-  }
-
-  if ($('abrir-rubros')) {
-    $('abrir-rubros').addEventListener('click', abrirRubros);
-    $('rubros-cerrar').addEventListener('click', cerrarRubros);
-    $('rubros-velo').addEventListener('click', cerrarRubros);
-
-    $('rubros-lista').addEventListener('click', function (evento) {
-      var boton = evento.target.closest('.rubro');
-      if (!boton) return;
-      estado.filtro.rubro = boton.dataset.rubro || '';
-      marcarRubro(estado.filtro.rubro);
-      dibujar();
-      cerrarRubros();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    });
-  }
 
   // -------------------------------------------------------------------------
   // Barra inferior: que item corresponde a lo que se ve
@@ -2585,7 +2528,6 @@ import {
   seguirSeccion();
   arrastrable($('destacados-pista'), false);   // sin rueda: esta arriba y no debe trabar el scroll de la pagina
   marquesina($('destacados-pista'));
-  arrastrable($('chips'), false);
   recuperarPedido();
   recordarCliente();
   iniciar();
