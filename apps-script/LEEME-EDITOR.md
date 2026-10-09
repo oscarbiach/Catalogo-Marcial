@@ -67,3 +67,11 @@ Pasos (una sola vez):
 
 Del lado de Supabase la columna `unidad_precio` y la sincronizacion ya estan en
 `supabase/02-sincronizacion.sql`.
+
+## Venta solo por caja cerrada
+
+Debajo de "El precio es por…" está la casilla **"Se vende solo por caja cerrada"**
+(aparece cuando la planilla ya tiene las columnas `solo_caja` y `kg_caja`; ver
+`LEEME-CAJA.md`). Con precio por unidad usa las unidades por caja; con precio por
+kilo pide los kilos de la caja. Las mismas reglas que el sitio: si falta un dato,
+no deja guardar. Los cambios quedan en `Historial fichas`.

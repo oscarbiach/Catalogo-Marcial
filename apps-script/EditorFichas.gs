@@ -100,6 +100,17 @@ function ef_verdadero_(v) {
   return s === 'true' || s === 'si' || s === 'sí' || s === '1' || s === 'x' || s === 'verdadero';
 }
 
+/**
+ * Kilos de una caja: coma o punto son decimales ("3,6" y "3.6" -> 3.6).
+ * Vacio -> 0. Ilegible o fuera de 0 a 1000 kg -> NaN (el que llama decide).
+ */
+function ef_kilos_(v) {
+  if (v === '' || v === null || v === undefined) return 0;
+  var n = typeof v === 'number' ? v : parseFloat(String(v).trim().replace(',', '.'));
+  if (!isFinite(n) || n < 0 || n > 1000) return NaN;
+  return Math.round(n * 1000) / 1000;
+}
+
 /** Saca los ids de Drive de la celda de imagenes, sea lista JSON, separada por comas o enlaces. */
 function ef_idsImagen_(valor) {
   if (valor === '' || valor === null || valor === undefined) return [];
@@ -169,7 +180,8 @@ function ef_listar() {
     if (!col[k]) throw new Error('En la hoja "' + EF.HOJA + '" falta la columna "' + k + '".');
   });
   var ultima = hoja.getLastRow();
-  if (ultima < 2) return { productos: [], categorias: [], tieneColumnaUnidad: !!col.unidad_precio };
+  var tieneCaja = !!(col.solo_caja && col.kg_caja);
+  if (ultima < 2) return { productos: [], categorias: [], tieneColumnaUnidad: !!col.unidad_precio, tieneColumnasCaja: tieneCaja };
 
   var valores = hoja.getRange(2, 1, ultima - 1, hoja.getLastColumn()).getValues();
   var dato = function (fila, k) { return col[k] ? fila[col[k] - 1] : ''; };
@@ -194,11 +206,14 @@ function ef_listar() {
       unidadesCaja: dato(fila, 'unidades_caja') === '' ? '' : Number(dato(fila, 'unidades_caja')),
       unidadPrecio: col.unidad_precio ? String(dato(fila, 'unidad_precio') || '').trim().toLowerCase() : '',
       imagenes: ef_idsImagen_(dato(fila, 'imagenes')),
-      activo: col.activo ? ef_verdadero_(dato(fila, 'activo')) : true
+      activo: col.activo ? ef_verdadero_(dato(fila, 'activo')) : true,
+      // Venta solo por caja cerrada (columnas de CajaCerrada.gs).
+      soloCaja: tieneCaja ? ef_verdadero_(dato(fila, 'solo_caja')) : false,
+      kgCaja: tieneCaja ? ef_kilos_(dato(fila, 'kg_caja')) : 0
     });
   });
 
-  return { productos: productos, categorias: Object.keys(categorias).sort(), tieneColumnaUnidad: !!col.unidad_precio };
+  return { productos: productos, categorias: Object.keys(categorias).sort(), tieneColumnaUnidad: !!col.unidad_precio, tieneColumnasCaja: tieneCaja };
 }
 
 /** Prueba segura: solo lee y cuenta. Sirve para revisar que todo este bien antes de usar el editor. */
@@ -335,6 +350,41 @@ function ef_guardar(fila, id, datos) {
         revisarConflicto('unidad del precio', 'unidadPrecio', unidadAntes, unidad);
         escrituras.push({ celda: celdaUnidad, valor: unidad,
           registro: [new Date(), String(id), nombre, 'unidad_precio', unidadAntes, unidad] });
+      }
+    }
+
+    // Venta solo por caja cerrada. Se valida con la unidad y las unidades que
+    // van a quedar despues de este guardado: las mismas reglas que el sitio.
+    if (datos.soloCaja !== undefined && datos.soloCaja !== null) {
+      if (!col.solo_caja || !col.kg_caja) {
+        throw new Error('Faltan las columnas solo_caja y kg_caja. Ejecuta cc_aplicar (CajaCerrada.gs) una sola vez.');
+      }
+      var solo = datos.soloCaja === true;
+      var kg = solo ? ef_kilos_(datos.kgCaja) : 0;
+      if (isNaN(kg)) throw new Error('Los kilos de la caja tienen que ser un numero entre 0 y 1000 (por ejemplo 3,6).');
+      var unidadFinal = (datos.unidadPrecio !== undefined && datos.unidadPrecio !== null)
+        ? String(datos.unidadPrecio).trim().toLowerCase()
+        : (col.unidad_precio ? String(hoja.getRange(fila, col.unidad_precio).getValue() || '').trim().toLowerCase() : '');
+      if (solo) {
+        if (unidadFinal === 'kg' && !(kg > 0)) throw new Error('Para vender por caja con precio por kilo, carga los kilos de la caja.');
+        if (unidadFinal === 'unidad' && !(Number(nuevos.unidades_caja) > 1)) throw new Error('Para vender por caja con precio por unidad, las unidades por caja tienen que ser mas de 1.');
+        if (unidadFinal !== 'kg' && unidadFinal !== 'unidad') throw new Error('La venta solo por caja cerrada necesita precio por kilo o por unidad.');
+      }
+      if (unidadFinal !== 'kg') kg = 0;
+
+      var celdaSolo = hoja.getRange(fila, col.solo_caja);
+      var celdaKg = hoja.getRange(fila, col.kg_caja);
+      var soloAntes = ef_verdadero_(celdaSolo.getValue());
+      var kgAntes = ef_kilos_(celdaKg.getValue());
+      if (soloAntes !== solo) {
+        revisarConflicto('solo por caja', 'soloCaja', soloAntes, solo);
+        escrituras.push({ celda: celdaSolo, valor: solo ? true : '',
+          registro: [new Date(), String(id), nombre, 'solo_caja', String(soloAntes), String(solo)] });
+      }
+      if (!(kgAntes === kg || (isNaN(kgAntes) && kg === 0))) {
+        revisarConflicto('kilos de la caja', 'kgCaja', kgAntes, kg);
+        escrituras.push({ celda: celdaKg, valor: kg > 0 ? kg : '',
+          registro: [new Date(), String(id), nombre, 'kg_caja', String(kgAntes), String(kg)] });
       }
     }
 

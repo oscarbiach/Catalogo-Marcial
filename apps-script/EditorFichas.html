@@ -106,6 +106,12 @@
   .unidad-op.on[data-u="caja"] { background:var(--naranja); border-color:var(--naranja); color:#fff; }
   .unidad-op[disabled] { opacity:.5; cursor:default; }
   .unidad-vista { margin-top:6px; background:var(--azul-claro); color:var(--azul-osc); border-radius:10px; padding:5px 10px; font-size:12.5px; }
+  .caja-fila { display:flex; gap:14px; align-items:center; flex-wrap:wrap; margin-top:10px; }
+  .caja-fila label.chk { display:flex; gap:8px; align-items:center; font-weight:700; cursor:pointer; margin:0; }
+  .caja-fila input[type=checkbox] { width:18px; height:18px; }
+  .caja-fila .kg { display:flex; gap:6px; align-items:center; }
+  .caja-fila .kg input { width:90px; }
+  .caja-fila[hidden], .caja-fila .kg[hidden] { display:none; }
   .unidad-aviso { margin-top:8px; background:var(--rojo-claro); color:var(--rojo); border-radius:10px; padding:8px 12px; font-size:13px; font-weight:600; }
   .estado { min-height:22px; font-weight:700; }
   .estado.ok { color:var(--verde-osc); }
@@ -182,6 +188,11 @@
           <button type="button" class="unidad-op" data-u="caja">📦 Caja</button>
           <button type="button" class="unidad-op" data-u="">🤖 Automático</button>
         </div>
+        <div class="caja-fila" id="caja-fila">
+          <label class="chk" for="solo-caja"><input type="checkbox" id="solo-caja"> 📦 Se vende solo por caja cerrada</label>
+          <span class="kg" id="kg-caja-campo" hidden><label for="kg-caja" style="margin:0">⚖️ Kilos de la caja</label>
+            <input type="text" id="kg-caja" inputmode="decimal" placeholder="Ej.: 3,6"></span>
+        </div>
         <div class="unidad-vista" id="unidad-vista"></div>
         <div class="unidad-aviso" id="unidad-aviso" hidden>Falta preparar la planilla: ejecutá <b>ef_prepararColumnas</b> una sola vez desde el Apps Script y volvé a abrir el editor.</div>
       </div>
@@ -220,7 +231,7 @@
 (function () {
   var todos = [], lista = [], pos = 0, original = null, fotos = {}, ocupado = false;
   var filtro = 'falta-desc', fotosEdit = [], fotoSel = 0, confirmar = -1, arrastrando = -1;
-  var unidadSel = '', hayColumnaUnidad = true;
+  var unidadSel = '', hayColumnaUnidad = true, hayColumnasCaja = false;
   var $ = function (id) { return document.getElementById(id); };
 
   function llamar(nombre) {
@@ -267,7 +278,8 @@
 
   // ---------- formulario ----------
   function formaActual() {
-    return { nombre: $('nombre').value, descripcion: $('descripcion').value, presentacion: $('presentacion').value, unidadesCaja: $('unidades').value, imagenes: fotosEdit.slice(), unidadPrecio: unidadSel };
+    return { nombre: $('nombre').value, descripcion: $('descripcion').value, presentacion: $('presentacion').value, unidadesCaja: $('unidades').value, imagenes: fotosEdit.slice(), unidadPrecio: unidadSel,
+             soloCaja: $('solo-caja').checked, kgCaja: kilos($('kg-caja').value) };
   }
   function hayCambios() {
     if (!original) return false;
@@ -277,7 +289,9 @@
            a.presentacion.trim() !== original.presentacion.trim() ||
            String(a.unidadesCaja).trim() !== String(original.unidadesCaja) ||
            a.imagenes.join('|') !== original.imagenes.join('|') ||
-           a.unidadPrecio !== original.unidadPrecio;
+           a.unidadPrecio !== original.unidadPrecio ||
+           a.soloCaja !== original.soloCaja ||
+           (a.soloCaja && a.kgCaja !== original.kgCaja);
   }
   function estado(texto, tipo) { var e = $('estado'); e.textContent = texto || ''; e.className = 'estado' + (tipo ? ' ' + tipo : ''); }
 
@@ -365,13 +379,44 @@
     if (u === 'caja') return 'En el catálogo: ' + precio + ' por caja' + (uc > 1 ? ' de ' + uc : '') + '. El cliente pide en cajas.';
     return 'Automático: si tiene unidades por caja se pide por caja; si la presentación dice “Por kg”, por kilo; si no, por unidad.';
   }
+  /** "3,6" o "3.6" -> 3.6; vacio -> 0; ilegible -> NaN (igual que ef_kilos_). */
+  function kilos(v) {
+    v = String(v === null || v === undefined ? '' : v).trim();
+    if (!v) return 0;
+    var n = parseFloat(v.replace(',', '.'));
+    return isFinite(n) && n >= 0 && n <= 1000 ? Math.round(n * 1000) / 1000 : NaN;
+  }
+  /** Mismas reglas que el sitio y que ef_guardar. Devuelve '' si esta bien. */
+  function problemaCaja() {
+    if (!$('solo-caja').checked) return '';
+    var uc = Number($('unidades').value) || 0, kg = kilos($('kg-caja').value);
+    if (unidadSel === 'kg') return kg > 0 ? '' : 'Cargá los kilos de la caja (por ejemplo 3,6).';
+    if (unidadSel === 'unidad') return uc > 1 ? '' : 'Cargá las unidades por caja (más de 1).';
+    return 'La venta solo por caja necesita precio por Kilo o por Unidad.';
+  }
+  /** Con "solo por caja" marcado, la vista dice como lo ve el cliente: pide en cajas. */
+  function textoCaja(p) {
+    var falta = problemaCaja();
+    if (falta) return '⚠️ ' + falta;
+    var factor = unidadSel === 'kg' ? kilos($('kg-caja').value) : Number($('unidades').value);
+    var contenido = unidadSel === 'kg' ? String(factor).replace('.', ',') + ' kg' : factor + ' unidades';
+    var precio = p.precio !== null ? '$ ' + p.precio.toLocaleString('es-AR') : 'el precio';
+    return 'En el catálogo: ' + precio + ' por ' + (unidadSel === 'kg' ? 'kg' : 'unidad') +
+      '. Se vende solo por caja cerrada de ' + contenido +
+      (p.precio !== null ? ' (cada caja sale $ ' + (Math.round(p.precio * factor * 100) / 100).toLocaleString('es-AR') + ')' : '') +
+      '. El cliente pide en cajas.';
+  }
   function pintarUnidad() {
+    $('caja-fila').hidden = !hayColumnasCaja;
+    $('kg-caja-campo').hidden = !$('solo-caja').checked || unidadSel !== 'kg';
+    $('solo-caja').disabled = !hayColumnasCaja || !lista.length;
     Array.prototype.forEach.call(document.querySelectorAll('.unidad-op'), function (b) {
       b.classList.toggle('on', b.getAttribute('data-u') === unidadSel);
       b.disabled = !hayColumnaUnidad || !lista.length;
     });
     $('unidad-aviso').hidden = hayColumnaUnidad;
-    $('unidad-vista').textContent = lista.length ? textoUnidad(lista[pos], unidadSel) : '';
+    var porCaja = hayColumnasCaja && $('solo-caja').checked;
+    $('unidad-vista').textContent = !lista.length ? '' : (porCaja ? textoCaja(lista[pos]) : textoUnidad(lista[pos], unidadSel));
   }
   Array.prototype.forEach.call(document.querySelectorAll('.unidad-op'), function (b) {
     b.addEventListener('click', function () {
@@ -381,6 +426,8 @@
     });
   });
   $('unidades').addEventListener('input', function () { if (lista.length) pintarUnidad(); });
+  $('solo-caja').addEventListener('change', function () { pintarUnidad(); estado('Cambiaste la venta por caja. Se guarda al tocar “Guardar”.'); });
+  $('kg-caja').addEventListener('input', function () { if (lista.length) pintarUnidad(); });
 
   // ---------- pantalla del producto ----------
   function pintar() {
@@ -411,7 +458,10 @@
     $('cuenta-desc').textContent = $('descripcion').value.length;
     fotosEdit = p.imagenes.slice(); fotoSel = 0; confirmar = -1;
     unidadSel = p.unidadPrecio || '';
-    original = { nombre: p.nombre, descripcion: p.descripcion, presentacion: p.presentacion, unidadesCaja: p.unidadesCaja === '' ? '' : p.unidadesCaja, imagenes: p.imagenes.slice(), unidadPrecio: unidadSel };
+    $('solo-caja').checked = !!p.soloCaja;
+    $('kg-caja').value = p.kgCaja ? String(p.kgCaja).replace('.', ',') : '';
+    original = { nombre: p.nombre, descripcion: p.descripcion, presentacion: p.presentacion, unidadesCaja: p.unidadesCaja === '' ? '' : p.unidadesCaja, imagenes: p.imagenes.slice(), unidadPrecio: unidadSel,
+                 soloCaja: !!p.soloCaja, kgCaja: p.kgCaja || 0 };
     pintarUnidad();
     estado('');
     pintarTiras(); pintarFotoGrande();
@@ -432,13 +482,20 @@
     }
     if (cambioFotos) envio.imagenes = f.imagenes;
     if (hayColumnaUnidad && f.unidadPrecio !== original.unidadPrecio) envio.unidadPrecio = f.unidadPrecio;
+    if (hayColumnasCaja && (f.soloCaja !== original.soloCaja || (f.soloCaja && f.kgCaja !== original.kgCaja))) {
+      var falta = problemaCaja();
+      if (falta) { estado(falta, 'err'); return Promise.resolve(false); }
+      envio.soloCaja = f.soloCaja; envio.kgCaja = f.kgCaja;
+    }
     estado('Guardando…', 'trabajando');
     return llamar('ef_guardar', p.fila, p.id, envio).then(function () {
       p.nombre = f.nombre.trim() || p.nombre; p.descripcion = f.descripcion.trim(); p.presentacion = f.presentacion.trim();
       p.unidadesCaja = String(f.unidadesCaja).trim() === '' ? '' : Number(f.unidadesCaja);
       p.imagenes = f.imagenes.slice();
       p.unidadPrecio = hayColumnaUnidad ? f.unidadPrecio : p.unidadPrecio;
-      original = { nombre: p.nombre, descripcion: p.descripcion, presentacion: p.presentacion, unidadesCaja: p.unidadesCaja, imagenes: p.imagenes.slice(), unidadPrecio: p.unidadPrecio || '' };
+      if (hayColumnasCaja) { p.soloCaja = f.soloCaja; p.kgCaja = f.soloCaja && f.unidadPrecio === 'kg' ? f.kgCaja : 0; }
+      original = { nombre: p.nombre, descripcion: p.descripcion, presentacion: p.presentacion, unidadesCaja: p.unidadesCaja, imagenes: p.imagenes.slice(), unidadPrecio: p.unidadPrecio || '',
+                   soloCaja: !!p.soloCaja, kgCaja: p.kgCaja || 0 };
       estado('¡Guardado! ✓', 'ok');
       return true;
     }, function (e) { estado(e.message, 'err'); return false; });
@@ -487,7 +544,7 @@
   $('buscar').addEventListener('input', function () { clearTimeout(t); t = setTimeout(refiltrar, 250); });
 
   llamar('ef_listar').then(function (r) {
-    todos = r.productos; hayColumnaUnidad = !!r.tieneColumnaUnidad;
+    todos = r.productos; hayColumnaUnidad = !!r.tieneColumnaUnidad; hayColumnasCaja = !!r.tieneColumnasCaja;
     $('categoria').innerHTML += r.categorias.map(function (c) { return '<option>' + esc(c) + '</option>'; }).join('');
     $('cargando').hidden = true; $('principal').hidden = false;
     aplicarFiltro();

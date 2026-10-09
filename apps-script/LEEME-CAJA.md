@@ -37,6 +37,13 @@ sus tablas).
 
 ## Cómo marcar un producto nuevo
 
+**Desde el Editor de fichas (recomendado):** debajo de "El precio es por…" está la
+casilla **"Se vende solo por caja cerrada"**. Con precio por kilo aparece además
+**"Kilos de la caja"**. El editor muestra cuánto sale la caja y no deja guardar si
+falta un dato (unidades por caja, o kilos).
+
+**A mano en la planilla:**
+
 - Precio por unidad que se vende por caja: `solo_caja` = `si` y `unidades_caja`
   con las unidades de la caja.
 - Precio por kilo que se vende por caja: `solo_caja` = `si` y `kg_caja` con los

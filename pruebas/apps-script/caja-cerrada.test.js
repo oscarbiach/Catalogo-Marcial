@@ -109,7 +109,7 @@ function cargar(celdas) {
     function espejarUnProducto() {}
     function hojaConfig() { return { getLastRow: () => 1 }; }
     function exigirSesion() {}
-    this.__api = { cc_simular, cc_aplicar, cc_desactivar, construirCatalogo, guardarProducto, aKilos, leerProductos,
+    this.__api = { cc_simular, cc_aplicar, cc_desactivar, construirCatalogo, guardarProducto, aKilos, leerProductos, ef_listar, ef_guardar,
       setInvalidar: (fn) => { invalidarCache = fn; }, setAnotar: (fn) => { ef_anotar_ = fn; } };`;
   vm.runInContext(fuente, ctx);
   const api = ctx.__api;
@@ -202,6 +202,72 @@ caso('cc_desactivar vuelve al contrato 1', () => {
   t.api.cc_aplicar();
   t.api.cc_desactivar();
   assert.strictEqual(t.api.construirCatalogo().contrato, 1);
+});
+
+// ── Editor de fichas: venta por caja cerrada ──
+function editorListo() {
+  const t = cargar(planillaDePrueba());
+  t.api.cc_aplicar();
+  t.sh.escritas.length = 0;
+  const fila = (id) => t.api.ef_listar().productos.find((p) => p.id === id);
+  const base = (p) => ({ descripcion: '', presentacion: '', unidadesCaja: p.unidadesCaja,
+    antes: { nombre: p.nombre, descripcion: '', presentacion: '', unidadesCaja: p.unidadesCaja, unidadPrecio: p.unidadPrecio, soloCaja: p.soloCaja, kgCaja: p.kgCaja } });
+  return { t, fila, base };
+}
+
+caso('Editor: ef_listar devuelve soloCaja y kgCaja', () => {
+  const { fila } = editorListo();
+  assert.deepStrictEqual([fila('105').soloCaja, fila('69').soloCaja, fila('69').kgCaja, fila('300').soloCaja], [true, true, 3.6, false]);
+});
+
+caso('Editor: marcar por caja un producto por unidad con 12 unidades', () => {
+  const { t, fila, base } = editorListo();
+  const p = fila('300');
+  const r = t.api.ef_guardar(p.fila, '300', Object.assign(base(p), { unidadesCaja: 12, soloCaja: true, kgCaja: 0 }));
+  assert.ok(r.cambios >= 2);
+  const q = fila('300');
+  assert.deepStrictEqual([q.soloCaja, q.unidadesCaja], [true, 12]);
+});
+
+caso('Editor: por kilo sin kilos se rechaza sin escribir nada', () => {
+  const { t, fila, base } = editorListo();
+  const p = fila('69');
+  assert.throws(() => t.api.ef_guardar(p.fila, '69', Object.assign(base(p), { descripcion: 'cambio', soloCaja: true, kgCaja: 0 })), /kilos de la caja/);
+  assert.strictEqual(t.sh.escritas.length, 0);
+});
+
+caso('Editor: por unidad con 1 unidad se rechaza', () => {
+  const { t, fila, base } = editorListo();
+  const p = fila('300');
+  assert.throws(() => t.api.ef_guardar(p.fila, '300', Object.assign(base(p), { unidadesCaja: 1, soloCaja: true })), /mas de 1/);
+  assert.strictEqual(t.sh.escritas.length, 0);
+});
+
+caso('Editor: desmarcar borra la regla y los kilos', () => {
+  const { t, fila, base } = editorListo();
+  const p = fila('69');
+  t.api.ef_guardar(p.fila, '69', Object.assign(base(p), { soloCaja: false, kgCaja: 0 }));
+  const q = fila('69');
+  assert.deepStrictEqual([q.soloCaja, q.kgCaja], [false, 0]);
+});
+
+caso('Editor: cambiar los kilos a "4,2"', () => {
+  const { t, fila, base } = editorListo();
+  const p = fila('69');
+  t.api.ef_guardar(p.fila, '69', Object.assign(base(p), { soloCaja: true, kgCaja: '4,2' }));
+  assert.strictEqual(fila('69').kgCaja, 4.2);
+});
+
+caso('Editor: no pisa la regla si otra persona la cambio mientras tanto', () => {
+  const { t, fila, base } = editorListo();
+  const p = fila('105');
+  t.sh.celdas[1][21] = '';   // otra persona desmarco el 105
+  // Yo tambien lo desmarco: coincide con lo que ya esta, no es conflicto ni escritura.
+  t.api.ef_guardar(p.fila, '105', Object.assign(base(p), { soloCaja: false }));
+  assert.ok(!t.sh.escritas.some(([r, c]) => r === 2 && c === 22));
+  const p2 = fila('69');
+  t.sh.celdas[3][22] = 5;    // otra persona cambio los kilos del 69
+  assert.throws(() => t.api.ef_guardar(p2.fila, '69', Object.assign(base(p2), { soloCaja: true, kgCaja: 4 })), /Otra persona/);
 });
 
 let fallas = 0;
