@@ -2758,7 +2758,24 @@
   // Arranque
   // -------------------------------------------------------------------------
 
+  /**
+   * Service Worker (sw.js): guarda la cascara del sitio para que abra sin
+   * conexion. Los datos no pasan por ahi (ver leerCache). Si el navegador no
+   * lo soporta o falla, el sitio funciona igual que siempre.
+   */
+  function registrarServiceWorker() {
+    if (!('serviceWorker' in navigator)) return;
+    var seguro = location.protocol === 'https:' || /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+    if (!seguro) return;
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').catch(function (err) {
+        if (window.console) console.warn('No se pudo registrar el modo sin conexion:', err && err.message);
+      });
+    });
+  }
+
   aplicarTema(esOscuro());
+  registrarServiceWorker();
   seguirSeccion();
   arrastrable($('destacados-pista'), false);   // sin rueda: esta arriba y no debe trabar el scroll de la pagina
   marquesina($('destacados-pista'));

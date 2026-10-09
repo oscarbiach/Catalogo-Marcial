@@ -4,6 +4,21 @@ Base auditada: commit `7b5d42d`. Correcciones en la rama `claude/vibrant-ritchie
 Cada bloque corregido lleva en el código el comentario `[AUDITORIA Hxx]`; buscando esa
 etiqueta se encuentra el cambio y el motivo.
 
+## Estado al 09/10/2026
+
+Todo lo de las Fases 1 y 2 y casi toda la Fase 3 está **en producción y verificado**:
+
+| Qué | Dónde | Verificación |
+|---|---|---|
+| Sincronización validada (H04) y monitoreo (H06) | Supabase | 266 productos reales pasan la validación; la vigilancia horaria corrió bien |
+| Registro de pedidos con idempotencia, validación y límite por IP (H02, H03, H07, H09, H10) | Supabase | Probado en producción sin dejar datos; primer pedido real con IP registrada |
+| Sitio corregido (H01–H18) y modo sin conexión | GitHub Pages | 15 pruebas de Playwright en CI |
+| Editor de fichas (H13, H14) | Apps Script | Planilla simulada en CI |
+| Venta por caja cerrada en la planilla (H01 definitivo) | Apps Script + Supabase | `contrato: 2` en vivo: 39 reglas, 0 diferencias con las anteriores |
+| CI y vigilancia horaria | GitHub Actions | En cada PR y cada hora |
+
+Pendiente a propósito: anti-robots (en espera, decisión del dueño) y modularización de `app.js` (contradice `CLAUDE.md`). Detalle en la Fase 3.
+
 ---
 
 ## 0. Revisión crítica del informe
@@ -76,12 +91,12 @@ Verifiqué cada hallazgo contra el código y reproduje los importantes con prueb
 
 ### Fase 3 — Código limpio, mantenibilidad y cierre de riesgos de fondo — **pendiente (diseño)**
 
-1. **H03 de fondo.** Una Supabase Edge Function `registrar-pedido` con Cloudflare Turnstile. Pasos: (a) la función verifica el token de Turnstile, (b) llama a `registrar_pedido` con un rol de privilegios mínimos, (c) se revoca el `execute` a `anon`. Al cliente solo se le agrega el widget y el token en el POST.
+1. **H03 de fondo.** ⏸ En espera por decisión del dueño: el límite por IP está activo y verificado en producción. Si aparecen pedidos falsos, el paso siguiente es una Edge Function con Cloudflare Turnstile que llame a `registrar_pedido` y retirarle el permiso a `anon`.
 2. **H01 definitivo.** ✅ Hecho: columnas `solo_caja` y `kg_caja` en la planilla (`apps-script/CajaCerrada.gs`, ver `apps-script/LEEME-CAJA.md`). Con `contrato: 2`, Apps Script las publica y Supabase las escribe directo en `productos` (las listas `caja_cerrada*` quedan intactas como respaldo del contrato 1), con una red de seguridad si desaparece más de la mitad. Ensayado en producción con datos reales: 0 diferencias. El modo consulta y las reglas heredadas quedan como protección mientras no se active el contrato 2.
 3. **Alertas de sincronización.** ✅ Hecho: `.github/workflows/vigilancia.yml` revisa cada hora `_sincronizado_en` con la clave pública y falla si pasaron más de 60 minutos; GitHub avisa por correo. No requiere claves secretas.
-4. **H19, modularización sin bundler.** Partir `app.js` en módulos ES (`<script type="module">`): `contrato.js` (normalización y reglas), `fuentes.js` (Supabase, Apps Script, caché), `pedido.js` (carrito, totales, registro), `ui/*.js`. Las funciones puras de `contrato.js` y `pedido.js` se pueden probar en Node sin DOM. Sumar `// @ts-check` y los `@typedef` que ya están en `app.js` para tener chequeo de tipos de TypeScript sin compilar.
+4. **H19, modularización sin bundler.** ⏸ No se hizo: `CLAUDE.md` pide conservar la arquitectura actual. El riesgo que señalaba la auditoría (regresiones sin detectar) quedó cubierto con las pruebas automáticas en CI. Si se decide hacerla, el plan es partir `app.js` en módulos ES (`contrato.js`, `fuentes.js`, `pedido.js`, `ui/*.js`) sin herramientas de compilación.
 5. **CI.** ✅ Hecho: `.github/workflows/pruebas.yml` corre `pruebas/regresion.js` y `pruebas/sql/correr-local.sh` en cada PR.
-6. **PWA.** No hay Service Worker: el sitio no abre sin conexión. Como mínimo, un SW con caché de la estructura del sitio (HTML, CSS, JS y fuentes) y `network-first` para los datos. Va después del punto 4.
+6. **PWA.** ✅ Hecho: `docs/sw.js` guarda la cáscara del sitio (la lista sale del propio `index.html`) para que abra sin conexión con el catálogo guardado. Página con red primero; archivos propios con copia al instante y actualización en segundo plano; los datos no pasan por el Service Worker.
 
 ---
 
