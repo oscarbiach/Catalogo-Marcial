@@ -81,4 +81,13 @@ select set_config('request.headers', '{"x-forwarded-for":"203.0.113.9, 10.0.0.1"
 select 'H03 rafaga', count(public.registrar_pedido(gen_random_uuid(), '', '', '[{"id":"300","cantidad":1}]')) = 5 as ok from generate_series(1, 5);
 select 'H03 sexto', pg_temp.debe_fallar($$select public.registrar_pedido(gen_random_uuid(),'','','[{"id":"300","cantidad":1}]')$$, 'muchos pedidos');
 
+-- H03 puerta verificada (Edge Function con Turnstile)
+select 'H03 anon no llama la logica interna', not has_function_privilege('anon', 'public._registrar_pedido(text, uuid, text, text, jsonb)', 'execute') as ok;
+select 'H03 anon no llama la puerta verificada', not has_function_privilege('anon', 'public.registrar_pedido_verificado(text, uuid, text, text, jsonb)', 'execute') as ok;
+select 'H03 service_role si', has_function_privilege('service_role', 'public.registrar_pedido_verificado(text, uuid, text, text, jsonb)', 'execute') as ok;
+select 'H03 verificada registra', (public.registrar_pedido_verificado('198.51.100.7', gen_random_uuid(), 'V', '', '[{"id":"300","cantidad":1}]') ->> 'duplicado') = 'false' as ok;
+select 'H03 verificada usa la IP recibida', (select count(*) from pedidos_catalogo where origen_ip = '198.51.100.7') = 1 as ok;
+select 'H03 verificada respeta el limite por IP', count(public.registrar_pedido_verificado('198.51.100.7', gen_random_uuid(), '', '', '[{"id":"300","cantidad":1}]')) = 4 as ok from generate_series(1, 4);
+select 'H03 verificada sexto', pg_temp.debe_fallar($$select public.registrar_pedido_verificado('198.51.100.7', gen_random_uuid(),'','','[{"id":"300","cantidad":1}]')$$, 'muchos pedidos');
+
 rollback;

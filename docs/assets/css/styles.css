@@ -557,6 +557,10 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 .enviado .enviado-ref:empty { display: none; }
 .enviado .alerta { text-align: left; max-width: 34ch; }
 
+/* Verificacion anti-robots (Turnstile): vacia mientras no hace falta un clic */
+.pedido-verificacion:empty { display: none; }
+.pedido-verificacion { display: flex; justify-content: center; }
+
 /* Aviso de catalogo de respaldo o precios guardados (auditoria H01/H06) */
 .aviso-datos { margin: 0 0 18px; }
 .enviado .boton { margin-top: 8px; }

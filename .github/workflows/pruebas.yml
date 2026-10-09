@@ -31,6 +31,8 @@ jobs:
         run: for f in docs/assets/js/*.js docs/sw.js; do node --check "$f"; done
       - name: Logica pura (contrato.js y pedido.js)
         run: node pruebas/unidad/logica.test.mjs
+      - name: Edge Function registrar-pedido
+        run: node pruebas/unidad/registrar-pedido.test.mjs
       - name: Apps Script (planilla simulada)
         run: node pruebas/apps-script/caja-cerrada.test.js
       - name: Instalar Playwright
