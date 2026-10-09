@@ -14,6 +14,10 @@ Para mirar cómo viene la sincronización (en el SQL Editor de Supabase):
 select * from sincronizacion_log order by id desc limit 10;
 ```
 
+## Dominio
+
+El sitio se publica en **https://distribuidoramarcial.com** (GitHub Pages, archivo `docs/CNAME`). La dirección vieja `oscarbiach.github.io/Catalogo-Marcial/` redirige sola. DNS en Namecheap (BasicDNS): 4 registros A a las IPs de GitHub Pages y CNAME `www` → `oscarbiach.github.io.`.
+
 ## Pasos
 
 1. **Crear el proyecto.** En supabase.com, un proyecto nuevo solo para el catálogo (no el de la app de pedidos). Anotá la contraseña de la base en un lugar seguro.
