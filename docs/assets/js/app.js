@@ -7,6 +7,15 @@
    paralelo se busca la version fresca.
    =========================================================================== */
 
+import {
+  ESQUEMA_CACHE, normalizar, redondear2, comoTexto, comoNumero,
+  normalizarCatalogo, aplicarReglasCaja,
+} from './contrato.js';
+import {
+  unidadDe, soloPorCaja, contenidoCaja, precioDeLinea,
+  seCuentaPorCaja, totalPedido,
+} from './pedido.js';
+
 (function () {
   'use strict';
 
@@ -15,7 +24,6 @@
   // version de esquema. Las copias v1 (sin validar) se ignoran.
   var CLAVE_CACHE = 'catalogo_datos_v2';
   var CLAVE_CACHE_VIEJA = 'catalogo_datos_v1';
-  var ESQUEMA_CACHE = 2;
   var CLAVE_PEDIDO = 'catalogo_pedido_v1';
   var CLAVE_CLIENTE = 'catalogo_cliente_v1';
   var CLAVE_ENVIADO = 'catalogo_enviado_v1';
@@ -81,15 +89,6 @@
     return String(texto === null || texto === undefined ? '' : texto)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-  }
-
-  // Rango de marcas diacriticas de Unicode (U+0300 a U+036F). Se arma con
-  // fromCharCode para que el archivo no contenga caracteres invisibles.
-  var ACENTOS = new RegExp('[' + String.fromCharCode(0x300) + '-' + String.fromCharCode(0x36f) + ']', 'g');
-
-  /** Quita acentos y pasa a minusculas, para que la busqueda sea tolerante. */
-  function normalizar(texto) {
-    return String(texto || '').toLowerCase().normalize('NFD').replace(ACENTOS, '');
   }
 
   function urlImagen(fileId, ancho) {
@@ -177,19 +176,6 @@
 
   function idSeguro(id) {
     return (window.CSS && CSS.escape) ? CSS.escape(id) : String(id).replace(/["\\]/g, '\\$&');
-  }
-
-  /**
-   * [AUDITORIA H09] Redondeo decimal a centavos, mitad hacia arriba, igual que
-   * round(numeric, 2) de Postgres. Pasa por notacion exponencial para no
-   * arrastrar el error binario (1.005 * 100 = 100.49999...).
-   * @param {number} valor
-   * @returns {number}
-   */
-  function redondear2(valor) {
-    if (!isFinite(valor)) return valor;
-    var signo = valor < 0 ? -1 : 1;
-    return signo * Number(Math.round(Number(Math.abs(valor) + 'e2')) + 'e-2');
   }
 
   /** [AUDITORIA H02] uuid v4 para la idempotencia del registro. */
@@ -360,157 +346,6 @@
   // Contrato del catalogo
   // -------------------------------------------------------------------------
 
-  /**
-   * @typedef {Object} Producto
-   * @property {string}   id
-   * @property {string}   sku
-   * @property {string}   nombre
-   * @property {string}   descripcion
-   * @property {string}   categoria
-   * @property {string}   marca
-   * @property {?number}  precio        null = sin precio
-   * @property {string}   moneda
-   * @property {number}   unidadesCaja
-   * @property {boolean}  soloCaja      se vende solo por caja cerrada
-   * @property {number}   kgCaja        kilos de la caja (precio por kg)
-   * @property {string}   presentacion
-   * @property {''|'kg'|'unidad'|'caja'} unidadPrecio
-   * @property {string[]} imagenes
-   * @property {string[]} rubros
-   * @property {boolean}  destacado
-   * @property {boolean}  nuevo
-   * @property {boolean}  sinStock
-   * @property {number}   orden
-   * @property {string}   tipo
-   * @property {string}   heno          texto de busqueda ya normalizado
-   *
-   * @typedef {Object} Catalogo
-   * @property {true}     ok
-   * @property {number}   esquema
-   * @property {'supabase'|'apps-script'} fuente
-   * @property {?number}  version
-   * @property {?number}  sincronizadoEn  ultima sincronizacion buena (ms)
-   * @property {number}   obtenidoEn      cuando lo trajo este navegador (ms)
-   * @property {'completas'|'heredadas'|'faltan'} reglasCaja
-   * @property {number}   contrato        2 = la fuente trae soloCaja/kgCaja propios
-   * @property {Object<string,string>} config
-   * @property {string[]} categorias
-   * @property {string[]} marcas
-   * @property {string[]} rubros
-   * @property {Producto[]} productos
-   */
-
-  function comoTexto(v) {
-    return v === null || v === undefined ? '' : String(v);
-  }
-
-  function comoNumero(v, porDefecto) {
-    if (v === null || v === undefined || v === '' || typeof v === 'boolean') return porDefecto;
-    var n = Number(v);
-    return isFinite(n) ? n : porDefecto;
-  }
-
-  function comoBooleano(v) {
-    return v === true || v === 1 || /^(true|t|1|si|yes)$/i.test(comoTexto(v).trim());
-  }
-
-  function comoListaDeTextos(v) {
-    if (!Array.isArray(v)) return [];
-    return v.map(function (x) {
-      if (typeof x === 'string' || typeof x === 'number') return String(x).trim();
-      if (x && typeof x === 'object') return comoTexto(x.nombre || x.id).trim();
-      return '';
-    }).filter(Boolean);
-  }
-
-  /**
-   * [AUDITORIA H05] Valida y normaliza un catalogo, venga de la red o de la
-   * cache. Lo estructural (sin ok, sin array de productos, sin config) se
-   * rechaza; un producto suelto mal formado se descarta sin tumbar al resto.
-   * Nunca deja pasar NaN, Infinity ni tipos inesperados a la pantalla.
-   * @param {*} crudo
-   * @param {'supabase'|'apps-script'} fuente
-   * @returns {Catalogo}
-   */
-  function normalizarCatalogo(crudo, fuente) {
-    if (!crudo || typeof crudo !== 'object' || crudo.ok !== true) {
-      throw new Error('La respuesta del catalogo no tiene el formato esperado.');
-    }
-    if (!Array.isArray(crudo.productos)) throw new Error('El catalogo no trae la lista de productos.');
-    if (!crudo.config || typeof crudo.config !== 'object' || Array.isArray(crudo.config)) {
-      throw new Error('El catalogo no trae la configuracion.');
-    }
-
-    var config = {};
-    Object.keys(crudo.config).forEach(function (k) {
-      var v = crudo.config[k];
-      if (v === null || typeof v !== 'object') config[k] = comoTexto(v);
-    });
-
-    var vistos = Object.create(null);
-    var productos = [];
-    crudo.productos.forEach(function (p) {
-      if (!p || typeof p !== 'object') return;
-      var id = comoTexto(p.id).trim();
-      var nombre = comoTexto(p.nombre).trim();
-      if (!id || !nombre || vistos[id]) return;
-      vistos[id] = true;
-
-      var precio = comoNumero(p.precio, null);
-      if (precio !== null && precio < 0) precio = null;
-      var unidad = comoTexto(p.unidadPrecio).trim().toLowerCase();
-
-      /** @type {Producto} */
-      var limpio = {
-        id: id,
-        sku: comoTexto(p.sku),
-        nombre: nombre,
-        descripcion: comoTexto(p.descripcion),
-        categoria: comoTexto(p.categoria),
-        marca: comoTexto(p.marca),
-        precio: precio,
-        moneda: /^[A-Z]{3}$/.test(comoTexto(p.moneda)) ? p.moneda : 'ARS',
-        unidadesCaja: Math.max(0, Math.floor(comoNumero(p.unidadesCaja, 0))),
-        soloCaja: comoBooleano(p.soloCaja),
-        kgCaja: Math.max(0, comoNumero(p.kgCaja, 0)),
-        presentacion: comoTexto(p.presentacion),
-        unidadPrecio: unidad === 'kg' || unidad === 'unidad' || unidad === 'caja' ? unidad : '',
-        imagenes: comoListaDeTextos(p.imagenes),
-        rubros: comoListaDeTextos(p.rubros),
-        destacado: comoBooleano(p.destacado),
-        nuevo: comoBooleano(p.nuevo),
-        sinStock: comoBooleano(p.sinStock),
-        orden: comoNumero(p.orden, 0),
-        tipo: comoTexto(p.tipo),
-        heno: '',
-      };
-      // [AUDITORIA H16] El texto de busqueda se normaliza una sola vez.
-      limpio.heno = normalizar([limpio.nombre, limpio.sku, limpio.marca, limpio.categoria,
-        limpio.presentacion, limpio.descripcion].join(' '));
-      productos.push(limpio);
-    });
-    if (!productos.length) throw new Error('El catalogo llego sin productos validos.');
-
-    var sincronizadoEn = comoNumero(crudo.sincronizadoEn, null);
-
-    /** @type {Catalogo} */
-    var datos = {
-      ok: true,
-      esquema: ESQUEMA_CACHE,
-      fuente: fuente === 'supabase' ? 'supabase' : 'apps-script',
-      version: comoNumero(crudo.version, null),
-      sincronizadoEn: sincronizadoEn,
-      obtenidoEn: comoNumero(crudo.obtenidoEn, Date.now()),
-      reglasCaja: crudo.reglasCaja === 'heredadas' || crudo.reglasCaja === 'faltan' ? crudo.reglasCaja : 'completas',
-      contrato: Math.max(1, Math.floor(comoNumero(crudo.contrato, 1))),
-      config: config,
-      categorias: comoListaDeTextos(crudo.categorias),
-      marcas: comoListaDeTextos(crudo.marcas),
-      rubros: comoListaDeTextos(crudo.rubros),
-      productos: productos,
-    };
-    return datos;
-  }
 
   // -------------------------------------------------------------------------
   // Reglas de caja cerrada (equivalencia entre fuentes)
@@ -549,25 +384,6 @@
     } catch (err) {
       return null;
     }
-  }
-
-  /** @param {Catalogo} datos */
-  function aplicarReglasCaja(datos) {
-    var reglas = leerReglasCaja();
-    if (!reglas) {
-      datos.reglasCaja = 'faltan';
-      return datos;
-    }
-    datos.productos.forEach(function (p) {
-      var r = reglas[p.id];
-      if (!r) { p.soloCaja = false; p.kgCaja = 0; return; }
-      p.soloCaja = true;
-      var u = Math.floor(comoNumero(r.u, 0));
-      if (u > 1 && !(p.unidadesCaja > 1)) p.unidadesCaja = u;
-      p.kgCaja = Math.max(0, comoNumero(r.kg, 0));
-    });
-    datos.reglasCaja = 'heredadas';
-    return datos;
   }
 
   // -------------------------------------------------------------------------
@@ -697,7 +513,7 @@
         // el respaldo cumple el mismo contrato que Supabase y no hace falta
         // heredar reglas guardadas.
         if (datos.contrato >= 2 || !supabaseActivo()) return datos;
-        return aplicarReglasCaja(datos);
+        return aplicarReglasCaja(datos, leerReglasCaja());
       });
   }
 
@@ -1927,71 +1743,6 @@
   }
 
   /**
-   * Por que unidad es el precio y en que se cuenta el pedido. Lo elige quien
-   * carga el producto (columna unidad_precio): kg, unidad o caja. El precio
-   * siempre es por esa unidad, y las cantidades del pedido se cuentan en ella:
-   * un pan con precio por unidad se pide de a unidades, aunque venga en caja.
-   *
-   * Sin elegir ("automatico") queda el comportamiento de antes: con unidades
-   * por caja se cuenta por caja; si la presentacion dice "Por kg" se cuenta
-   * por kilo; si no, por unidad.
-   */
-  var UNIDADES_PRECIO = { kg: ['kg', 'kg'], unidad: ['unidad', 'unidades'], caja: ['caja', 'cajas'] };
-
-  function unidadDe(p, cantidad) {
-    if (soloPorCaja(p)) return cantidad === 1 ? 'caja' : 'cajas';
-    var u = UNIDADES_PRECIO[p.unidadPrecio];
-    if (u) return cantidad === 1 ? u[0] : u[1];
-    if (p.unidadesCaja > 1) return cantidad === 1 ? 'caja' : 'cajas';
-    var porAlgo = /^por\s+(.+)$/i.exec(String(p.presentacion || '').trim());
-    if (porAlgo) return porAlgo[1].toLowerCase();
-    return cantidad === 1 ? 'unidad' : 'unidades';
-  }
-
-  /**
-   * Precio por unidad pero venta solo por caja cerrada. Lo decide la lista
-   * caja_cerrada de la base (solo_caja): no todo producto con caja se vende
-   * asi. El precio que se muestra sigue siendo el de la unidad; el subtotal es
-   * precio x unidades de la caja x cajas.
-   */
-  function soloPorCaja(p) {
-    if (!p.soloCaja) return false;
-    return (p.unidadPrecio === 'unidad' && p.unidadesCaja > 1) ||
-           (p.unidadPrecio === 'kg' && p.kgCaja > 0);
-  }
-
-  /** Cuanto vale una caja en veces el precio: sus unidades, o sus kilos. */
-  function factorCaja(p) {
-    return p.unidadPrecio === 'kg' ? p.kgCaja : p.unidadesCaja;
-  }
-
-  /** "12" o "3,6 kg": lo que trae la caja, para mostrarlo al cliente. */
-  function contenidoCaja(p) {
-    return p.unidadPrecio === 'kg'
-      ? p.kgCaja.toLocaleString('es-AR') + ' kg'
-      : String(p.unidadesCaja);
-  }
-
-  /**
-   * [AUDITORIA H09] Precio de UNA unidad de pedido (una caja si se vende por
-   * caja cerrada), redondeado a centavos igual que registrar_pedido. El
-   * subtotal es este precio por la cantidad, nunca al reves: asi WhatsApp y
-   * la base dan el mismo total.
-   * @param {Producto} p
-   * @returns {?number}
-   */
-  function precioDeLinea(p) {
-    if (p.precio === null || p.precio === undefined) return null;
-    return soloPorCaja(p) ? redondear2(p.precio * factorCaja(p)) : p.precio;
-  }
-
-  /** True si la cantidad del pedido de este producto se cuenta en cajas. */
-  function seCuentaPorCaja(p) {
-    if (soloPorCaja(p)) return true;
-    return p.unidadPrecio ? p.unidadPrecio === 'caja' : p.unidadesCaja > 1;
-  }
-
-  /**
    * [AUDITORIA H08] Lo guardado se sanea con los mismos topes que aplica la
    * base: cantidades de 1 a 999 y hasta 100 productos distintos. Antes una
    * cantidad de 5000 recuperada viajaba a WhatsApp y la base la rechazaba.
@@ -2170,22 +1921,6 @@
     }
 
     return lineas;
-  }
-
-  /**
-   * [AUDITORIA H10] Total y moneda del pedido. Si hubiera productos en
-   * monedas distintas no se suman (el resultado no tendria sentido): el
-   * total queda "a confirmar". Hoy todo el catalogo es ARS.
-   * @returns {{total: ?number, moneda: string}}
-   */
-  function totalPedido(lineas) {
-    var moneda = lineas.length ? lineas[0].producto.moneda : 'ARS';
-    var mezcla = lineas.some(function (l) { return l.producto.moneda !== moneda; });
-    if (mezcla) return { total: null, moneda: moneda };
-    return {
-      total: redondear2(lineas.reduce(function (suma, l) { return suma + (l.subtotal || 0); }, 0)),
-      moneda: moneda,
-    };
   }
 
   function textoTotal(lineas) {

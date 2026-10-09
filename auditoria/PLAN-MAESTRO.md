@@ -17,7 +17,7 @@ Todo lo de las Fases 1 y 2 y casi toda la Fase 3 está **en producción y verifi
 | Venta por caja cerrada en la planilla (H01 definitivo) | Apps Script + Supabase | `contrato: 2` en vivo: 39 reglas, 0 diferencias con las anteriores |
 | CI y vigilancia horaria | GitHub Actions | En cada PR y cada hora |
 
-Pendiente a propósito: anti-robots (en espera, decisión del dueño) y modularización de `app.js` (contradice `CLAUDE.md`). Detalle en la Fase 3.
+Pendiente: anti-robots (en preparación; requiere las claves de Cloudflare del dueño). Detalle en la Fase 3.
 
 ---
 
@@ -94,7 +94,7 @@ Verifiqué cada hallazgo contra el código y reproduje los importantes con prueb
 1. **H03 de fondo.** ⏸ En espera por decisión del dueño: el límite por IP está activo y verificado en producción. Si aparecen pedidos falsos, el paso siguiente es una Edge Function con Cloudflare Turnstile que llame a `registrar_pedido` y retirarle el permiso a `anon`.
 2. **H01 definitivo.** ✅ Hecho: columnas `solo_caja` y `kg_caja` en la planilla (`apps-script/CajaCerrada.gs`, ver `apps-script/LEEME-CAJA.md`). Con `contrato: 2`, Apps Script las publica y Supabase las escribe directo en `productos` (las listas `caja_cerrada*` quedan intactas como respaldo del contrato 1), con una red de seguridad si desaparece más de la mitad. Ensayado en producción con datos reales: 0 diferencias. El modo consulta y las reglas heredadas quedan como protección mientras no se active el contrato 2.
 3. **Alertas de sincronización.** ✅ Hecho: `.github/workflows/vigilancia.yml` revisa cada hora `_sincronizado_en` con la clave pública y falla si pasaron más de 60 minutos; GitHub avisa por correo. No requiere claves secretas.
-4. **H19, modularización sin bundler.** ⏸ No se hizo: `CLAUDE.md` pide conservar la arquitectura actual. El riesgo que señalaba la auditoría (regresiones sin detectar) quedó cubierto con las pruebas automáticas en CI. Si se decide hacerla, el plan es partir `app.js` en módulos ES (`contrato.js`, `fuentes.js`, `pedido.js`, `ui/*.js`) sin herramientas de compilación.
+4. **H19, modularización sin bundler.** ✅ Hecho (a pedido del dueño): la lógica pura salió de `app.js` a módulos ES sin compilar: `contrato.js` (validación y normalización del catálogo, reglas de caja) y `pedido.js` (unidades, venta por caja, precios por línea y totales). Se prueban en Node (`pruebas/unidad/logica.test.mjs`) con los mismos casos que la base. Un import map en `index.html` les pone `?v=N`. La interfaz sigue en `app.js`.
 5. **CI.** ✅ Hecho: `.github/workflows/pruebas.yml` corre `pruebas/regresion.js` y `pruebas/sql/correr-local.sh` en cada PR.
 6. **PWA.** ✅ Hecho: `docs/sw.js` guarda la cáscara del sitio (la lista sale del propio `index.html`) para que abra sin conexión con el catálogo guardado. Página con red primero; archivos propios con copia al instante y actualización en segundo plano; los datos no pasan por el Service Worker.
 

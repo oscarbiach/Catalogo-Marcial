@@ -267,7 +267,7 @@ caso('PWA Sin conexion: la segunda visita abre con el catalogo guardado', async 
   await pagina.evaluate(() => navigator.serviceWorker.ready);
   // La cascara quedo guardada: index, CSS, JS y fuente.
   const guardados = await pagina.evaluate(async () => (await (await caches.open('catalogo-cascara-v1')).keys()).map((r) => r.url));
-  for (const parte of ['index.html', 'app.js', 'styles.css', 'config.js', 'manrope-latin-var.woff2']) {
+  for (const parte of ['index.html', 'app.js', 'contrato.js', 'pedido.js', 'styles.css', 'config.js', 'manrope-latin-var.woff2']) {
     assert.ok(guardados.some((u) => u.includes(parte)), 'falta en la cache: ' + parte);
   }
   await contexto.setOffline(true);

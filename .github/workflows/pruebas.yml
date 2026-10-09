@@ -27,8 +27,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Sintaxis de app.js
-        run: node --check docs/assets/js/app.js
+      - name: Sintaxis del sitio
+        run: for f in docs/assets/js/*.js docs/sw.js; do node --check "$f"; done
+      - name: Logica pura (contrato.js y pedido.js)
+        run: node pruebas/unidad/logica.test.mjs
       - name: Apps Script (planilla simulada)
         run: node pruebas/apps-script/caja-cerrada.test.js
       - name: Instalar Playwright
