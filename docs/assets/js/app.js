@@ -423,13 +423,28 @@ import {
       p_items: lineas.map(function (l) { return { id: String(l.producto.id), cantidad: l.cantidad }; }),
     };
 
+    // [AUDITORIA H03] Con la verificacion anti-robots activa, el pedido va a
+    // la Edge Function con el token de Turnstile; si no, directo a la base.
+    var url = SB.URL + '/rest/v1/rpc/registrar_pedido';
+    if (verificacionActiva()) {
+      if (!verif.token) {
+        return Promise.resolve({
+          estado: 'rechazado', codigo: 'verificacion',
+          mensaje: 'Todavia no terminamos de verificar que no sos un robot. Toca "Volver a mi pedido" y envialo de nuevo.',
+        });
+      }
+      url = SB.URL + '/functions/v1/registrar-pedido';
+      cuerpo.token = verif.token;
+    }
+
     try {
-      return pedirJson(SB.URL + '/rest/v1/rpc/registrar_pedido', {
+      return pedirJson(url, {
         method: 'POST',
         headers: { apikey: SB.ANON, Authorization: 'Bearer ' + SB.ANON, 'Content-Type': 'application/json' },
         body: JSON.stringify(cuerpo),
         keepalive: true,   // el navegador lo termina aunque la pestania pase a segundo plano
       }, MS_LIMITE_REGISTRO).then(function (r) {
+        if (cuerpo.token) renovarVerificacion();   // cada token sirve una sola vez
         var c = r.cuerpo || {};
         if (r.ok && c.id) {
           return { estado: 'registrado', total: comoNumero(c.total, null), duplicado: !!c.duplicado };
@@ -444,6 +459,61 @@ import {
       });
     } catch (err) {
       return Promise.resolve({ estado: 'sin_conexion', mensaje: String(err && err.message || err) });
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Verificacion anti-robots (Cloudflare Turnstile)  [AUDITORIA H03]
+  // -------------------------------------------------------------------------
+
+  /**
+   * Se activa con la clave publica en config.js (TURNSTILE.siteKey). El
+   * widget se carga recien al abrir el pedido, no en cada visita, y casi
+   * siempre es invisible: solo pide un clic si Cloudflare sospecha. Si no
+   * carga, WhatsApp funciona igual; lo unico que no se registra es el pedido.
+   */
+  var TS = CFG.TURNSTILE || {};
+  var verif = { widget: null, token: '', cargando: null };
+
+  function verificacionActiva() {
+    return !!(TS.siteKey && supabaseActivo() && SB.guardarPedidos);
+  }
+
+  function cargarTurnstile() {
+    if (window.turnstile) return Promise.resolve(window.turnstile);
+    if (verif.cargando) return verif.cargando;
+    verif.cargando = new Promise(function (listo, falla) {
+      var s = document.createElement('script');
+      s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+      s.async = true;
+      s.onload = function () { window.turnstile ? listo(window.turnstile) : falla(new Error('Turnstile no quedo disponible.')); };
+      s.onerror = function () { verif.cargando = null; falla(new Error('No cargo la verificacion anti-robots.')); };
+      document.head.appendChild(s);
+    });
+    return verif.cargando;
+  }
+
+  function prepararVerificacion() {
+    if (!verificacionActiva() || verif.widget !== null || !$('pedido-verificacion')) return;
+    cargarTurnstile().then(function (ts) {
+      if (verif.widget !== null) return;
+      verif.widget = ts.render('#pedido-verificacion', {
+        sitekey: TS.siteKey,
+        appearance: 'interaction-only',
+        language: 'es',
+        callback: function (token) { verif.token = token; },
+        'expired-callback': function () { verif.token = ''; },
+        'error-callback': function () { verif.token = ''; },
+      });
+    }).catch(function (err) {
+      if (window.console) console.warn(err && err.message);
+    });
+  }
+
+  function renovarVerificacion() {
+    verif.token = '';
+    if (window.turnstile && verif.widget !== null) {
+      try { window.turnstile.reset(verif.widget); } catch (err) { /* se pide uno nuevo al reabrir */ }
     }
   }
 
@@ -2020,6 +2090,7 @@ import {
 
   function abrirPedido() {
     dibujarPedido();
+    prepararVerificacion();
     if (estado.enviadoEn) {
       resumenEnviado(lineasDelPedido());
       mostrarRegistro({ estado: '' }, []);

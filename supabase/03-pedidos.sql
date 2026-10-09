@@ -40,7 +40,12 @@ exception when undefined_function then null;
 end $$;
 drop function if exists public.registrar_pedido(text, text, jsonb);
 
-create or replace function public.registrar_pedido(p_ref uuid, p_cliente text, p_nota text, p_items jsonb)
+-- ── LOGICA DEL REGISTRO (interna) ───────────────────────────────────
+-- La usan las dos puertas de abajo. Recibe la IP del cliente ya resuelta:
+-- registrar_pedido la toma de las cabeceras; registrar_pedido_verificado la
+-- recibe de la Edge Function (si no, todos los pedidos parecerian venir del
+-- servidor de Supabase y compartirian el mismo cupo).
+create or replace function public._registrar_pedido(p_ip text, p_ref uuid, p_cliente text, p_nota text, p_items jsonb)
 returns jsonb
 language plpgsql
 security definer
@@ -52,8 +57,7 @@ declare
   c_max_por_ip_dia   constant int := 30;
   c_max_global_hora  constant int := 150;
 
-  v_headers  json;
-  v_ip       text;
+  v_ip       text := coalesce(nullif(btrim(p_ip), ''), 'desconocida');
   v_id       uuid;
   v_total    numeric(14,2);
   v_moneda   text;
@@ -130,16 +134,6 @@ begin
   end if;
 
   -- ── Limite de frecuencia ─────────────────────────────────────────
-  begin
-    v_headers := nullif(current_setting('request.headers', true), '')::json;
-  exception when others then
-    v_headers := null;
-  end;
-  v_ip := coalesce(
-    nullif(btrim(v_headers->>'cf-connecting-ip'), ''),
-    nullif(btrim(split_part(coalesce(v_headers->>'x-forwarded-for', ''), ',', 1)), ''),
-    'desconocida');
-
   -- Sin IP identificable no se aplica el limite por IP: si no, todos los
   -- clientes compartirian el mismo cupo de 5 pedidos. Queda el global.
   perform pg_advisory_xact_lock(hashtextextended('ip:' || v_ip, 0));
@@ -191,9 +185,53 @@ begin
 end;
 $$;
 
+revoke all on function public._registrar_pedido(text, uuid, text, text, jsonb) from public, anon, authenticated;
+
+-- ── PUERTA 1: directa desde el sitio (clave publica) ────────────────
+-- La IP sale de las cabeceras que agrega el proxy de Supabase.
+create or replace function public.registrar_pedido(p_ref uuid, p_cliente text, p_nota text, p_items jsonb)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_headers json;
+begin
+  begin
+    v_headers := nullif(current_setting('request.headers', true), '')::json;
+  exception when others then
+    v_headers := null;
+  end;
+  return public._registrar_pedido(
+    coalesce(nullif(btrim(v_headers->>'cf-connecting-ip'), ''),
+             nullif(btrim(split_part(coalesce(v_headers->>'x-forwarded-for', ''), ',', 1)), '')),
+    p_ref, p_cliente, p_nota, p_items);
+end;
+$$;
+
 revoke all on function public.registrar_pedido(uuid, text, text, jsonb) from public, authenticated;
 -- Solo la clave publica (anon): el sitio no usa usuarios con sesion.
+-- [AUDITORIA H03] Cuando la verificacion anti-robots este activa (Turnstile),
+-- este permiso se retira y la unica puerta queda la verificada:
+--   revoke execute on function public.registrar_pedido(uuid, text, text, jsonb) from anon;
 grant execute on function public.registrar_pedido(uuid, text, text, jsonb) to anon;
+
+-- ── PUERTA 2: verificada (Edge Function registrar-pedido) ───────────
+-- [AUDITORIA H03] La llama solo la Edge Function, con la clave service_role,
+-- despues de verificar el token de Cloudflare Turnstile. Recibe la IP real
+-- del cliente para que el limite por IP siga funcionando.
+create or replace function public.registrar_pedido_verificado(p_ip text, p_ref uuid, p_cliente text, p_nota text, p_items jsonb)
+returns jsonb
+language sql
+security definer
+set search_path = public
+as $$
+  select public._registrar_pedido(p_ip, p_ref, p_cliente, p_nota, p_items);
+$$;
+
+revoke all on function public.registrar_pedido_verificado(text, uuid, text, text, jsonb) from public, anon, authenticated;
+grant execute on function public.registrar_pedido_verificado(text, uuid, text, text, jsonb) to service_role;
 
 -- Para revisar abuso (SQL Editor):
 --   select origen_ip, count(*) from pedidos_catalogo

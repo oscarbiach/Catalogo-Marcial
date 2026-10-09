@@ -199,6 +199,42 @@ caso('H02 Registro rechazado (HTTP 400) se informa, no se presenta como exito', 
   assert.match(await pagina.locator('#enviado-registro').innerText(), /ya no estan disponibles/);
 });
 
+caso('H03 Con Turnstile activo: el pedido va a la Edge Function con el token', async (nav, base) => {
+  const contexto = await nav.newContext({ serviceWorkers: 'block' });
+  // config.js con la clave publica cargada
+  await contexto.route(/config\.js/, async (r) => {
+    const original = await r.fetch();
+    const texto = (await original.text()) + "\nwindow.CATALOGO_CONFIG.TURNSTILE = { siteKey: 'clave-publica-de-prueba' };";
+    await r.fulfill({ status: 200, contentType: 'text/javascript', body: texto });
+  });
+  // Widget de Cloudflare simulado: entrega un token al renderizar
+  let renderizados = 0, reseteos = 0;
+  await contexto.exposeFunction('__contar', (que) => { if (que === 'render') renderizados++; else reseteos++; });
+  await contexto.route(/challenges\.cloudflare\.com/, (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body:
+    "window.turnstile = { render: function (sel, o) { window.__contar('render'); setTimeout(function () { o.callback('token-123'); }); return 'w1'; }," +
+    " reset: function () { window.__contar('reset'); } };" }));
+  const funciones = [];
+  await contexto.route(SB + '/functions/v1/registrar-pedido', (r) => {
+    funciones.push(JSON.parse(r.request().postData() || '{}'));
+    return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 'p1', total: 1000, duplicado: false }) });
+  });
+  const { pagina, registros } = await abrir(nav, base, { contexto });
+  await esperarCatalogo(pagina);
+  await sumar(pagina, '300', 2);
+  await pagina.locator('#carrito').click();
+  await pagina.waitForFunction(() => window.turnstile);
+  await pagina.waitForTimeout(100);
+  await pagina.locator('#pedido-enviar').click();
+  await pagina.locator('#enviado-registro').filter({ hasText: 'registrado' }).waitFor();
+  assert.strictEqual(registros.length, 0, 'no tiene que ir directo a la base');
+  assert.strictEqual(funciones.length, 1);
+  assert.strictEqual(funciones[0].token, 'token-123');
+  assert.deepStrictEqual(funciones[0].p_items, [{ id: '300', cantidad: 2 }]);
+  assert.strictEqual(renderizados, 1);
+  assert.strictEqual(reseteos, 1, 'el token se usa una sola vez');
+  await contexto.close();
+});
+
 caso('H05 Cache con forma invalida no bloquea la carga', async (nav, base) => {
   const mala = JSON.stringify({ esquema: 2, guardadoEn: Date.now(), datos: { ok: true, config: {}, productos: {} } });
   const vieja = JSON.stringify({ guardadoEn: Date.now(), datos: { ok: true, productos: {} } });

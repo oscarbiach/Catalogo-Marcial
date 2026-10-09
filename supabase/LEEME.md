@@ -37,7 +37,7 @@ select * from sincronizacion_log order by id desc limit 10;
 ## Cosas a tener en cuenta
 
 - **Clave `service_role`:** es secreta, da acceso total. Solo va en las propiedades del script de Apps Script. Nunca en el repositorio, en `config.js` ni en un chat.
-- **Pedidos de relleno:** cualquiera que conozca la clave pública puede llamar a `registrar_pedido`. Desde `03-pedidos.sql` la función limita a 5 pedidos cada 10 minutos y 30 por día por IP, y 150 por hora en total. Es una mitigación: el arreglo de fondo (endpoint de servidor con anti-robots) está en la Fase 3 de `auditoria/PLAN-MAESTRO.md`.
+- **Pedidos de relleno:** cualquiera que conozca la clave pública puede llamar a `registrar_pedido`. Desde `03-pedidos.sql` la función limita a 5 pedidos cada 10 minutos y 30 por día por IP, y 150 por hora en total. Es una mitigación: el arreglo de fondo (Edge Function con Cloudflare Turnstile) ya está desplegado y se enciende con las claves; ver `LEEME-TURNSTILE.md`.
 - **Salud de la sincronización:** `select * from estado_sincronizacion;` muestra la última corrida buena y cuántas fallaron seguidas. Si `antiguedad` pasa de 1 hora, la sincronización está caída; el sitio avisa a los clientes pasadas 2 horas.
 - **Pruebas:** `pruebas/sql/correr-local.sh` aplica los tres archivos en un Postgres temporal y corre `pruebas/sql/casos.sql`. Nunca correr los casos en producción.
 - **Orden por "más pedidos":** lo calcula tu planilla (columna `pedidos`) y el catálogo llega ya ordenado. Los pedidos que se hacen desde el sitio quedan registrados en `pedidos_catalogo`, pero por ahora no cambian ese orden.

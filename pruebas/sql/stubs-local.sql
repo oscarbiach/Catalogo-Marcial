@@ -4,6 +4,7 @@
 -- carga en extensions._respuesta.
 create role anon;
 create role authenticated;
+create role service_role;
 create schema extensions;
 create type extensions.http_response as (status int, content_type text, headers text, content text);
 create table extensions._respuesta (contenido text);

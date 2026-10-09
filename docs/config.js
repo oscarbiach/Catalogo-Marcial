@@ -33,6 +33,15 @@ window.CATALOGO_CONFIG = {
     guardarPedidos: true,
   },
 
+  // Verificacion anti-robots de los pedidos (Cloudflare Turnstile).
+  // Vacio = apagada: los pedidos se registran directo, con limite por IP.
+  // Para activarla: crear el widget en Cloudflare, pegar aca la clave
+  // PUBLICA (site key) y cargar la secreta en Supabase. Guia:
+  // supabase/LEEME-TURNSTILE.md. La clave secreta nunca va en este archivo.
+  TURNSTILE: {
+    siteKey: '',
+  },
+
   // Avisos que se muestran en la ficha de ciertos productos. Cada regla mira el
   // nombre (sin acentos ni mayusculas): `contiene` tiene que estar y `excluye`
   // no. Para sumar otro aviso, agregar otra regla a la lista.
