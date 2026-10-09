@@ -97,7 +97,7 @@ function ef_columnas_(hoja) {
 function ef_verdadero_(v) {
   if (v === true) return true;
   var s = String(v).trim().toLowerCase();
-  return s === 'true' || s === 'si' || s === 'sí' || s === '1' || s === 'x' || s === 'verdadero';
+  return s === 'true' || s === 'si' || s === 's\u00ed' || s === '1' || s === 'x' || s === 'verdadero';
 }
 
 /**
@@ -294,7 +294,7 @@ function ef_guardar(fila, id, datos) {
     var comoTexto = function (v) { return String(v === null || v === undefined ? '' : v).trim(); };
     var esFecha = function (t) { return /^\d{1,2}[\/\-]\d{1,2}([\/\-]\d{1,4})?$/.test(t); };
     var nombre = String(hoja.getRange(fila, col.nombre).getValue());
-    var escrituras = [];   // { celda, valor, registro } — se aplican al final
+    var escrituras = [];   // { celda, valor, registro } - se aplican al final
 
     /** Conflicto si la celda cambio desde que se abrio la ficha y no es lo que se quiere poner. */
     var revisarConflicto = function (campo, clave, actual, nuevo) {
@@ -306,7 +306,7 @@ function ef_guardar(fila, id, datos) {
       }
     };
 
-    // ── Fase 1: validar y planear (no escribe nada) ──────────────────────
+    // -- Fase 1: validar y planear (no escribe nada) ----------------------
     var nuevos = {
       descripcion: ef_texto_(datos.descripcion, EF.MAX_DESCRIPCION),
       presentacion: ef_texto_(datos.presentacion, EF.MAX_PRESENTACION),
@@ -423,7 +423,7 @@ function ef_guardar(fila, id, datos) {
         registro: [new Date(), String(id), nombre, campo, String(antes), String(nuevos[campo])] });
     });
 
-    // ── Fase 2: escribir (todo validado) ─────────────────────────────────
+    // -- Fase 2: escribir (todo validado) ---------------------------------
     if (!escrituras.length) return { cambios: 0 };
     escrituras.forEach(function (e) { e.celda.setValue(e.valor); });
     SpreadsheetApp.flush();
@@ -531,7 +531,7 @@ function ef_inactivo_(actual) {
   var t = String(actual).trim();
   if (/^true$/i.test(t)) return 'FALSE';
   if (/^verdadero$/i.test(t)) return 'FALSO';
-  if (/^s[ií]$/i.test(t)) return t === t.toUpperCase() ? 'NO' : (t === t.toLowerCase() ? 'no' : 'No');
+  if (/^s[i\u00ed]$/i.test(t)) return t === t.toUpperCase() ? 'NO' : (t === t.toLowerCase() ? 'no' : 'No');
   if (t === '1') return '0';
   return false;
 }
