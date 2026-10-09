@@ -238,6 +238,11 @@
     var args = Array.prototype.slice.call(arguments, 1);
     return new Promise(function (ok, mal) {
       var r = google.script.run.withSuccessHandler(ok).withFailureHandler(function (e) { mal(new Error(e && e.message ? e.message : String(e))); });
+      // Si FichasCodigo quedo pegado a medias, la funcion no existe en el servidor.
+      if (typeof r[nombre] !== 'function') {
+        mal(new Error('Falta la funcion "' + nombre + '" en FichasCodigo. Volve a pegar EditorFichas.gs completo (termina en "ef_kalis_aplicar") y guarda.'));
+        return;
+      }
       r[nombre].apply(r, args);
     });
   }
