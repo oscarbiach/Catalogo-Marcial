@@ -79,6 +79,14 @@ caso('Error de validacion de la base: se pasa mensaje y codigo, con su estado', 
   assert.deepStrictEqual(await r.json(), { message: 'Recibimos muchos pedidos seguidos.', hint: 'demasiados_pedidos' });
 });
 
+caso('Dominio propio: CORS permitido', async () => {
+  const { f } = fetchFalso();
+  for (const origen of ['https://distribuidoramarcial.com', 'https://www.distribuidoramarcial.com']) {
+    const r = await manejar(pedido(CUERPO, { origin: origen }), ENTORNO, f);
+    assert.strictEqual(r.headers.get('access-control-allow-origin'), origen);
+  }
+});
+
 caso('Origen ajeno: sin cabecera CORS (el navegador lo bloquea)', async () => {
   const { f } = fetchFalso();
   const r = await manejar(pedido(CUERPO, { origin: 'https://otro.sitio' }), ENTORNO, f);

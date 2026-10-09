@@ -18,7 +18,7 @@ Para encenderla solo hacen falta las claves.
 
 1. Entrar a <https://dash.cloudflare.com> (crear cuenta si no hay).
 2. Menú **Turnstile** > **Add widget**.
-3. Nombre: `Catalogo Marcial`. Dominio: `oscarbiach.github.io`.
+3. Nombre: `Catalogo Marcial`. Dominios: `distribuidoramarcial.com`, `www.distribuidoramarcial.com` y `oscarbiach.github.io`.
 4. Modo: **Managed**. Crear.
 5. Quedan dos claves:
    - **Site Key** (pública): va en el sitio.

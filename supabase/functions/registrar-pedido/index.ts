@@ -11,7 +11,7 @@
  *   TURNSTILE_SECRET   clave secreta del widget de Turnstile (nunca en el sitio)
  * Los provee Supabase solo: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
  * Opcional: ORIGENES_PERMITIDOS (separados por coma). Por defecto, el sitio
- * publicado en GitHub Pages.
+ * publicado en GitHub Pages y en distribuidoramarcial.com.
  *
  * Sin TURNSTILE_SECRET responde 503: el sitio solo llama aca cuando tiene la
  * clave publica cargada en config.js.
@@ -24,7 +24,12 @@ export type Entorno = {
   ORIGENES_PERMITIDOS?: string;
 };
 
-const ORIGENES_POR_DEFECTO = 'https://oscarbiach.github.io';
+// El sitio publicado: la direccion de GitHub Pages y el dominio propio.
+const ORIGENES_POR_DEFECTO = [
+  'https://oscarbiach.github.io',
+  'https://distribuidoramarcial.com',
+  'https://www.distribuidoramarcial.com',
+].join(',');
 const VERIFICAR_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
 
 function cabecerasCors(origen: string | null, entorno: Entorno): Record<string, string> {
