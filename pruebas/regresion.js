@@ -260,6 +260,24 @@ caso('H15 Dos pestanias: lo que suma una aparece en la otra', async (nav, base) 
   await pagina.waitForFunction(() => document.querySelector('#carrito-cuenta').textContent === '2');
 });
 
+caso('PWA Sin conexion: la segunda visita abre con el catalogo guardado', async (nav, base) => {
+  const contexto = await nav.newContext();   // con Service Worker habilitado
+  const { pagina, errores } = await abrir(nav, base, { contexto });
+  await esperarCatalogo(pagina);
+  await pagina.evaluate(() => navigator.serviceWorker.ready);
+  // La cascara quedo guardada: index, CSS, JS y fuente.
+  const guardados = await pagina.evaluate(async () => (await (await caches.open('catalogo-cascara-v1')).keys()).map((r) => r.url));
+  for (const parte of ['index.html', 'app.js', 'styles.css', 'config.js', 'manrope-latin-var.woff2']) {
+    assert.ok(guardados.some((u) => u.includes(parte)), 'falta en la cache: ' + parte);
+  }
+  await contexto.setOffline(true);
+  await pagina.reload();
+  await esperarCatalogo(pagina);
+  assert.match(await pagina.locator('.pieza[data-id="105"] .pieza-unit').innerText(), /caja de 20/);
+  assert.deepStrictEqual(errores, []);
+  await contexto.close();
+});
+
 caso('H18 Filtro elegido sobre la cache se conserva al llegar el catalogo fresco', async (nav, base) => {
   const contexto = await nav.newContext({ serviceWorkers: 'block' });
   const p1 = await abrir(nav, base, { contexto });
