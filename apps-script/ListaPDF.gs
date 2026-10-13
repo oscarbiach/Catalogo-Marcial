@@ -30,16 +30,19 @@
 
 // ============================== CONFIGURACION ==============================
 var CONFIG = {
-  // Archivo de Google Sheets "Precios COSTO - VENTA": el codigo largo de la URL
-  // entre /d/ y /edit.
-  SPREADSHEET_ID: 'PEGAR_ACA_EL_ID_DEL_SPREADSHEET',
+  // Planilla "Precios Publicos" (solo precios de venta): el codigo largo de la
+  // URL entre /d/ y /edit. Es la MISMA de la que la pagina toma los precios
+  // (PreciosPublicos.gs, en el proyecto del catalogo): asi el PDF y la pagina
+  // nunca muestran listas distintas.
+  SPREADSHEET_ID: '1H9JxYDK4FEBnCGfpImrr--rMzoRliwkFea2Jxp-ZMWU',
 
-  // Numero de la pestania "Ventas": abrir esa pestania en el navegador y mirar
-  // el final de la URL, donde dice  #gid=NUMERO
-  GID: 'PEGAR_ACA_EL_NUMERO_GID',
+  // Numero de la pestania: abrirla en el navegador y mirar el final de la URL,
+  // donde dice  #gid=NUMERO  (la primera pestania suele ser 0).
+  GID: '0',
 
-  // Celdas fijas que van al PDF (en formato A1, por ejemplo A1:G200). Dejar '' para toda la hoja.
-  RANGO: 'A1:G200',
+  // Celdas fijas que van al PDF (en formato A1, por ejemplo A1:I734). Dejar ''
+  // para toda la hoja: asi los productos que se agreguen al final tambien salen.
+  RANGO: '',
 
   // Carpeta de Drive donde queda el PDF (el codigo al final de la URL de la
   // carpeta). Dejar '' para guardarlo en "Mi unidad".

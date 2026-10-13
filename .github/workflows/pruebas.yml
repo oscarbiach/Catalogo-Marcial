@@ -34,7 +34,9 @@ jobs:
       - name: Edge Function registrar-pedido
         run: node pruebas/unidad/registrar-pedido.test.mjs
       - name: Apps Script (planilla simulada)
-        run: node pruebas/apps-script/caja-cerrada.test.js
+        run: |
+          node pruebas/apps-script/caja-cerrada.test.js
+          node pruebas/apps-script/precios-publicos.test.js
       - name: Instalar Playwright
         # Sin package.json a proposito: el sitio no tiene dependencias, esto
         # es solo para las pruebas.
