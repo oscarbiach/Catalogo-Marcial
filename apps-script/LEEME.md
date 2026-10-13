@@ -1,5 +1,8 @@
 # Lista de precios en PDF
 
+> Desde el 13/10/2026 el PDF lee la planilla **Precios Publicos**, la misma de la
+> que la pagina toma los precios. Ver `LEEME-PRECIOS.md`.
+
 `ListaPDF.gs` genera un PDF con celdas fijas de la hoja de venta y lo mantiene
 al dia en Drive. El archivo es siempre el mismo, asi que el enlace no cambia y
 el boton "Ver lista de precios" del catalogo apunta a un enlace fijo.
