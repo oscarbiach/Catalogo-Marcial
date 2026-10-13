@@ -37,6 +37,7 @@ jobs:
         run: |
           node pruebas/apps-script/caja-cerrada.test.js
           node pruebas/apps-script/precios-publicos.test.js
+          node pruebas/apps-script/lista-pdf.test.js
       - name: Instalar Playwright
         # Sin package.json a proposito: el sitio no tiene dependencias, esto
         # es solo para las pruebas.

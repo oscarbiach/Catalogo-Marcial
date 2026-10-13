@@ -13,6 +13,19 @@ Para cambiar un precio, se cambia en **Precios Publicos**. El PDF se regenera
 en unos 5 minutos y la página se actualiza en unos 25 minutos: 15 de la
 revisión de precios más 10 de la copia a Supabase.
 
+## Corte: hasta dónde se lee la lista
+
+La página y el PDF leen **"Precios Publicos" hasta la fila "Tripa Gorda - La
+Morena", sin incluirla**. De ahí para abajo no se toma nada (pedido del
+13/10/2026).
+- La fila se busca **por nombre**, así sigue sirviendo aunque se agreguen
+  filas arriba. Mayúsculas, tildes y espacios de más no cuentan.
+- **Si esa fila se borra o se le cambia el nombre**, los dos scripts se frenan
+  y avisan en el registro; no toman de más. El PDF queda en su última versión
+  y la página no cambia ningún precio. Para mover el corte, cambiar
+  `CORTAR_DESDE` en los dos scripts: en `PP` (PreciosPublicos.gs) y en
+  `CONFIG` (ListaPDF.gs).
+
 ## 1. Página: `PreciosPublicos.gs`
 
 Va en el proyecto de Apps Script **del catálogo**, el mismo que tiene
@@ -59,7 +72,11 @@ Va en su proyecto aparte, el que ya genera el PDF. Solo cambia la sección
 SPREADSHEET_ID: '1H9JxYDK4FEBnCGfpImrr--rMzoRliwkFea2Jxp-ZMWU',
 GID: '0',
 RANGO: '',
+CORTAR_DESDE: 'Tripa Gorda - La Morena',
 ```
+
+Desde el 13/10/2026 el archivo además calcula el rango del PDF a partir del
+corte. Conviene pegar `ListaPDF.gs` entero, no solo estas líneas.
 
 Después:
 1. Ejecutar `probarSinGuardar` y revisar que muestre la lista de venta.

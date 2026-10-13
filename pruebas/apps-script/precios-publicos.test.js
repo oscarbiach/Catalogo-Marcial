@@ -64,7 +64,10 @@ function lista() {
     item('Ketchup individual 8gr x 192u - Danica', '-', 12111, '-'),         //   precios distintos
     item('Solo caja en la lista', '-', '-', 60000),                          // caja no sirve por unidad
     item('Mortadela en la lista', 4500, '-', '-'),                           // va por nombre_lista
-    item('Igual que antes', '-', 2500, '-')];
+    item('Igual que antes', '-', 2500, '-'),
+    item('Tripa Gorda - La Morena', 6250, '-', '-'),                         // corte: de aca para abajo no
+    item('Mortadela', 1, '-', '-'),                                          //   se toma nada
+    item('RANDOM', 0, '-', '-')];
 }
 
 function hoja(celdas) {
@@ -202,6 +205,20 @@ caso('Si a Productos le falta una columna, no toca nada', () => {
   p[0][20] = 'otra_cosa';                          // unidad_precio
   const { api, shP } = cargar(p, lista());
   assert.throws(() => api.pp_aplicar(), /Falta la columna "unidad_precio"/);
+  assert.strictEqual(shP.escritas.length, 0);
+});
+
+caso('Corte: lo que esta debajo de "Tripa Gorda - La Morena" no se toma', () => {
+  const { api, shP } = cargar(productos(), lista());
+  const texto = api.pp_aplicar();
+  assert.strictEqual(precioDe(shP, '50'), 4000);   // "Mortadela" solo esta debajo del corte
+  assert.match(texto, /50 Mortadela/);             // queda como "no esta en la lista"
+});
+
+caso('Sin la fila de corte no se toca ningun precio', () => {
+  const l = lista().filter((f) => f[0] !== 'Tripa Gorda - La Morena');
+  const { api, shP } = cargar(productos(), l);
+  assert.throws(() => api.pp_aplicar(), /No encuentro la fila "Tripa Gorda - La Morena"/);
   assert.strictEqual(shP.escritas.length, 0);
 });
 

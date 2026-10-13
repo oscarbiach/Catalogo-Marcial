@@ -44,6 +44,13 @@ var CONFIG = {
   // para toda la hoja: asi los productos que se agreguen al final tambien salen.
   RANGO: '',
 
+  // El PDF llega hasta la fila con este nombre, sin incluirla: de ahi para
+  // abajo no sale nada (13/10/2026). Se busca por nombre en la columna A, asi
+  // sigue sirviendo aunque se agreguen filas arriba. '' = sin corte.
+  // Si la fila no aparece, el PDF NO se regenera (queda el anterior) y el
+  // registro lo avisa: mejor eso que publicar de mas.
+  CORTAR_DESDE: 'Tripa Gorda - La Morena',
+
   // Carpeta de Drive donde queda el PDF (el codigo al final de la URL de la
   // carpeta). Dejar '' para guardarlo en "Mi unidad".
   CARPETA_ID: '',
@@ -72,7 +79,7 @@ function actualizarListaPDF(forzar) {
       return;                              // nada cambio
     }
 
-    var pdf = exportarPDF_();
+    var pdf = exportarPDF_(datos.rango);
     var archivo = guardarPDF_(pdf, props);
     props.setProperty(PROP_HUELLA, huella);
     Logger.log('PDF actualizado: https://drive.google.com/file/d/' + archivo.getId() + '/view');
@@ -114,11 +121,12 @@ function quitarActivadores() {
  * ni cambia nada, ni en la planilla ni en Drive.
  */
 function probarSinGuardar() {
-  var v = leerHoja_().valores;
+  var datos = leerHoja_();
+  var v = datos.valores;
   var llenas = v.filter(function (fila) {
     return fila.some(function (c) { return String(c).trim() !== ''; });
   });
-  Logger.log((CONFIG.RANGO ? 'Rango: ' + CONFIG.RANGO : 'Toda la hoja') + ' | ' + v.length +
+  Logger.log('Rango del PDF: ' + (datos.rango || 'toda la hoja') + ' | ' + v.length +
     ' filas (' + llenas.length + ' con datos) x ' + (v[0] ? v[0].length : 0) + ' columnas');
   Logger.log('--- PRIMERAS 10 FILAS CON DATOS ---');
   llenas.slice(0, 10).forEach(function (f) { Logger.log(JSON.stringify(f)); });
@@ -141,7 +149,43 @@ function leerHoja_() {
     throw new Error('No se pudo leer la planilla (HTTP ' + r.getResponseCode() + '). Revisar SPREADSHEET_ID y GID. ' +
       r.getContentText().replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').slice(0, 200));
   }
-  return { valores: recortar_(Utilities.parseCsv(r.getContentText()), CONFIG.RANGO) };
+  var todas = Utilities.parseCsv(r.getContentText());
+  var valores = recortar_(todas, CONFIG.RANGO);
+  var rango = CONFIG.RANGO;
+  if (CONFIG.CORTAR_DESDE) {
+    var corte = clave_(CONFIG.CORTAR_DESDE);
+    var hasta = -1;
+    for (var i = 0; i < valores.length; i++) {
+      if (clave_(valores[i][0]) === corte) { hasta = i; break; }
+    }
+    if (hasta < 0) {
+      throw new Error('No encuentro la fila "' + CONFIG.CORTAR_DESDE + '" en la columna A. El PDF no se regenera. ' +
+        'Si se cambio el nombre de esa fila, actualizar CORTAR_DESDE.');
+    }
+    if (hasta === 0) throw new Error('La fila "' + CONFIG.CORTAR_DESDE + '" es la primera: el PDF quedaria vacio.');
+    valores = valores.slice(0, hasta);
+    rango = rangoHasta_(CONFIG.RANGO, todas, hasta);
+  }
+  return { valores: valores, rango: rango };
+}
+
+/** "Tripa  Gorda - La Morena" -> "tripa gorda la morena" (mayusculas, tildes y signos no cuentan). */
+function clave_(texto) {
+  return String(texto === null || texto === undefined ? '' : texto)
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+/** Rango A1 que termina justo antes de la fila de corte (filas = cantidad de filas que quedan). */
+function rangoHasta_(rango, todas, filas) {
+  var m = /^([A-Za-z]+)(\d+):([A-Za-z]+)(\d+)$/.exec(String(rango || '').trim());
+  if (m) return m[1] + m[2] + ':' + m[3] + (Number(m[2]) + filas - 1);
+  var ancho = Math.max.apply(null, todas.map(function (f) { return f.length; }));
+  var letras = '';
+  for (var n = ancho; n > 0; n = Math.floor((n - 1) / 26)) letras = String.fromCharCode(65 + (n - 1) % 26) + letras;
+  return 'A1:' + letras + filas;
 }
 
 /** Deja solo las filas y columnas del rango (formato A1:J720). Vacio = todo. */
@@ -157,10 +201,10 @@ function recortar_(valores, rango) {
   return valores.slice(f1, f2).map(function (fila) { return fila.slice(c1, c2 + 1); });
 }
 
-function urlExportacion_(formato) {
+function urlExportacion_(formato, rango) {
   var partes = ['format=' + formato, 'gid=' + CONFIG.GID];
   if (formato === 'pdf') {
-    if (CONFIG.RANGO) partes.push('range=' + encodeURIComponent(CONFIG.RANGO));
+    if (rango) partes.push('range=' + encodeURIComponent(rango));
     partes.push('size=A4', 'portrait=true', 'fitw=true', 'gridlines=false', 'printtitle=false',
       'sheetnames=false', 'pagenum=UNDEFINED',
       'top_margin=0.5', 'bottom_margin=0.5', 'left_margin=0.5', 'right_margin=0.5');
@@ -173,8 +217,8 @@ function huella_(valores) {
   return bytes.map(function (b) { return ('0' + (b & 0xff).toString(16)).slice(-2); }).join('');
 }
 
-function exportarPDF_() {
-  var respuesta = UrlFetchApp.fetch(urlExportacion_('pdf'), {
+function exportarPDF_(rango) {
+  var respuesta = UrlFetchApp.fetch(urlExportacion_('pdf', rango), {
     headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
     muteHttpExceptions: true
   });
