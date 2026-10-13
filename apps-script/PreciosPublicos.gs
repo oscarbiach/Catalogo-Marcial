@@ -30,6 +30,8 @@
  * exacto de la lista en la columna "nombre_lista" de Productos (la crea
  * pp_aplicar al final de la hoja).
  *
+ * La lista se lee hasta la fila PP.CORTAR_DESDE (sin incluirla).
+ *
  * SOLO LEE "Precios Publicos". En Productos solo escribe precio, actualizado
  * y el titulo de la columna nombre_lista. Cada precio cambiado queda en la
  * hoja "Historial fichas".
@@ -46,6 +48,11 @@ var PP = {
   COL_KILO: 7,
   COL_UNIDAD: 8,
   COL_CAJA: 9,
+  // La lista se lee hasta la fila con este nombre, sin incluirla: de ahi para
+  // abajo no se toma nada (13/10/2026). Se busca por nombre, asi sigue
+  // sirviendo aunque se agreguen filas arriba. '' = leer toda la hoja.
+  // Si la fila no aparece, no se toca ningun precio (mejor que tomar de mas).
+  CORTAR_DESDE: 'Tripa Gorda - La Morena',
   // Cambios mayores a esto (0.5 = 50%) no se aplican solos.
   CAMBIO_MAXIMO: 0.5,
   REVISAR_CADA_MINUTOS: 15,
@@ -113,12 +120,23 @@ function pp_precio_(valor) {
   return n !== null && isFinite(n) && n > 0 ? n : null;
 }
 
+/** Deja solo las filas de arriba de PP.CORTAR_DESDE (sin incluirla). */
+function pp_cortar_(filas) {
+  if (!PP.CORTAR_DESDE) return filas;
+  var corte = pp_clave_(PP.CORTAR_DESDE);
+  for (var i = 0; i < filas.length; i++) {
+    if (pp_clave_(filas[i][PP.COL_NOMBRE - 1]) === corte) return filas.slice(0, i);
+  }
+  throw new Error('No encuentro la fila "' + PP.CORTAR_DESDE + '" en Precios Publicos, que marca hasta donde ' +
+    'leer. No se toca ningun precio. Si se cambio el nombre de esa fila, actualizar CORTAR_DESDE.');
+}
+
 /** Lee la lista: clave -> { nombre, kilo, unidad, caja, ambiguo }. */
 function pp_leerLista_() {
   var planilla = SpreadsheetApp.openById(PP.SPREADSHEET_ID);
   var hoja = PP.HOJA ? planilla.getSheetByName(PP.HOJA) : planilla.getSheets()[0];
   if (!hoja) throw new Error('No encuentro la pestania "' + PP.HOJA + '" en Precios Publicos.');
-  var filas = hoja.getDataRange().getValues();
+  var filas = pp_cortar_(hoja.getDataRange().getValues());
   var lista = {};
   filas.forEach(function (f) {
     var nombre = String(f[PP.COL_NOMBRE - 1] || '').trim();
