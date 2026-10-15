@@ -19,3 +19,14 @@ Subagentes del proyecto en `.claude/agents/`:
 - `sonnet-coder` (Sonnet 5.5, effort medium): delégale la implementación cuando el cambio abarque varios archivos o requiera ejecutar pruebas, pasándole una especificación concreta. Los cambios chicos y puntuales hazlos directamente en la sesión principal.
 
 La sesión principal conserva el diseño, las decisiones ambiguas y la revisión final del resultado de los subagentes. No cambies el modelo de la sesión hacia uno menor a mitad de conversación: delega en subagentes.
+
+### Costo y contexto
+- Esfuerzo: `Explore` queda en low y `sonnet-coder` en medium. No subas los subagentes a xhigh/max: en max, Haiku genera unos 162K tokens de salida por tarea y pierde su ventaja de costo. Lo difícil (depurar, decidir) queda en la sesión principal.
+- Encargos acotados a los subagentes: qué buscar y en qué carpeta, sin pegar archivos enteros; que devuelvan solo la síntesis. Así cada uno queda muy por debajo de 100K tokens (por encima, Haiku cobra 5 veces más).
+- Este CLAUDE.md se carga y cachea al iniciar cada sesión: mantenlo corto y estable. Lo pendiente va en `auditoria/PENDIENTES.md`, no aquí.
+- Escrituras en GitHub dosificadas: nada de decenas de commits, comentarios o issues en ráfaga, para no chocar con los límites secundarios de GitHub.
+- El hook `.claude/hooks/check-js.cjs` corre `node --check` sobre cada `.js/.cjs/.mjs` editado y devuelve el error en el momento. No cubre el script embebido en `index.html`: eso sigue en la validación habitual.
+
+### Operaciones de negocio (pedidos, cobros, comprobantes, stock)
+- Toda operación que crea o cambia datos debe ser idempotente: el id se genera una sola vez por operación (como la referencia `p_ref` que `docs/assets/js/app.js` envía a `registrar_pedido`) y nunca de nuevo en cada reintento, y el botón queda deshabilitado mientras la solicitud está en curso. Al tocar estos flujos, verifica que se mantenga.
+- Las pruebas nunca envían formularios ni datos a servicios reales: Supabase y Apps Script simulados, como en `pruebas/regresion.js`.
