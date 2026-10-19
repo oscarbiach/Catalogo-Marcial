@@ -71,7 +71,7 @@ function servidor() {
  * opciones.registro: (cuerpo) => { status, body }
  */
 async function abrir(navegador, base, opciones) {
-  const o = Object.assign({ supabase: 'ok', registro: null, storage: null, demoraSupabase: 0, sincronizadoEn: null }, opciones);
+  const o = Object.assign({ supabase: 'ok', registro: null, storage: null, demoraSupabase: 0, sincronizadoEn: null, extra: [] }, opciones);
   const contexto = o.contexto || await navegador.newContext({ serviceWorkers: 'block' });
   const registros = [];
   await contexto.route(/drive\.google\.com|googleusercontent|wa\.me|whatsapp/, (r) => r.fulfill({ status: 204, body: '' }));
@@ -86,7 +86,7 @@ async function abrir(navegador, base, opciones) {
     if (o.supabase === 'caido') return r.fulfill({ status: 503, body: 'caido' });
     if (o.supabase === 'colgado') return; // nunca responde
     if (o.demoraSupabase) await new Promise((x) => setTimeout(x, o.demoraSupabase));
-    const cuerpo = url.includes('/productos') ? filasSupabase() : configSupabase(o.sincronizadoEn);
+    const cuerpo = url.includes('/productos') ? filasSupabase().concat(o.extra) : configSupabase(o.sincronizadoEn);
     return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(cuerpo) });
   });
   await contexto.route(/script\.google\.com/, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(o.appsScript || APPS_SCRIPT) }));
@@ -361,6 +361,62 @@ caso('Contacto: el numero del pie es una pastilla que abre WhatsApp', async (nav
   assert.strictEqual(await pastilla.isVisible(), true);
   assert.match(await pastilla.getAttribute('href'), /^https:\/\/wa\.me\/5491100000000\?text=/);
   assert.strictEqual(await pagina.locator('#pie-whatsapp-numero').innerText(), '+54 9 11 0000-0000');
+});
+
+// Mensaje pedido por el usuario (19/10/2026): Ref y Cliente arriba, sin numerar, "(Esperando confirmación...)" al final,
+// y la panceta con servicio de feteado (+15 % por kg) aclarado en cada línea. La que ya viene en fetas no lo ofrece.
+const PANCETAS = [
+  { id: '400', nombre: 'Panceta ahumada - Bosio', precio: 23415, moneda: 'ARS', unidades_caja: 0, solo_caja: false, kg_caja: 0, unidad_precio: 'kg', categoria: 'Fiambres', marca: 'Bosio', imagenes: [], rubros: [], destacado: false, nuevo: false, sin_stock: false, orden: 4, sku: 'BOS-004', descripcion: '', presentacion: '' },
+  { id: '401', nombre: 'Panceta Ahumada - Klein', precio: 14287, moneda: 'ARS', unidades_caja: 0, solo_caja: false, kg_caja: 0, unidad_precio: 'kg', categoria: 'Fiambres', marca: 'Klein', imagenes: [], rubros: [], destacado: false, nuevo: false, sin_stock: false, orden: 5, sku: 'KLE-003', descripcion: '', presentacion: '' },
+  { id: '402', nombre: 'Panceta ahumada en fetas al vacio - Bosio', precio: 28155, moneda: 'ARS', unidades_caja: 0, solo_caja: false, kg_caja: 0, unidad_precio: 'kg', categoria: 'Fiambres', marca: 'Bosio', imagenes: [], rubros: [], destacado: false, nuevo: false, sin_stock: false, orden: 6, sku: 'BOS-005', descripcion: '', presentacion: '' },
+];
+caso('Mensaje: formato nuevo y servicio de feteado solo en la panceta', async (nav, base) => {
+  const { pagina, registros, errores } = await abrir(nav, base, { extra: PANCETAS });
+  await esperarCatalogo(pagina);
+  // Ficha de la panceta: casilla de feteado; se suma ya feteada
+  await pagina.locator('#grilla .pieza[data-id="400"]').click();
+  await pagina.locator('#ficha-feteado-caja').waitFor({ state: 'visible' });
+  assert.match(await pagina.locator('#ficha-feteado-caja').innerText(), /Servicio de feteado\s+\(\+15% por kg\)/);
+  await pagina.locator('#ficha-feteado').check();
+  if (process.env.CAPTURAS) await pagina.screenshot({ path: path.join(process.env.CAPTURAS, 'ficha-feteado.png') });
+  await pagina.locator('#ficha-agregar').click();
+  await pagina.keyboard.press('Escape');
+  // La que ya viene en fetas y la mayonesa no ofrecen feteado
+  await pagina.locator('#grilla .pieza[data-id="402"]').click();
+  await pagina.locator('#ficha-agregar').waitFor({ state: 'visible' });
+  assert.strictEqual(await pagina.locator('#ficha-feteado-caja').isHidden(), true);
+  await pagina.keyboard.press('Escape');
+  await sumar(pagina, '401'); await sumar(pagina, '300', 2);
+  await pagina.locator('#carrito').click();
+  await pagina.locator('#pedido-nombre').fill('Elos');
+  // Carrito: casilla en las dos pancetas, marcada solo en la de Bosio; el subtotal suma el 15 %
+  assert.strictEqual(await pagina.locator('#pedido-lineas [data-accion="feteado"]').count(), 2);
+  assert.strictEqual(await pagina.locator('.pedido-linea[data-id="400"] [data-accion="feteado"]').isChecked(), true);
+  assert.match(await pagina.locator('.pedido-linea[data-id="400"] .pedido-subtotal').innerText(), /26\.927,25/);
+  const texto = async () => decodeURIComponent((await pagina.locator('#pedido-enviar').getAttribute('href')).split('text=')[1]);
+  let t = await texto();
+  const lineas = t.split('\n');
+  assert.match(lineas[0], /^\*Pedido - Marcial\*$/);
+  assert.match(lineas[1], /^Ref: [0-9A-F]{8}$/);
+  assert.strictEqual(lineas[2], 'Cliente: Elos');
+  assert.strictEqual(lineas[3], '');
+  assert.ok(!/^\d+\. /m.test(t), 'sin numerar: ' + t);
+  assert.match(t, /Panceta ahumada - Bosio \(BOS-004\)\n   1 kg - \$\s?26\.927,25\n   Feteada \(\+15%\)/);
+  assert.match(t, /Panceta Ahumada - Klein \(KLE-003\)\n   1 kg - \$\s?14\.287\n   Sin fetear/);
+  assert.match(t, /Mayonesa\n   2 unidades - \$\s?1\.000(\n|$)/);
+  assert.match(t, /\*Total estimado: \$\s?42\.214,25\*\n\(Esperando confirmación de la cotización\)$/);
+  if (process.env.CAPTURAS) await pagina.screenshot({ path: path.join(process.env.CAPTURAS, 'carrito-feteado.png') });
+  // Cambiar el feteado desde el carrito actualiza el mensaje y es otro pedido (otra ref)
+  const ref1 = lineas[1];
+  await pagina.locator('.pedido-linea[data-id="401"] [data-accion="feteado"]').check();
+  t = await texto();
+  assert.match(t, /Panceta Ahumada - Klein \(KLE-003\)\n   1 kg - \$\s?16\.430,05\n   Feteada \(\+15%\)/);
+  assert.notStrictEqual(t.split('\n')[1], ref1);
+  // El registro manda solo ids y cantidades; el aviso de "precios de hoy" no salta por el recargo
+  await pagina.locator('#pedido-enviar').click();
+  await pagina.locator('#enviado-registro').filter({ hasText: 'registrado' }).waitFor();
+  assert.deepStrictEqual(registros[0].p_items.map((i) => i.id).sort(), ['300', '400', '401']);
+  assert.deepStrictEqual(errores, []);
 });
 
 // ── Ejecucion ──────────────────────────────────────────────────────────

@@ -28,6 +28,7 @@ import {
   var CLAVE_CLIENTE = 'catalogo_cliente_v1';
   var CLAVE_ENVIADO = 'catalogo_enviado_v1';
   var CLAVE_REF = 'catalogo_pedido_ref_v1';
+  var CLAVE_FETEADO = 'catalogo_feteado_v1';
   var CLAVE_REGLAS_CAJA = 'catalogo_reglas_caja_v1';
   var CLAVE_TEMA = 'catalogo_tema_v1';
   // El modo oscuro se habilita desde el <meta name="catalogo-modo-oscuro"> de
@@ -70,6 +71,8 @@ import {
     // resuelven contra el catalogo en cada dibujado, asi nunca se muestra un
     // precio viejo ni un producto que ya se dio de baja.
     pedido: {},
+    // Productos del pedido que se piden feteados: { idProducto: true }.
+    feteado: {},
     enviadoEn: null,
     // [AUDITORIA H02] Referencia unica del intento de pedido. Se mantiene en
     // los reintentos (idempotencia) y se renueva cuando cambia el contenido.
@@ -1011,6 +1014,16 @@ import {
     return '';
   }
 
+  /** Si el producto admite el servicio de feteado (regla FETEADO de config.js). */
+  function admiteFeteado(p) {
+    var r = CFG.FETEADO;
+    if (!r || !(r.recargo > 0) || !p) return false;
+    var nombre = normalizar(p.nombre);
+    return (r.contiene || []).every(function (t) { return nombre.indexOf(normalizar(t)) > -1; }) &&
+      !(r.excluye || []).some(function (t) { return nombre.indexOf(normalizar(t)) > -1; });
+  }
+  function textoRecargo() { return '+' + Math.round(CFG.FETEADO.recargo * 100) + '%'; }
+
   function tipoDe(p) {
     if (p.tipo) return p.tipo;
     var reglas = TIPOS_POR_SECCION[p.categoria];
@@ -1609,6 +1622,14 @@ import {
     if (!sePuede) return;
 
     var enPedido = estado.pedido[p.id] || 0;
+    $('ficha-feteado-caja').hidden = !admiteFeteado(p);
+    if (admiteFeteado(p)) {
+      var casilla = $('ficha-feteado');
+      $('ficha-feteado-extra').textContent = '(' + textoRecargo() + ' por kg)';
+      // Al abrir otro producto la casilla arranca como esta en el pedido (o sin marcar).
+      if (enPedido || casilla.dataset.id !== p.id) casilla.checked = !!estado.feteado[p.id];
+      casilla.dataset.id = p.id;
+    }
     $('ficha-cantidad').value = enPedido || 1;
     $('ficha-agregar').textContent = enPedido ? 'Ver el pedido' : 'Sumar al pedido';
     $('ficha-agregar').dataset.modo = enPedido ? 'ver' : 'sumar';
@@ -1639,7 +1660,13 @@ import {
     var p = estado.fichaActual;
     if (!p) return;
     if (this.dataset.modo === 'ver') { cerrarFicha(); abrirPedido(); return; }
+    if (admiteFeteado(p) && $('ficha-feteado').checked) estado.feteado[p.id] = true;
     fijarCantidad(p.id, parseInt($('ficha-cantidad').value, 10) || 1);
+  });
+
+  $('ficha-feteado').addEventListener('change', function () {
+    var p = estado.fichaActual;
+    if (p && estado.pedido[p.id]) fijarFeteado(p.id, this.checked);   // si todavia no esta, se aplica al sumarlo
   });
 
   /**
@@ -1891,9 +1918,33 @@ import {
   }
 
   function guardarPedido() {
+    // El feteado solo vale para lo que sigue en el pedido.
+    Object.keys(estado.feteado).forEach(function (id) { if (!estado.pedido[id]) delete estado.feteado[id]; });
     try {
       localStorage.setItem(CLAVE_PEDIDO, JSON.stringify(estado.pedido));
+      localStorage.setItem(CLAVE_FETEADO, JSON.stringify(Object.keys(estado.feteado)));
     } catch (err) { /* sin almacenamiento: vale para esta visita nomas */ }
+  }
+
+  function leerFeteado() {
+    var f = {};
+    try {
+      var ids = JSON.parse(localStorage.getItem(CLAVE_FETEADO) || '[]');
+      if (Array.isArray(ids)) ids.forEach(function (id) { if (typeof id === 'string' && estado.pedido[id]) f[id] = true; });
+    } catch (err) { /* nada guardado */ }
+    return f;
+  }
+
+  /** Cambia el feteado de un producto del pedido: es otro pedido (otra ref). */
+  function fijarFeteado(id, valor) {
+    if (!estado.pedido[id]) return;
+    if (!!estado.feteado[id] === !!valor) return;
+    if (valor) estado.feteado[id] = true; else delete estado.feteado[id];
+    renovarRef();
+    if (estado.enviadoEn) { marcarEnviado(null); mostrarVista('lista'); }
+    guardarPedido();
+    sincronizarFicha(id);
+    dibujarPedido();
   }
 
   /** Marca o desmarca el pedido como ya enviado. */
@@ -1912,6 +1963,7 @@ import {
    */
   function recuperarPedido() {
     estado.pedido = leerPedido();
+    estado.feteado = leerFeteado();
     estado.refPedido = leerRef();
     var enviado = null;
     try { enviado = parseInt(localStorage.getItem(CLAVE_ENVIADO) || '', 10); } catch (err) { /* */ }
@@ -1997,11 +2049,16 @@ import {
       var producto = buscarProducto(id);
       if (!producto || producto.sinStock) { huerfanos.push(id); return; }
       // [AUDITORIA H09] precio de la linea (ya redondeado) x cantidad.
-      var precio = precioDeLinea(producto);
+      // El feteado suma el recargo al precio (por kg) antes de multiplicar.
+      var base = precioDeLinea(producto);
+      var feteado = !!estado.feteado[id] && admiteFeteado(producto);
+      var precio = feteado && base !== null ? redondear2(base * (1 + CFG.FETEADO.recargo)) : base;
       lineas.push({
         producto: producto,
         cantidad: estado.pedido[id],
         subtotal: precio === null ? null : redondear2(precio * estado.pedido[id]),
+        feteado: feteado,
+        subtotalBase: base === null ? null : redondear2(base * estado.pedido[id]),
       });
     });
 
@@ -2061,6 +2118,10 @@ import {
               '<span class="pedido-unidad">' + escapar(unidadDe(p, l.cantidad)) + '</span>' +
               derecha +
             '</div>' +
+            (admiteFeteado(p)
+              ? '<label class="pedido-feteado"><input type="checkbox" data-accion="feteado"' + (l.feteado ? ' checked' : '') +
+                '> Feteada <span>(' + textoRecargo() + ' por kg)</span></label>'
+              : '') +
           '</div>' +
         '</li>';
     }).join('');
@@ -2160,6 +2221,8 @@ import {
   });
 
   $('pedido-lineas').addEventListener('change', function (evento) {
+    var fet = evento.target.closest('[data-accion="feteado"]');
+    if (fet) { fijarFeteado(fet.closest('.pedido-linea').dataset.id, fet.checked); return; }
     var campo = evento.target.closest('[data-accion="fijar"]');
     if (!campo) return;
     fijarCantidad(campo.closest('.pedido-linea').dataset.id, campo.value);
@@ -2205,9 +2268,10 @@ import {
    * Solo lee: no escribe, asi dos pestanias no se rebotan eventos.
    */
   window.addEventListener('storage', function (evento) {
-    if (evento.key !== null && [CLAVE_PEDIDO, CLAVE_ENVIADO, CLAVE_REF].indexOf(evento.key) === -1) return;
+    if (evento.key !== null && [CLAVE_PEDIDO, CLAVE_ENVIADO, CLAVE_REF, CLAVE_FETEADO].indexOf(evento.key) === -1) return;
     var antes = Object.keys(estado.pedido);
     estado.pedido = leerPedido();
+    estado.feteado = leerFeteado();
     estado.refPedido = leerRef();
     var enviado = null;
     try { enviado = parseInt(localStorage.getItem(CLAVE_ENVIADO) || '', 10); } catch (err) { /* */ }
@@ -2237,18 +2301,29 @@ import {
     var config = (estado.datos && estado.datos.config) || {};
     var conPrecios = mostrarPrecios();
     // [AUDITORIA H02] La referencia une el mensaje con el registro en la base.
-    var partes = ['*Pedido - ' + (config.negocio_nombre || 'Catalogo') + '*', 'Ref: ' + refCorta(refDelPedido()), ''];
+    // Formato pedido por el usuario (19/10/2026): Ref y Cliente arriba, productos sin numerar
+    // y, en la panceta, siempre si va feteada o no.
+    var partes = ['*Pedido - ' + (config.negocio_nombre || 'Catalogo') + '*', 'Ref: ' + refCorta(refDelPedido())];
+    // [AUDITORIA H12] Mismo recorte que la base (300 caracteres).
+    var cliente = datosCliente();
+    if (!sinCliente) {
+      if (cliente.nombre) partes.push('Cliente: ' + cliente.nombre);
+      if (cliente.nota) partes.push('Nota: ' + cliente.nota);
+    }
+    partes.push('');
     var visibles = tope ? lineas.slice(0, tope) : lineas;
 
-    visibles.forEach(function (l, i) {
+    visibles.forEach(function (l) {
       var p = l.producto;
-      if (compacto) { partes.push(l.cantidad + 'x ' + p.nombre); return; }
-      var titulo = (i + 1) + '. ' + p.nombre + (p.sku ? ' (' + p.sku + ')' : '');
+      var fet = admiteFeteado(p) ? (l.feteado ? 'Feteada (' + textoRecargo() + ')' : 'Sin fetear') : '';
+      if (compacto) { partes.push(l.cantidad + 'x ' + p.nombre + (fet ? ' - ' + fet.toLowerCase() : '')); return; }
+      var titulo = p.nombre + (p.sku ? ' (' + p.sku + ')' : '');
       var renglon = '   ' + l.cantidad + ' ' + unidadDe(p, l.cantidad);
       if (soloPorCaja(p)) renglon += ' de ' + contenidoCaja(p);
       else if (seCuentaPorCaja(p) && p.unidadesCaja > 1) renglon += ' de ' + p.unidadesCaja;
       if (conPrecios && l.subtotal !== null) renglon += ' - ' + formatearPrecio(l.subtotal, p.moneda);
       partes.push(titulo, renglon);
+      if (fet) partes.push('   ' + fet);
     });
 
     if (tope && lineas.length > tope) {
@@ -2263,17 +2338,9 @@ import {
         partes.push('(el total incluye los ' + lineas.length + ' productos del pedido)');
       }
     }
+    partes.push('(Esperando confirmación de la cotización)');
 
-    // [AUDITORIA H12] Mismo recorte que la base (300 caracteres).
-    var cliente = datosCliente();
-    if (sinCliente) {
-      if (cliente.nombre || cliente.nota) partes.push('', '(Los datos del cliente no entraron en este mensaje.)');
-      return partes.join('\n');
-    }
-    if (cliente.nombre || cliente.nota) partes.push('');
-    if (cliente.nombre) partes.push('Cliente: ' + cliente.nombre);
-    if (cliente.nota) partes.push('Nota: ' + cliente.nota);
-
+    if (sinCliente && (cliente.nombre || cliente.nota)) partes.push('', '(Los datos del cliente no entraron en este mensaje.)');
     return partes.join('\n');
   }
 
@@ -2352,7 +2419,8 @@ import {
       texto = 'Registrando el pedido...';
     } else if (resultado.estado === 'registrado') {
       texto = 'Pedido registrado.';
-      var t = totalPedido(lineas);
+      // La base no conoce el recargo del feteado: se compara contra el total sin recargo.
+      var t = totalPedido(lineas.map(function (l) { return { producto: l.producto, subtotal: l.subtotalBase }; }));
       if (mostrarPrecios() && resultado.total !== null && t.total !== null && Math.abs(resultado.total - t.total) >= 0.01) {
         texto += ' Total con los precios de hoy: ' + formatearPrecio(resultado.total, t.moneda) + '.';
       }

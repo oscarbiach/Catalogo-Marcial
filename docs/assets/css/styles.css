@@ -422,6 +422,17 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
   font-size: 14px; font-weight: 600; border-left: 3px solid currentColor;
 }
 .ficha-obs[hidden] { display: none; }
+.ficha-feteado {
+  display: flex; align-items: center; gap: 10px; width: 100%; margin: 0 0 12px; padding: 10px 14px;
+  border: 1px solid var(--linea, rgba(23, 41, 74, .15)); border-radius: 10px; cursor: pointer;
+  font-size: 15px; font-weight: 700; color: var(--tinta);
+}
+.ficha-feteado[hidden] { display: none; }
+.ficha-feteado input { width: 20px; height: 20px; margin: 0; accent-color: currentColor; }
+.ficha-feteado span { font-weight: 600; color: var(--tinta-2); }
+.pedido-feteado { display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 13px; font-weight: 700; color: var(--tinta); cursor: pointer; }
+.pedido-feteado input { width: 16px; height: 16px; margin: 0; accent-color: currentColor; }
+.pedido-feteado span { font-weight: 600; color: var(--tinta-2); }
 
 .specs {
   margin: 20px 0 0; padding: 18px 0 0; border-top: 1px solid var(--linea);

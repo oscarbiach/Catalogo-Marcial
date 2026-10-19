@@ -49,6 +49,11 @@ window.CATALOGO_CONFIG = {
     { contiene: ['panceta'], excluye: ['chips'], texto: 'Ofrecemos servicio de feteo!' },
   ],
 
+  // Servicio de feteado: solo para estos productos (misma regla de nombre que
+  // OBSERVACIONES; "fetas" deja afuera la que ya viene feteada). Suma `recargo`
+  // al precio por kg y el mensaje de WhatsApp aclara si va feteada o no.
+  FETEADO: { contiene: ['panceta'], excluye: ['chips', 'fetas'], recargo: 0.15 },
+
   // El catalogo guardado se muestra al instante y se refresca en cada visita.
   // Si pasan estos minutos sin poder refrescarlo, el sitio avisa que los
   // precios en pantalla son los guardados. Tambien se revalida al volver a la

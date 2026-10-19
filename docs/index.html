@@ -24,7 +24,7 @@
      base. Van antes que styles.css, que usa sus variables. -->
 <link rel="stylesheet" href="assets/marca/tokens.css?v=40">
 <link rel="stylesheet" href="assets/marca/marcial.css?v=40">
-<link rel="stylesheet" href="assets/css/styles.css?v=46">
+<link rel="stylesheet" href="assets/css/styles.css?v=47">
 
 <!-- Modo oscuro: apagado por ahora, el sitio se ve siempre claro. Para
      volver a ofrecerlo, cambiar "no" por "si": reaparece el interruptor de la
@@ -197,6 +197,9 @@
     <dl class="specs" id="ficha-specs"></dl>
 
     <div class="ficha-acciones">
+      <label class="ficha-feteado" id="ficha-feteado-caja" hidden>
+        <input type="checkbox" id="ficha-feteado"> Servicio de feteado <span id="ficha-feteado-extra"></span>
+      </label>
       <div class="ficha-sumar" id="ficha-sumar" hidden>
         <div class="paso">
           <button class="paso-btn" type="button" data-delta="-1" aria-label="Quitar uno">
@@ -309,7 +312,7 @@
   }
 }
 </script>
-<script src="config.js?v=45"></script>
-<script type="module" src="assets/js/app.js?v=46"></script>
+<script src="config.js?v=46"></script>
+<script type="module" src="assets/js/app.js?v=47"></script>
 </body>
 </html>
