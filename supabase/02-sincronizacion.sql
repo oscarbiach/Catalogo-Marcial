@@ -8,8 +8,9 @@
 --
 --  Reglas (iguales a las de Espejo.gs):
 --   - Cada producto se inserta o actualiza por su id.
---   - El catalogo llega ordenado por lo mas pedido: el lugar en la lista
---     queda en `posicion`. `orden` es el numero de orden de la planilla.
+--   - La planilla conserva los datos de cada producto, pero `posicion` se
+--     recalcula con las cantidades de los pedidos reales del catalogo.
+--     `orden` es el desempate manual de la planilla.
 --   - Lo que ya no esta activo en la planilla queda publicado = false:
 --     sale del sitio pero no se borra.
 --   - Si el catalogo llega vacio o con menos de la mitad de lo publicado,
@@ -90,6 +91,111 @@ create trigger productos_solo_caja before insert or update on productos
 --   * el umbral de "menos de la mitad" cuenta solo productos validos y unicos;
 --   * las filas sin id (renglones en blanco de la planilla) se ignoran, pero no
 --     cuentan para el umbral.
+-- El ranking se alimenta de pedidos_catalogo_items. Por defecto mira los
+-- ultimos 90 dias; se puede cambiar sin codigo creando en config la clave
+-- ranking_ventas_dias con un entero entre 1 y 3650. La funcion es interna:
+-- ni el sitio ni una clave publica pueden cambiar el orden.
+create or replace function public.recalcular_ranking_pedidos()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_dias int := 90;
+  v_productos int := 0;
+  v_categorias jsonb := '[]'::jsonb;
+begin
+  select case when valor ~ '^[0-9]{1,4}$'
+              then greatest(1, least(valor::int, 3650))
+              else 90 end
+    into v_dias
+  from config
+  where clave = 'ranking_ventas_dias';
+  v_dias := coalesce(v_dias, 90);
+
+  -- Cantidad vendida primero; cantidad de pedidos despues. Los productos sin
+  -- ventas conservan un orden estable de la planilla para que no "salten".
+  with ventas as (
+    select i.producto_id,
+           sum(i.cantidad)::bigint as unidades,
+           count(distinct i.pedido_id)::bigint as pedidos
+    from pedidos_catalogo_items i
+    join pedidos_catalogo pe on pe.id = i.pedido_id
+    where pe.creado_en >= now() - make_interval(days => v_dias)
+    group by i.producto_id
+  ), ranking as (
+    select p.id,
+           row_number() over (
+             order by coalesce(v.unidades, 0) desc,
+                      coalesce(v.pedidos, 0) desc,
+                      p.destacado desc,
+                      p.orden desc,
+                      p.nombre collate "C" asc
+           )::int - 1 as posicion
+    from productos p
+    left join ventas v on v.producto_id = p.id
+    where p.publicado
+  )
+  update productos p
+     set posicion = r.posicion
+    from ranking r
+   where p.id = r.id
+     and p.posicion is distinct from r.posicion;
+  get diagnostics v_productos = row_count;
+
+  -- El sitio agrupa por categoria, asi que tambien se ordenan las secciones
+  -- con las mismas ventas que ordenan los productos.
+  with ventas as (
+    select i.producto_id, sum(i.cantidad)::bigint as unidades
+    from pedidos_catalogo_items i
+    join pedidos_catalogo pe on pe.id = i.pedido_id
+    where pe.creado_en >= now() - make_interval(days => v_dias)
+    group by i.producto_id
+  ), categorias as (
+    select p.categoria,
+           coalesce(sum(v.unidades), 0) as unidades,
+           min(p.posicion) as primera_posicion
+    from productos p
+    left join ventas v on v.producto_id = p.id
+    where p.publicado and nullif(btrim(p.categoria), '') is not null
+    group by p.categoria
+  )
+  select coalesce(jsonb_agg(categoria order by unidades desc, primera_posicion asc, categoria collate "C" asc), '[]'::jsonb)
+    into v_categorias
+  from categorias;
+
+  insert into config (clave, valor) values ('_categorias', v_categorias::text)
+  on conflict (clave) do update set valor = excluded.valor;
+
+  return jsonb_build_object('ventana_dias', v_dias,
+                            'productos_reordenados', v_productos,
+                            'categorias', jsonb_array_length(v_categorias));
+end;
+$$;
+revoke all on function public.recalcular_ranking_pedidos() from public, anon, authenticated;
+
+-- Una sola recalculacion por lote de renglones: el insert de un pedido agrega
+-- todos sus productos en una sentencia, por lo que el orden se actualiza al
+-- instante sin esperar la sincronizacion de diez minutos.
+create or replace function public.recalcular_ranking_al_cambiar_pedido()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  perform public.recalcular_ranking_pedidos();
+  return null;
+end;
+$$;
+revoke all on function public.recalcular_ranking_al_cambiar_pedido() from public, anon, authenticated;
+
+drop trigger if exists pedidos_catalogo_items_recalcular_ranking on pedidos_catalogo_items;
+create trigger pedidos_catalogo_items_recalcular_ranking
+after insert or update or delete on pedidos_catalogo_items
+for each statement execute function public.recalcular_ranking_al_cambiar_pedido();
+
 -- La descarga (http) quedo separada en sincronizar_catalogo(): esta funcion es
 -- pura y se puede probar con un JSON a mano en un entorno aislado.
 create or replace function public.aplicar_catalogo(j jsonb)
@@ -243,6 +349,9 @@ begin
     union all select '_categorias', coalesce((j->'categorias')::text, '[]')
     union all select '_marcas',     coalesce((j->'marcas')::text, '[]')
     union all select '_rubros',     coalesce((j->'rubros')::text, '[]')
+    -- Es una preferencia propia de Supabase, no viene de la planilla; se
+    -- conserva entre sincronizaciones para que se pueda ajustar la ventana.
+    union all select clave, valor from config where clave = 'ranking_ventas_dias'
     union all select '_sincronizado_en', to_jsonb(v_ahora)::text
   ), subir as (
     insert into config (clave, valor)
@@ -252,6 +361,10 @@ begin
   )
   delete from config where clave not in (select clave from nuevas);
   select count(*) into v_config from config;
+
+  -- La importacion vuelve a escribir la posicion que llega de la planilla.
+  -- Se reemplaza en la misma transaccion por el ranking de pedidos reales.
+  perform public.recalcular_ranking_pedidos();
 
   return jsonb_build_object('productos', v_unicos, 'ocultados', v_ocultos, 'config', v_config,
                             'contrato', v_contrato, 'reglas_caja', v_reglas_nuevas);
