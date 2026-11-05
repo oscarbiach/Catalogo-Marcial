@@ -89,7 +89,9 @@ var PP_EQUIVALENCIAS = {
   '215': 'Max Clasico (10cm) x 48u',
   '216': 'Liso XL Clasico (12cm) x 30u',
   // Revisados el 05/11/2026 contra "Precios Publicos" y la hoja "1" de "Listas precios".
-  '3': 'Harina 000 25kg - Boero',               // DUDOSA: el catalogo dice "EXTRA BOERO" y la lista "Boero", pero la hoja "1" la llama "Matilde". Es la unica 000 de 25kg.
+  // PENDIENTE DE CONFIRMAR (no se aplica): '3' Harina 000 25kg -> 'Harina 000 25kg - Boero'. El catalogo dice
+  // "EXTRA BOERO" y la lista "Boero", pero la hoja "1" la llama "Matilde". Activar quitando las barras cuando se confirme:
+  // '3': 'Harina 000 25kg - Boero',
   '195': 'MAYONESA MAYODAN 4X2900CC',           // mismo producto (pouch de 2.900 ml; la lista dice la caja de 4)
   '197': 'KETCHUP DANICA NUEVO 4X3000G',
   '198': 'MOSTAZA DANICA NUEVA 4X3000G',
