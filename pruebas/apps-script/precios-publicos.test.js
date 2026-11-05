@@ -46,7 +46,10 @@ function productos() {
     prod('50', 'Mortadela', 4000, 'kg'),
     prod('60', 'Producto nuevo sin lista', '', 'kg'),
     prod('70', 'Inactivo sin lista', '', 'kg', { activo: false }),
-    prod('80', 'Igual que antes', 2500, 'unidad')];
+    prod('80', 'Igual que antes', 2500, 'unidad'),
+    prod('31', 'Mostaza individual 8gr x 192u - Danica', 10000, 'caja'),
+    prod('293', 'Salame Milan - Nahuel', 18349529, 'kg'),
+    prod('294', 'Otro salame mal cargado', 18349529, 'kg')];
 }
 
 function lista() {
@@ -55,7 +58,13 @@ function lista() {
     item('Salsas', 'KILO', 'UNIDAD', 'CAJA'),                                  // titulo de seccion
     item('Tomate Triturado Lata 8kg - Doble Surco', '-', '$10,712', '-'),    // por nombre + descripcion
     item('Tybo - Don Solano', 9875, '-', '-'),                               // mayusculas distintas
-    item('Crema De Leche 200gr x 12u - Tremblay', 1931, '-', '-'),           // unidad escrita bajo KILO
+    item('Tremblay - Lacteos', 'KILO', 'UNIDAD', 'CAJA'),                    // seccion revisada
+    item('Crema De Leche 200gr x 12u - Tremblay', 1931, '-', '-'),           // precio del envase bajo KILO
+    item('Mayonesas y Aderezos ', 'KILO', 'UNIDAD', 'CAJA'),                 // seccion revisada
+    item('Mostaza individual 8gr x 192u - Danica', '-', 10546, '-'),         // caja de 192 bajo UNIDAD
+    item('Fiambres', 'KILO', 'UNIDAD', 'CAJA'),
+    item('Salame Milan - Nahuel', 18349.529, '-', '-'),
+    item('Otro salame mal cargado', 18349.529, '-', '-'),
     item('Oregano  - 1kg', '$8,333', '-', '-'),                              // por equivalencia
     item('Max Golden (10cm) x 48u', '-', '$855', '$41,026'),                 // salto > 50%
     item('Liso XL Golden (12cm) x 30u', '-', 978, 29336),                    // caja de 30 vs 28
@@ -157,14 +166,16 @@ caso('pp_aplicar: busca por nombre, marca/descripcion, equivalencia y columna; e
   api.pp_aplicar();
   assert.strictEqual(precioDe(shP, '1'), 10712);   // nombre + " - " + descripcion
   assert.strictEqual(precioDe(shP, '2'), 9875);    // mayusculas no cuentan
-  assert.strictEqual(precioDe(shP, '3'), 1931);    // unico precio de la fila, aunque este bajo KILO
+  assert.strictEqual(precioDe(shP, '3'), 1931);    // seccion Tremblay revisada: precio del envase bajo KILO
+  assert.strictEqual(precioDe(shP, '31'), 10546);  // seccion Danica revisada: caja bajo UNIDAD
   assert.strictEqual(precioDe(shP, '6'), 8333);    // PP_EQUIVALENCIAS
   assert.strictEqual(precioDe(shP, '213'), 978);   // nombre sin la marca + equivalencia
-  assert.strictEqual(precioDe(shP, '20'), 1250);
+  assert.strictEqual(precioDe(shP, '20'), 900);    // otra columna en seccion no revisada: no se toca
   assert.strictEqual(precioDe(shP, '50'), 4500);   // columna nombre_lista
   assert.strictEqual(precioDe(shP, '80'), 2500);
   assert.ok(historial.length >= 7);
   assert.ok(historial.every((h) => h[3] === 'precio'));
+  assert.ok(historial.every((h) => typeof h[5] === 'number'));   // numeros, no texto
   assert.strictEqual(invalidaciones(), 1);
 });
 
@@ -181,6 +192,22 @@ caso('No se toca: salto > 50%, repetido con precios distintos, solo caja para pr
   assert.match(texto, /60 Producto nuevo sin lista/);
   assert.doesNotMatch(texto, /70 Inactivo/);       // los inactivos no ensucian el informe
   assert.match(texto, /la lista da 30 unidades por caja y el catalogo 28/);
+});
+
+caso('Salame Milan: correccion puntual pese al 50%; el resto sigue con el control', () => {
+  const { api, shP, historial } = cargar(productos(), lista());
+  const texto = api.pp_aplicar();
+  assert.strictEqual(precioDe(shP, '293'), 18349.529);
+  assert.strictEqual(precioDe(shP, '294'), 18349529);   // mismo error, sin excepcion: queda para revisar
+  assert.match(texto, /no esta en la seccion revisada|seccion no esta revisada/);
+  const h = historial.find((x) => x[1] === '293');
+  assert.strictEqual(h[4], 18349529); assert.strictEqual(h[5], 18349.53);
+  // Ya corregido, la excepcion no vuelve a aplicar: un salto grande posterior queda frenado.
+  const p2 = shP.celdas.map((f) => f.slice());
+  const l2 = lista().map((f) => (f[0] === 'Salame Milan - Nahuel' ? item(f[0], 40000, '-', '-') : f));
+  const r2 = cargar(p2, l2);
+  r2.api.pp_aplicar();
+  assert.strictEqual(precioDe(r2.shP, '293'), 18349.529);
 });
 
 caso('pp_aplicarTodo aplica tambien los saltos grandes', () => {

@@ -15,16 +15,23 @@
  * Mayusculas, tildes y signos no cuentan ("Jamon" = "Jam\u00f3n").
  *
  * La columna del precio sale de unidad_precio: kg -> KILO, unidad -> UNIDAD,
- * caja -> CAJA. Si esa celda esta vacia y la fila tiene un solo precio, se usa
- * ese (en la lista hay productos por unidad con el precio bajo KILO).
+ * caja -> CAJA. Si esa celda esta vacia, el precio de otra columna se usa SOLO
+ * en las secciones de la lista revisadas en PP_OTRA_COLUMNA (por ejemplo, en
+ * los lacteos Tremblay el precio de cada envase esta escrito bajo KILO). En
+ * cualquier otra seccion no se toca y queda en el registro para revisar.
+ *
+ * Control del 50%: un cambio de mas del 50% no se aplica solo. La unica
+ * excepcion es PP_CORRECCIONES (un precio mal cargado, con el valor exacto).
  *
  * USO:
  *   1. pp_simular()      -> solo lee y muestra en el registro que cambiaria.
  *   2. pp_aplicar()      -> escribe los precios. Los cambios de mas del 50%
  *                           NO se aplican: quedan listados para revisar.
  *   3. pp_aplicarTodo()  -> igual, pero tambien aplica esos cambios grandes.
- *   4. pp_instalar()     -> lo deja corriendo solo cada 15 minutos.
+ *   4. pp_instalar()     -> lo deja corriendo solo cada 15 minutos (borra los
+ *                           anteriores, asi queda uno solo).
  *      pp_quitar()       -> saca la revision automatica.
+ *      pp_activadores()  -> muestra cuantos activadores de pp_revisar hay.
  *
  * Si un producto tiene en la lista un nombre distinto, escribir el nombre
  * exacto de la lista en la columna "nombre_lista" de Productos (la crea
@@ -80,7 +87,41 @@ var PP_EQUIVALENCIAS = {
   '213': 'Liso XL Golden (12cm) x 30u',
   '214': 'Liso Clasico (10cm) x 48u',
   '215': 'Max Clasico (10cm) x 48u',
-  '216': 'Liso XL Clasico (12cm) x 30u'
+  '216': 'Liso XL Clasico (12cm) x 30u',
+  // Revisados el 05/11/2026 contra "Precios Publicos" y la hoja "1" de "Listas precios".
+  '3': 'Harina 000 25kg - Boero',               // DUDOSA: el catalogo dice "EXTRA BOERO" y la lista "Boero", pero la hoja "1" la llama "Matilde". Es la unica 000 de 25kg.
+  '195': 'MAYONESA MAYODAN 4X2900CC',           // mismo producto (pouch de 2.900 ml; la lista dice la caja de 4)
+  '197': 'KETCHUP DANICA NUEVO 4X3000G',
+  '198': 'MOSTAZA DANICA NUEVA 4X3000G',
+  '200': 'SALSA BARBACOA DANICA  4 X 3000 G',
+  '201': 'MAYONESA DANICA 192X8CC',             // caja de 192 sobres
+  '203': 'MOSTAZA DANICA NUEVA 192X8G',         // caja de 192 sobres
+  '204': 'KETCHUP DANICA NUEVO 192X8G'          // caja de 192 sobres
+};
+
+/**
+ * Secciones de la lista donde el precio esta en otra columna que la del catalogo,
+ * revisadas una por una el 05/11/2026 (nombre de la fila de titulo de la seccion):
+ *  - lacteos Don Solano, Tremblay y Armando: bajo KILO esta el precio de cada envase
+ *    (pote, pan, cunete, pouch), no el del kilo. Ej.: crema 200gr a $1.931 el pote.
+ *  - mayonesas y aderezos Danica: bajo UNIDAD esta el precio de la caja de 192 sobres.
+ * de = columna donde esta el precio en la lista; para = unidad_precio del catalogo.
+ */
+var PP_OTRA_COLUMNA = {
+  'don solano lacteos': { de: 'kilo', para: 'unidad' },
+  'tremblay lacteos': { de: 'kilo', para: 'unidad' },
+  'armando quesos': { de: 'kilo', para: 'unidad' },
+  'mayonesas y aderezos': { de: 'unidad', para: 'caja' }
+};
+
+/**
+ * Precios mal cargados que se corrigen aunque el cambio supere el 50%. Solo valen
+ * mientras el precio del catalogo sea MAYOR que actualMayorA y la lista diga
+ * exactamente precioLista; despues de corregirse no vuelven a aplicar.
+ */
+var PP_CORRECCIONES = {
+  // Salame Milan - Nahuel: figuraba $18.349.529 el kg; la lista y la hoja "1" dicen $18.349,529.
+  '293': { actualMayorA: 1000000, precioLista: 18349.529 }
 };
 // ===========================================================================
 
@@ -101,6 +142,13 @@ function pp_quitar() {
   ScriptApp.getProjectTriggers().forEach(function (t) {
     if (t.getHandlerFunction() === 'pp_revisar') ScriptApp.deleteTrigger(t);
   });
+}
+
+/** Cuantos activadores de pp_revisar hay (de la cuenta que corre esto). Tiene que dar 1. */
+function pp_activadores() {
+  var n = ScriptApp.getProjectTriggers().filter(function (t) { return t.getHandlerFunction() === 'pp_revisar'; }).length;
+  Logger.log('Activadores de pp_revisar: ' + n + (n === 1 ? ' (bien)' : n === 0 ? ' (ninguno: correr pp_instalar)' : ' (de mas: correr pp_instalar)'));
+  return n;
 }
 
 // ------------------------------- internos ----------------------------------
@@ -131,23 +179,27 @@ function pp_cortar_(filas) {
     'leer. No se toca ningun precio. Si se cambio el nombre de esa fila, actualizar CORTAR_DESDE.');
 }
 
-/** Lee la lista: clave -> { nombre, kilo, unidad, caja, ambiguo }. */
+/** Lee la lista: clave -> { nombre, kilo, unidad, caja, seccion, ambiguo }. */
 function pp_leerLista_() {
   var planilla = SpreadsheetApp.openById(PP.SPREADSHEET_ID);
   var hoja = PP.HOJA ? planilla.getSheetByName(PP.HOJA) : planilla.getSheets()[0];
   if (!hoja) throw new Error('No encuentro la pestania "' + PP.HOJA + '" en Precios Publicos.');
   var filas = pp_cortar_(hoja.getDataRange().getValues());
   var lista = {};
+  var seccion = '';
   filas.forEach(function (f) {
     var nombre = String(f[PP.COL_NOMBRE - 1] || '').trim();
     if (!nombre) return;
+    // Fila de titulo de seccion: dice UNIDAD en la columna de la unidad.
+    if (pp_clave_(f[PP.COL_UNIDAD - 1]) === 'unidad') { seccion = pp_clave_(nombre); return; }
     var item = {
       nombre: nombre,
       kilo: pp_precio_(f[PP.COL_KILO - 1]),
       unidad: pp_precio_(f[PP.COL_UNIDAD - 1]),
-      caja: pp_precio_(f[PP.COL_CAJA - 1])
+      caja: pp_precio_(f[PP.COL_CAJA - 1]),
+      seccion: seccion
     };
-    if (item.kilo === null && item.unidad === null && item.caja === null) return;   // titulos de seccion
+    if (item.kilo === null && item.unidad === null && item.caja === null) return;
     var k = pp_clave_(nombre);
     var previo = lista[k];
     if (previo && (previo.kilo !== item.kilo || previo.unidad !== item.unidad || previo.caja !== item.caja)) {
@@ -192,6 +244,13 @@ function pp_elegir_(item, unidadPrecio, unidadesCaja) {
   if (hay.length !== 1) return { precio: null, nota: 'la lista no tiene precio en ' + col.toUpperCase() };
   // Un precio de caja no sirve como precio por unidad o por kilo.
   if (hay[0] === 'caja' && col !== 'caja') return { precio: null, nota: 'la lista solo tiene precio por CAJA' };
+  // Otra columna: solo en las secciones revisadas (PP_OTRA_COLUMNA).
+  var regla = PP_OTRA_COLUMNA[item.seccion];
+  var para = { kilo: 'kg', unidad: 'unidad', caja: 'caja' }[col];
+  if (!regla || regla.de !== hay[0] || regla.para !== para) {
+    return { precio: null, nota: 'la lista tiene el precio bajo ' + hay[0].toUpperCase() + ' y el catalogo vende por ' + para +
+      '; no se usa porque esa seccion no esta revisada (PP_OTRA_COLUMNA)' };
+  }
   return { precio: item[hay[0]], nota: 'tomado de la columna ' + hay[0].toUpperCase(), otraColumna: true };
 }
 
@@ -253,7 +312,11 @@ function pp_correr_(op) {
         lista: hallado.item.nombre, por: hallado.por
       };
       var salto = antes ? Math.abs(eleccion.precio - antes) / antes : 0;
-      if (salto > PP.CAMBIO_MAXIMO && !op.forzar) grandes.push(cambio);
+      var corr = PP_CORRECCIONES[id];
+      if (salto > PP.CAMBIO_MAXIMO && corr && antes > corr.actualMayorA && Math.abs(eleccion.precio - corr.precioLista) < 0.01) {
+        cambio.correccion = true;   // precio mal cargado: se corrige aunque supere el 50%
+        cambios.push(cambio);
+      } else if (salto > PP.CAMBIO_MAXIMO && !op.forzar) grandes.push(cambio);
       else cambios.push(cambio);
     });
 
@@ -268,7 +331,8 @@ function pp_correr_(op) {
       lineas.push('--- CAMBIAN ---');
       cambios.forEach(function (x) {
         lineas.push('  ' + x.id + ' ' + x.nombre + ': ' + fmt(x.antes) + ' -> ' + fmt(x.despues) +
-          (x.por === 'nombre' ? '' : '   [por ' + x.por + ': "' + x.lista + '"]'));
+          (x.por === 'nombre' ? '' : '   [por ' + x.por + ': "' + x.lista + '"]') +
+          (x.correccion ? '   [correccion de PP_CORRECCIONES]' : ''));
       });
     }
     if (grandes.length) {
@@ -282,7 +346,7 @@ function pp_correr_(op) {
     }
     if (otraColumna) {
       lineas.push('Nota: ' + otraColumna + ' productos tienen en la lista el precio en otra columna (por ejemplo, ' +
-        'precio por unidad escrito bajo KILO). Se usa ese precio igual, porque es el unico de la fila.');
+        'precio por envase escrito bajo KILO). Se usa porque su seccion esta revisada en PP_OTRA_COLUMNA.');
     }
     if (avisos.length) { lineas.push('--- AVISOS ---'); avisos.forEach(function (a) { lineas.push('  ' + a); }); }
 
@@ -299,7 +363,8 @@ function pp_correr_(op) {
         SpreadsheetApp.flush();
         if (typeof ef_anotar_ === 'function') {
           ef_anotar_(cambios.map(function (x) {
-            return [hoy, x.id, x.nombre, 'precio', x.antes === null ? '' : String(x.antes), String(x.despues)];
+            // Numeros, no texto: escritos como texto, la planilla leia "18349.529" como 18.349.529.
+            return [hoy, x.id, x.nombre, 'precio', x.antes === null ? '' : Math.round(x.antes * 100) / 100, Math.round(x.despues * 100) / 100];
           }));
         }
         invalidarCache();
