@@ -23,13 +23,13 @@ function prod(id, nombre, precio, unidadPrecio, extra) {
   const f = COLS.map(() => '');
   const o = Object.assign({ marca: '', descripcion: '', unidades_caja: '', activo: true }, extra);
   f[0] = id; f[2] = nombre; f[3] = o.descripcion; f[5] = o.marca; f[6] = precio; f[7] = 'ARS';
-  f[8] = o.unidades_caja; f[15] = o.activo; f[20] = unidadPrecio;
+  f[8] = o.unidades_caja; f[15] = o.activo; f[19] = o.codigo_precio || ''; f[20] = unidadPrecio;
   return f;
 }
 
 /** Fila de la lista: nombre en A (A-F combinadas) y KILO, UNIDAD, CAJA en G, H, I. */
-function item(nombre, kilo, unidad, caja) {
-  return [nombre, '', '', '', '', '', kilo, unidad, caja];
+function item(nombre, kilo, unidad, caja, codigo) {
+  return [nombre, '', '', '', '', '', kilo, unidad, caja, codigo || ''];
 }
 
 function productos() {
@@ -65,8 +65,8 @@ function lista() {
     item('Solo caja en la lista', '-', '-', 60000),                          // caja no sirve por unidad
     item('Mortadela en la lista', 4500, '-', '-'),                           // va por nombre_lista
     item('Igual que antes', '-', 2500, '-'),
-    item('Tripa Gorda - La Morena', 6250, '-', '-'),                         // corte: de aca para abajo no
-    item('Mortadela', 1, '-', '-'),                                          //   se toma nada
+    item('Tripa Gorda - La Morena', 6250, '-', '-'),                         // producto ordinario
+    item('Mortadela', 4200, '-', '-'),                                      // tambien se publica
     item('RANDOM', 0, '-', '-')];
 }
 
@@ -108,6 +108,7 @@ function cargar(celdasProductos, celdasLista) {
   const historial = [];
   const registro = [];
   let invalidaciones = 0;
+  const props = new Map();
   const ctx = {
     console,
     Logger: { log: (t) => registro.push(t) },
@@ -120,7 +121,10 @@ function cargar(celdasProductos, celdasLista) {
       },
       getActiveSpreadsheet: () => ({ getSheetByName: (n) => (n === 'Productos' ? shP : null) }),
     },
-    PropertiesService: { getScriptProperties: () => ({ getProperty: () => null }) },
+    PropertiesService: { getScriptProperties: () => ({
+      getProperty: (k) => props.get(k) || null,
+      setProperty: (k, v) => { props.set(k, v); },
+    }) },
     CacheService: { getScriptCache: () => ({ get: () => null, removeAll() {} }) },
   };
   vm.createContext(ctx);
@@ -133,7 +137,7 @@ function cargar(celdasProductos, celdasLista) {
   const api = ctx.__api;
   api.setInvalidar(() => { invalidaciones++; });
   api.setAnotar((filas) => historial.push(...filas));
-  return { api, shP, historial, registro, invalidaciones: () => invalidaciones };
+  return { api, shP, shL, historial, registro, invalidaciones: () => invalidaciones };
 }
 
 const precioDe = (sh, id) => sh.celdas.find((f) => String(f[0]) === id)[6];
@@ -208,18 +212,44 @@ caso('Si a Productos le falta una columna, no toca nada', () => {
   assert.strictEqual(shP.escritas.length, 0);
 });
 
-caso('Corte: lo que esta debajo de "Tripa Gorda - La Morena" no se toma', () => {
+caso('La publicacion completa incluye productos despues de Tripa Gorda', () => {
   const { api, shP } = cargar(productos(), lista());
-  const texto = api.pp_aplicar();
-  assert.strictEqual(precioDe(shP, '50'), 4000);   // "Mortadela" solo esta debajo del corte
-  assert.match(texto, /50 Mortadela/);             // queda como "no esta en la lista"
+  api.pp_aplicar();
+  assert.strictEqual(precioDe(shP, '50'), 4200);
 });
 
-caso('Sin la fila de corte no se toca ningun precio', () => {
+caso('No depende de que exista una fila de corte', () => {
   const l = lista().filter((f) => f[0] !== 'Tripa Gorda - La Morena');
   const { api, shP } = cargar(productos(), l);
-  assert.throws(() => api.pp_aplicar(), /No encuentro la fila "Tripa Gorda - La Morena"/);
-  assert.strictEqual(shP.escritas.length, 0);
+  api.pp_aplicar();
+  assert.strictEqual(precioDe(shP, '50'), 4200);
+});
+
+caso('Publicacion vacia oculta; al volver restaura solo los que estaban activos', () => {
+  const p = [COLS.slice(), prod('a','Activo',100,'kg'), prod('b','Manual',100,'kg',{activo:false})];
+  const l = [];
+  const {api,shP} = cargar(p,l);
+  api.pp_aplicar();
+  assert.strictEqual(shP.celdas[1][15],false);
+  l.push(item('Activo',100,'-','-'),item('Manual',100,'-','-'));
+  api.pp_aplicar();
+  assert.strictEqual(shP.celdas[1][15],true);
+  assert.strictEqual(shP.celdas[2][15],false);
+});
+
+caso('Dubix identifica un nombre cambiado y no cruza codigos distintos', () => {
+  const p = [COLS.slice(), prod('a','Nombre viejo',100,'kg',{codigo_precio:'DX1'}),prod('b','Coincidencia',100,'kg',{codigo_precio:'DX2'})];
+  const {api,shP} = cargar(p,[item('Nombre nuevo',300,'-','-','DX1'),item('Coincidencia',300,'-','-','DX3')]);
+  api.pp_aplicar();
+  assert.strictEqual(precioDe(shP,'a'),300);
+  assert.strictEqual(precioDe(shP,'b'),100);
+  assert.strictEqual(shP.celdas[2][15],false);
+});
+
+caso('Error de formula conserva precios y publicacion', () => {
+  const {api,shP}=cargar(productos(),[['#REF!']]);
+  assert.throws(()=>api.pp_aplicar(),/error de formula/);
+  assert.strictEqual(shP.escritas.length,0);
 });
 
 caso('Claves: tildes, signos y espacios no cuentan', () => {
@@ -234,3 +264,4 @@ for (const [nombre, fn] of casos) {
 }
 console.log('\n' + (casos.length - fallas) + '/' + casos.length + ' casos ok');
 process.exit(fallas ? 1 : 0);
+
