@@ -13,8 +13,8 @@
 --     `orden` es el desempate manual de la planilla.
 --   - Lo que ya no esta activo en la planilla queda publicado = false:
 --     sale del sitio pero no se borra.
---   - Si el catalogo llega vacio o con menos de la mitad de lo publicado,
---     no se toca nada (red de seguridad).
+--   - Lista.Publicar autoriza bajas masivas y una publicacion vacia.
+--     Las importaciones sin esa marca conservan el limite preventivo.
 --   - Cada corrida deja una fila en sincronizacion_log.
 --   - Un lote con datos invalidos se rechaza entero (no se toca nada).
 --   - Monitoreo: select * from estado_sincronizacion;
@@ -254,7 +254,7 @@ begin
   end if;
 
   select count(*) into v_pub from productos where publicado;
-  if v_unicos < 1 or (v_pub > 0 and v_unicos < v_pub * 0.5) then
+  if coalesce(j->>'publicacion', '') <> 'dubix-publicar-v1' and (v_unicos < 1 or (v_pub > 0 and v_unicos < v_pub * 0.5)) then
     raise exception 'El catalogo llego con % productos validos y hay % publicados: no se sincroniza', v_unicos, v_pub;
   end if;
 
@@ -281,7 +281,7 @@ begin
            or (coalesce(p->>'unidadPrecio', '') <> 'kg' and coalesce(p->>'unidadesCaja', '') <> ''
                and (p->>'unidadesCaja')::int > 1));
     select count(*) into v_reglas_antes from productos where publicado and solo_caja;
-    if v_reglas_antes > 0 and v_reglas_nuevas < v_reglas_antes * 0.5 then
+    if coalesce(j->>'publicacion', '') <> 'dubix-publicar-v1' and v_reglas_antes > 0 and v_reglas_nuevas < v_reglas_antes * 0.5 then
       raise exception 'Los productos por caja cerrada bajarian de % a %: no se sincroniza', v_reglas_antes, v_reglas_nuevas;
     end if;
     perform set_config('catalogo.reglas_planilla', '1', true);
@@ -393,6 +393,8 @@ begin
 
     begin
       j := r.content::jsonb;
+      -- Lista.Publicar autoriza bajas, incluso una publicacion vacia.
+      j := j || jsonb_build_object('publicacion','dubix-publicar-v1');
     exception when others then
       raise exception 'Apps Script no devolvio un JSON valido';
     end;
