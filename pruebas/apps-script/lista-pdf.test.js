@@ -26,7 +26,7 @@ const HOJA = [
   ['Rabo - La Morena', '', '', '', '', '', '$12,375', '-', '-'],
   ['Tripa  Gorda - La Morena', '', '', '', '', '', '$6,250', '-', '-'],
   ['Aguja - La Morena', '', '', '', '', '', '$18,750', '-', '-'],
-  ['RANDOM', '', '', '', '', '', '$0', '-', '-'],
+  ['', '', '', '', '', '', '', '', ''],
 ];
 
 function cargar(hoja, config) {
@@ -77,43 +77,55 @@ function cargar(hoja, config) {
 const casos = [];
 const caso = (nombre, fn) => casos.push([nombre, fn]);
 
-caso('Apunta a Precios Publicos, pestania 0, y corta en "Tripa Gorda - La Morena"', () => {
+caso('Apunta a la publicacion completa de Precios Publicos, pestania 0', () => {
   const { api } = cargar(HOJA);
   assert.strictEqual(api.CONFIG.SPREADSHEET_ID, '1H9JxYDK4FEBnCGfpImrr--rMzoRliwkFea2Jxp-ZMWU');
   assert.strictEqual(api.CONFIG.GID, '0');
-  assert.strictEqual(api.CONFIG.CORTAR_DESDE, 'Tripa Gorda - La Morena');
+  assert.strictEqual(api.CONFIG.CORTAR_DESDE, '');
 });
 
-caso('El PDF se exporta solo hasta la fila anterior al corte (A1:I4)', () => {
+caso('El PDF incluye todas las filas publicadas y recorta filas vacias', () => {
   const { api, urls } = cargar(HOJA);
   api.regenerarListaPDF();
   const pdf = urls.find((u) => u.indexOf('format=pdf') > -1);
   assert.ok(pdf, 'no se pidio el PDF');
-  assert.match(pdf, /range=A1%3AI4(&|$)/);
+  assert.match(pdf, /range=A1%3AI6(&|$)/);
 });
 
-caso('probarSinGuardar no muestra nada de debajo del corte', () => {
+caso('probarSinGuardar incluye productos despues del antiguo corte', () => {
   const { api, registro } = cargar(HOJA);
   api.probarSinGuardar();
   const todo = registro.join('\n');
-  assert.match(todo, /Rango del PDF: A1:I4 \| 4 filas/);
+  assert.match(todo, /Rango del PDF: A1:I6 \| 6 filas/);
   assert.match(todo, /Rabo - La Morena/);
-  assert.doesNotMatch(todo, /Tripa|Aguja|RANDOM/);
+  assert.match(todo, /Aguja/);
 });
 
-caso('Sin la fila de corte, no se genera PDF', () => {
+caso('Sin la antigua fila de corte, tambien se genera PDF', () => {
   const sinCorte = HOJA.filter((f) => !/Tripa/.test(f[0]));
   const { api, urls } = cargar(sinCorte);
-  assert.throws(() => api.regenerarListaPDF(), /No encuentro la fila "Tripa Gorda - La Morena"/);
-  assert.ok(!urls.some((u) => u.indexOf('format=pdf') > -1));
+  api.regenerarListaPDF();
+  assert.match(urls.find((u)=>u.includes('format=pdf')),/range=A1%3AI5(&|$)/);
 });
 
 caso('Con un RANGO fijo, el corte respeta su inicio (A3:I200 -> A3:I6)', () => {
   const hoja = [['x'], ['y']].concat(HOJA);                // la lista empieza en la fila 3
-  const { api, urls } = cargar(hoja, { RANGO: 'A3:I200' });
+  const { api, urls } = cargar(hoja, { RANGO: 'A3:I200', CORTAR_DESDE:'Tripa Gorda - La Morena' });
   api.regenerarListaPDF();
   const pdf = urls.find((u) => u.indexOf('format=pdf') > -1);
   assert.match(pdf, /range=A3%3AI6(&|$)/);
+});
+
+caso('Error de formula conserva el PDF anterior', () => {
+  const {api,urls}=cargar([['#REF!']]);
+  assert.throws(()=>api.regenerarListaPDF(),/error de formula/);
+  assert.ok(!urls.some(u=>u.includes('format=pdf')));
+});
+
+caso('El PDF excluye la columna de codigos Dubix', () => {
+  const {api,urls}=cargar(HOJA.map(r=>r.concat('DX-PRIVADO')));
+  api.regenerarListaPDF();
+  assert.match(urls.find(u=>u.includes('format=pdf')),/range=A1%3AI6(&|$)/);
 });
 
 let fallas = 0;
@@ -122,3 +134,4 @@ for (const [nombre, fn] of casos) {
 }
 console.log('\n' + (casos.length - fallas) + '/' + casos.length + ' casos ok');
 process.exit(fallas ? 1 : 0);
+
