@@ -49,7 +49,7 @@ var CONFIG = {
   // sigue sirviendo aunque se agreguen filas arriba. '' = sin corte.
   // Si la fila no aparece, el PDF NO se regenera (queda el anterior) y el
   // registro lo avisa: mejor eso que publicar de mas.
-  CORTAR_DESDE: 'Tripa Gorda - La Morena',
+  CORTAR_DESDE: '',
 
   // Carpeta de Drive donde queda el PDF (el codigo al final de la URL de la
   // carpeta). Dejar '' para guardarlo en "Mi unidad".
@@ -149,9 +149,13 @@ function leerHoja_() {
     throw new Error('No se pudo leer la planilla (HTTP ' + r.getResponseCode() + '). Revisar SPREADSHEET_ID y GID. ' +
       r.getContentText().replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').slice(0, 200));
   }
-  var todas = Utilities.parseCsv(r.getContentText());
+  var todas = Utilities.parseCsv(r.getContentText()).map(function(f) { return f.slice(0,9); });
+  if (todas.some(function(f) { return f.some(function(c) { return /^#(REF!|ERROR!|N\/A|VALUE!|DIV\/0!)/.test(String(c)); }); })) {
+    throw new Error('La lista publica tiene un error de formula. Se conserva el PDF anterior.');
+  }
+  while (todas.length > 1 && !todas[todas.length-1].some(function(c) { return String(c).trim() !== ''; })) todas.pop();
   var valores = recortar_(todas, CONFIG.RANGO);
-  var rango = CONFIG.RANGO;
+  var rango = CONFIG.RANGO || ('A1:I' + todas.length);
   if (CONFIG.CORTAR_DESDE) {
     var corte = clave_(CONFIG.CORTAR_DESDE);
     var hasta = -1;
