@@ -77,7 +77,8 @@ begin
 end $$;
 -- Se puede volver a correr el archivo: el trigger se recrea en lugar de fallar.
 drop trigger if exists productos_solo_caja on productos;
-create trigger productos_solo_caja before insert or update on productos
+-- Reordenar por ventas o cambiar visibilidad no modifica las reglas de caja.
+create trigger productos_solo_caja before insert or update of id, unidades_caja, unidad_precio, solo_caja, kg_caja on productos
   for each row execute function public.productos_marcar_solo_caja();
 
 -- ── APLICAR UN CATALOGO YA DESCARGADO ───────────────────────────────
@@ -434,3 +435,4 @@ select cron.schedule('sincronizar-catalogo', '*/10 * * * *', $cron$select public
 -- Para correrla ahora:   select public.sincronizar_catalogo();
 -- Para ver como viene:   select * from sincronizacion_log order by id desc limit 10;
 -- Para pausarla:         select cron.unschedule('sincronizar-catalogo');
+
