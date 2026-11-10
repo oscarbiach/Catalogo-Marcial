@@ -90,4 +90,14 @@ select 'H03 verificada usa la IP recibida', (select count(*) from pedidos_catalo
 select 'H03 verificada respeta el limite por IP', count(public.registrar_pedido_verificado('198.51.100.7', gen_random_uuid(), '', '', '[{"id":"300","cantidad":1}]')) = 4 as ok from generate_series(1, 4);
 select 'H03 verificada sexto', pg_temp.debe_fallar($$select public.registrar_pedido_verificado('198.51.100.7', gen_random_uuid(),'','','[{"id":"300","cantidad":1}]')$$, 'muchos pedidos');
 
+-- La publicacion gestionada admite ocultar todo; otros lotes vacios se rechazan.
+savepoint antes_publicacion_vacia;
+select 'Publicacion vacia sin marca rechazada', pg_temp.debe_fallar($$select public.aplicar_catalogo('{"ok":true,"contrato":2,"config":{},"productos":[]}')$$, 'no se sincroniza');
+-- now() es fijo durante esta transaccion de pruebas.
+update productos set actualizado_en = now() - interval '1 second';
+select 'Publicacion vacia autorizada', public.aplicar_catalogo('{"ok":true,"contrato":2,"publicacion":"dubix-publicar-v1","config":{},"productos":[]}'::jsonb) ->> 'productos' = '0' as ok;
+select 'Sin productos visibles', (select count(*) from productos where publicado) = 0 as ok;
+rollback to savepoint antes_publicacion_vacia;
+
 rollback;
+
