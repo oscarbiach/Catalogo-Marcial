@@ -345,7 +345,8 @@ import {
       pedirASupabase('productos', 'select=*&order=posicion.asc,nombre.asc'),
       pedirASupabase('config', 'select=clave,valor&order=clave.asc'),
     ]).then(function (partes) {
-      if (!partes[0].length) throw new Error('Supabase devolvio el catalogo vacio.');
+      // Una publicación vacía es válida cuando se ocultan todas las filas.
+      // normalizarCatalogo sigue rechazando respuestas incompletas o inválidas.
       return normalizarCatalogo(armarDesdeBase(partes[0], partes[1]), 'supabase');
     });
   }
