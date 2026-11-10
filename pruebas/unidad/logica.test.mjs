@@ -69,6 +69,14 @@ caso('normalizarCatalogo rechaza estructuras invalidas (H05)', () => {
   assert.throws(() => normalizarCatalogo({ ok: true, config: {}, productos: [{ id: '', nombre: 'x' }] }), /sin productos validos/);
 });
 
+caso('Publicacion vacia valida reemplaza tambien la cache anterior', () => {
+  const c = crudo();
+  c.productos = [];
+  const d = normalizarCatalogo(c, 'supabase');
+  assert.strictEqual(d.productos.length, 0);
+  assert.strictEqual(normalizarCatalogo(JSON.parse(JSON.stringify(d)), 'supabase').productos.length, 0);
+});
+
 caso('normalizarCatalogo descarta repetidos y precios negativos', () => {
   const c = crudo();
   c.productos.push({ id: '105', nombre: 'Repetido' }, { id: '400', nombre: 'Negativo', precio: -5 });
@@ -127,3 +135,4 @@ for (const [nombre, fn] of casos) {
 }
 console.log('\n' + (casos.length - fallas) + '/' + casos.length + ' casos ok');
 process.exit(fallas ? 1 : 0);
+
