@@ -185,7 +185,9 @@ function pp_buscar_(lista, p) {
   ];
   for (var i = 0; i < candidatos.length; i++) {
     var k = pp_clave_(candidatos[i][0]);
-    if (k && lista[k]) return { item: lista[k], por: candidatos[i][1] };
+    if (k && lista[k] && (!codigo || !lista[k].codigo || codigo === lista[k].codigo)) {
+      return { item: lista[k], por: candidatos[i][1] };
+    }
   }
   return null;
 }
@@ -291,7 +293,7 @@ function pp_correr_(op) {
     }
     if (sinPrecio.length) { lineas.push('--- SIN PRECIO EN LA LISTA (quedan como estan) ---'); sinPrecio.forEach(function (a) { lineas.push('  ' + a); }); }
     if (sinPar.length) {
-      lineas.push('--- ACTIVOS QUE NO ESTAN EN LA LISTA (quedan como estan; escribir el nombre de la lista en "nombre_lista") ---');
+      lineas.push('--- ACTIVOS FUERA DE LA PUBLICACION (se ocultan al aplicar; revisar Publicar, codigo_precio y nombre_lista) ---');
       sinPar.forEach(function (a) { lineas.push('  ' + a); });
     }
     if (otraColumna) {
