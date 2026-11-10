@@ -52,10 +52,10 @@ var PP = {
   // abajo no se toma nada (13/10/2026). Se busca por nombre, asi sigue
   // sirviendo aunque se agreguen filas arriba. '' = leer toda la hoja.
   // Si la fila no aparece, no se toca ningun precio (mejor que tomar de mas).
-  CORTAR_DESDE: 'Tripa Gorda - La Morena',
+  CORTAR_DESDE: '',
   // Cambios mayores a esto (0.5 = 50%) no se aplican solos.
   CAMBIO_MAXIMO: 0.5,
-  REVISAR_CADA_MINUTOS: 15,
+  REVISAR_CADA_MINUTOS: 5,
   COLUMNA_NOMBRE_LISTA: 'nombre_lista'
 };
 
@@ -137,17 +137,27 @@ function pp_leerLista_() {
   var hoja = PP.HOJA ? planilla.getSheetByName(PP.HOJA) : planilla.getSheets()[0];
   if (!hoja) throw new Error('No encuentro la pestania "' + PP.HOJA + '" en Precios Publicos.');
   var filas = pp_cortar_(hoja.getDataRange().getValues());
+  if (filas.some(function(f) { return f.slice(0,10).some(function(c) { return /^#(REF!|ERROR!|N\/A|VALUE!)/.test(String(c)); }); })) throw new Error('Precios Publicos tiene un error de formula. Se conserva el catalogo anterior.');
   var lista = {};
+  Object.defineProperty(lista, '_codigos', {value: {}});
   filas.forEach(function (f) {
     var nombre = String(f[PP.COL_NOMBRE - 1] || '').trim();
     if (!nombre) return;
     var item = {
       nombre: nombre,
+      codigo: String(f[9] || '').trim(),
       kilo: pp_precio_(f[PP.COL_KILO - 1]),
       unidad: pp_precio_(f[PP.COL_UNIDAD - 1]),
       caja: pp_precio_(f[PP.COL_CAJA - 1])
     };
     if (item.kilo === null && item.unidad === null && item.caja === null) return;   // titulos de seccion
+    if (item.codigo) {
+      var porCodigo = lista._codigos[item.codigo];
+      if (porCodigo && (porCodigo.nombre !== item.nombre || porCodigo.kilo !== item.kilo || porCodigo.unidad !== item.unidad || porCodigo.caja !== item.caja)) {
+        porCodigo.ambiguo = true;
+        item.ambiguo = true;
+      } else if (!porCodigo) lista._codigos[item.codigo] = item;
+    }
     var k = pp_clave_(nombre);
     var previo = lista[k];
     if (previo && (previo.kilo !== item.kilo || previo.unidad !== item.unidad || previo.caja !== item.caja)) {
@@ -161,6 +171,8 @@ function pp_leerLista_() {
 
 /** Busca el producto en la lista. Devuelve { item, por } o null. */
 function pp_buscar_(lista, p) {
+  var codigo = String(p.codigo || '').trim();
+  if (codigo && lista._codigos && lista._codigos[codigo]) return {item: lista._codigos[codigo], por: 'codigo Dubix'};
   var marca = pp_clave_(p.marca);
   var nombre = pp_clave_(p.nombre);
   var candidatos = [
@@ -211,6 +223,7 @@ function pp_correr_(op) {
       if (i < 0) throw new Error('Falta la columna "' + c + '" en Productos. No se toca nada.');
       col[c] = i;
     });
+    var colCodigo = titulos.indexOf('codigo_precio');
     var colLista = titulos.indexOf(PP.COLUMNA_NOMBRE_LISTA);   // -1 si todavia no existe
 
     var n = hoja.getLastRow() - 1;
@@ -223,6 +236,7 @@ function pp_correr_(op) {
       if (!id) return;
       var p = {
         id: id,
+        codigo: colCodigo > -1 ? String(f[colCodigo]).trim() : '',
         nombre: String(f[col.nombre]).trim(),
         marca: String(f[col.marca]).trim(),
         descripcion: String(f[col.descripcion]).trim(),
@@ -253,7 +267,7 @@ function pp_correr_(op) {
         lista: hallado.item.nombre, por: hallado.por
       };
       var salto = antes ? Math.abs(eleccion.precio - antes) / antes : 0;
-      if (salto > PP.CAMBIO_MAXIMO && !op.forzar) grandes.push(cambio);
+      if (salto > PP.CAMBIO_MAXIMO && !op.forzar && !p.codigo && !p.nombreLista) grandes.push(cambio);
       else cambios.push(cambio);
     });
 
@@ -290,12 +304,14 @@ function pp_correr_(op) {
       if (colLista < 0) {
         hoja.getRange(1, ancho + 1).setValue(PP.COLUMNA_NOMBRE_LISTA).setFontWeight('bold').setBackground('#eef1f5');
       }
+      var visibilidad = pp_publicacion_(lista, hoja, datos, col, colLista, colCodigo);
+      lineas.push('Publicacion: ' + visibilidad.ocultos + ' ocultados; ' + visibilidad.restaurados + ' restaurados.');
       var hoy = new Date();
       cambios.forEach(function (x) {
         hoja.getRange(x.fila, col.precio + 1).setValue(x.despues);
         hoja.getRange(x.fila, col.actualizado + 1).setValue(hoy);
       });
-      if (cambios.length) {
+      if (cambios.length || visibilidad.ocultos || visibilidad.restaurados) {
         SpreadsheetApp.flush();
         if (typeof ef_anotar_ === 'function') {
           ef_anotar_(cambios.map(function (x) {
@@ -312,4 +328,36 @@ function pp_correr_(op) {
   } finally {
     lock.releaseLock();
   }
+}
+
+/** Publicar controla las fichas existentes; conserva las bajas manuales del catalogo.
+ * Las fichas sin coincidencia segura se ocultan, nunca reciben un precio supuesto.
+ * Al volver a aparecer en la lista se restaura su estado anterior.
+ */
+function pp_publicacion_(lista, hoja, datos, col, colLista, colCodigo) {
+  var props = PropertiesService.getScriptProperties();
+  var guardados = JSON.parse(props.getProperty('PP_OCULTOS_PUBLICACION') || '{}');
+  var ocultos = 0, restaurados = 0;
+  datos.forEach(function (f, i) {
+    var id = String(f[col.id] || '').trim();
+    if (!id) return;
+    var p = {id:id, codigo:colCodigo>-1?String(f[colCodigo]||'').trim():'',
+      nombre:String(f[col.nombre]||''), marca:String(f[col.marca]||''),
+      descripcion:String(f[col.descripcion]||''), nombreLista:colLista>-1?String(f[colLista]||''):''};
+    var hallado = pp_buscar_(lista,p);
+    var visible = hallado && !hallado.item.ambiguo;
+    if (!visible) {
+      if (aBool(f[col.activo])) {
+        if (!Object.prototype.hasOwnProperty.call(guardados,id)) guardados[id] = true;
+        hoja.getRange(i+2,col.activo+1).setValue(false);
+        ocultos++;
+      }
+    } else if (Object.prototype.hasOwnProperty.call(guardados,id)) {
+      hoja.getRange(i+2,col.activo+1).setValue(guardados[id] === true);
+      delete guardados[id];
+      restaurados++;
+    }
+  });
+  props.setProperty('PP_OCULTOS_PUBLICACION',JSON.stringify(guardados));
+  return {ocultos:ocultos,restaurados:restaurados};
 }
