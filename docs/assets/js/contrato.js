@@ -160,7 +160,7 @@ export function normalizarCatalogo(crudo, fuente) {
       limpio.presentacion, limpio.descripcion].join(' '));
     productos.push(limpio);
   });
-  if (!productos.length) throw new Error('El catalogo llego sin productos validos.');
+  if (!productos.length && crudo.productos.length) throw new Error('El catalogo llego sin productos validos.');
 
   var sincronizadoEn = comoNumero(crudo.sincronizadoEn, null);
 
