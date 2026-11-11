@@ -352,7 +352,7 @@ begin
     union all select '_rubros',     coalesce((j->'rubros')::text, '[]')
     -- Es una preferencia propia de Supabase, no viene de la planilla; se
     -- conserva entre sincronizaciones para que se pueda ajustar la ventana.
-    union all select clave, valor from config where clave = 'ranking_ventas_dias'
+    union all select clave, valor from config where clave in ('ranking_ventas_dias', 'destacados_catalogo')
     union all select '_sincronizado_en', to_jsonb(v_ahora)::text
   ), subir as (
     insert into config (clave, valor)

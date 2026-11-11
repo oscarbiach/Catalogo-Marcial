@@ -33,7 +33,7 @@ function fetchFalso({ turnstile = { success: true }, base = { status: 200, body:
   return { f, llamadas };
 }
 
-const CUERPO = { token: 'tok', p_ref: '11111111-1111-1111-1111-111111111111', p_cliente: 'Cli', p_nota: '', p_items: [{ id: '300', cantidad: 1 }] };
+const CUERPO = { token: 'tok', p_ref: '11111111-1111-1111-1111-111111111111', p_cliente: 'Cli', p_nota: '', p_codigo: 'ARC1', p_items: [{ id: '300', cantidad: 1 }] };
 const casos = [];
 const caso = (n, fn) => casos.push([n, fn]);
 
@@ -48,6 +48,7 @@ caso('Token valido: verifica con la IP real y registra con service_role', async 
   assert.strictEqual(llamadas[1].opciones.headers.Authorization, 'Bearer srk');
   const enviado = JSON.parse(llamadas[1].opciones.body);
   assert.strictEqual(enviado.p_ip, '203.0.113.5');
+  assert.strictEqual(enviado.p_codigo, 'ARC1');
   assert.strictEqual(enviado.token, undefined);   // el token no viaja a la base
 });
 

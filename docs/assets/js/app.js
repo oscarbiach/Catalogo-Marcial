@@ -407,6 +407,63 @@ import {
     };
   }
 
+  /** Los codigos se normalizan igual en el navegador y en la base. */
+  function normalizarCodigoPedido(valor) {
+    return String(valor || '').trim().toUpperCase().replace(/\s+/g, '').slice(0, 32);
+  }
+
+  /** Busca el codigo solo para orientar al cliente; la base es la autoridad. */
+  function codigoDelPedido() {
+    var codigo = normalizarCodigoPedido($('pedido-codigo').value);
+    if (!codigo) return null;
+    var disponibles = Array.isArray(CFG.CODIGOS_PEDIDO) ? CFG.CODIGOS_PEDIDO : [];
+    for (var i = 0; i < disponibles.length; i++) {
+      var candidato = disponibles[i] || {};
+      if (normalizarCodigoPedido(candidato.codigo) === codigo) return candidato;
+    }
+    return null;
+  }
+
+  /** Total con descuento para la vista y WhatsApp; el servidor lo recalcula. */
+  function beneficioDelPedido(lineas) {
+    var codigo = codigoDelPedido();
+    if (!codigo) return null;
+    var porcentaje = codigo.tipo === 'descuento'
+      ? Math.max(0, Math.min(100, Number(codigo.porcentaje) || 0)) : 0;
+    var total = totalPedido(lineas);
+    var importe = total.total === null ? null : redondear2(total.total * porcentaje / 100);
+    return {
+      codigo: normalizarCodigoPedido(codigo.codigo),
+      tipo: codigo.tipo === 'descuento' ? 'descuento' : 'referencia',
+      referencia: String(codigo.referencia || '').trim(),
+      porcentaje: porcentaje,
+      importe: importe,
+      total: total.total === null ? null : redondear2(total.total - (importe || 0)),
+      moneda: total.moneda,
+    };
+  }
+
+  function actualizarAyudaCodigo(lineas) {
+    var caja = $('pedido-codigo-ayuda');
+    var escrito = normalizarCodigoPedido($('pedido-codigo').value);
+    var beneficio = beneficioDelPedido(lineas);
+    caja.className = 'pedido-codigo-ayuda';
+    if (!escrito) { caja.hidden = true; caja.textContent = ''; return; }
+    caja.hidden = false;
+    if (!beneficio) {
+      caja.textContent = 'Vamos a revisar este codigo al recibir el pedido.';
+      caja.classList.add('codigo-invalido');
+      return;
+    }
+    if (beneficio.tipo === 'descuento') {
+      caja.textContent = beneficio.referencia + (beneficio.importe === null
+        ? '.' : ': -' + formatearPrecio(beneficio.importe, beneficio.moneda) + '.');
+    } else {
+      caja.textContent = beneficio.referencia || 'Codigo de referencia aplicado.';
+    }
+    caja.classList.add('codigo-valido');
+  }
+
   /**
    * [AUDITORIA H02] Registra el pedido en la base y devuelve el resultado.
    *
@@ -425,12 +482,20 @@ import {
       return Promise.resolve({ estado: 'omitido' });
     }
     var cliente = datosCliente();
+    var codigo = normalizarCodigoPedido($('pedido-codigo').value);
+    var notaRegistro = cliente.nota;
+    // Compatibilidad durante la migracion: el codigo queda registrado aunque
+    // la funcion antigua de Supabase todavia no tenga el parametro p_codigo.
+    if (codigo && !CFG.CODIGOS_SERVIDOR_ACTIVOS) {
+      notaRegistro = ('Codigo informado: ' + codigo + (notaRegistro ? '\n' + notaRegistro : '')).slice(0, MAX_TEXTO_CLIENTE);
+    }
     var cuerpo = {
       p_ref: ref,
       p_cliente: cliente.nombre,
-      p_nota: cliente.nota,
+      p_nota: notaRegistro,
       p_items: lineas.map(function (l) { return { id: String(l.producto.id), cantidad: l.cantidad }; }),
     };
+    if (CFG.CODIGOS_SERVIDOR_ACTIVOS) cuerpo.p_codigo = codigo;
 
     // [AUDITORIA H03] Con la verificacion anti-robots activa, el pedido va a
     // la Edge Function con el token de Turnstile; si no, directo a la base.
@@ -456,7 +521,12 @@ import {
         if (cuerpo.token) renovarVerificacion();   // cada token sirve una sola vez
         var c = r.cuerpo || {};
         if (r.ok && c.id) {
-          return { estado: 'registrado', total: comoNumero(c.total, null), duplicado: !!c.duplicado };
+          return {
+            estado: 'registrado', total: comoNumero(c.total, null),
+            totalConDescuento: comoNumero(c.total_con_descuento, null),
+            descuento: comoNumero(c.descuento_importe, null),
+            codigoPromocional: comoTexto(c.codigo), duplicado: !!c.duplicado,
+          };
         }
         return {
           estado: 'rechazado',
@@ -1138,16 +1208,39 @@ import {
   var CUANTOS_DESTACADOS = 8;
 
   /**
-   * El carrusel toma los primeros productos tal como los manda el servidor,
-   * que ya vienen ordenados por lo mas pedido. No cambia al filtrar: son los
-   * destacados del catalogo entero, no del filtro.
+   * El carrusel admite una seleccion comercial en destacados_catalogo (JSON
+   * con IDs, desde Supabase). Sirve cuando los pedidos web aun no reflejan las
+   * ventas reales. Lo que no este elegido completa el carrusel por ranking.
    */
+  function ordenarDestacados(todos) {
+    var disponibles = todos.filter(function (p) { return !p.sinStock; });
+    var config = (estado.datos && estado.datos.config) || {};
+    var ids = [];
+    var configurados = config.destacados_catalogo || CFG.DESTACADOS_CATALOGO || '[]';
+    if (Array.isArray(configurados)) ids = configurados;
+    else try { ids = JSON.parse(configurados); } catch (err) { ids = []; }
+    if (!Array.isArray(ids) || !ids.length) return disponibles;
+
+    var porId = {};
+    disponibles.forEach(function (p) { porId[p.id] = p; });
+    var usados = {};
+    var elegidos = ids.map(function (id) {
+      var producto = porId[String(id)];
+      if (!producto || usados[producto.id]) return null;
+      usados[producto.id] = true;
+      return producto;
+    }).filter(Boolean);
+
+    return elegidos.concat(disponibles.filter(function (p) { return !usados[p.id]; }));
+  }
+
+  /** El carrusel no cambia al filtrar: es una seleccion del catalogo entero. */
   function dibujarDestacados() {
     var seccion = $('destacados');
     if (!seccion) return;
 
     var todos = (estado.datos && estado.datos.productos) || [];
-    var lista = todos.filter(function (p) { return !p.sinStock; }).slice(0, CUANTOS_DESTACADOS);
+    var lista = ordenarDestacados(todos).slice(0, CUANTOS_DESTACADOS);
 
     seccion.hidden = lista.length < 3;   // con menos de 3 no vale la pena el carrusel
     if (seccion.hidden) return;
@@ -2081,6 +2174,12 @@ import {
     return t.total === null ? 'a confirmar' : formatearPrecio(t.total, t.moneda);
   }
 
+  function textoTotalConBeneficio(lineas) {
+    var beneficio = beneficioDelPedido(lineas);
+    if (!beneficio || beneficio.tipo !== 'descuento') return textoTotal(lineas);
+    return beneficio.total === null ? 'a confirmar' : formatearPrecio(beneficio.total, beneficio.moneda);
+  }
+
   function cantidadTotal(lineas) {
     return lineas.reduce(function (suma, l) { return suma + l.cantidad; }, 0);
   }
@@ -2128,8 +2227,10 @@ import {
     }).join('');
 
     if (hayLineas && mostrarPrecios()) {
-      $('pedido-total').innerHTML = '<span>Total estimado</span><span>' +
-        escapar(textoTotal(lineas)) + '</span>';
+      var beneficio = beneficioDelPedido(lineas);
+      var etiquetaTotal = beneficio && beneficio.tipo === 'descuento' ? 'Total con descuento' : 'Total estimado';
+      $('pedido-total').innerHTML = '<span>' + etiquetaTotal + '</span><span>' +
+        escapar(textoTotalConBeneficio(lineas)) + '</span>';
     } else if (hayLineas) {
       $('pedido-total').innerHTML = '<span>' + cantidadTotal(lineas) + ' items</span>';
     } else {
@@ -2137,6 +2238,7 @@ import {
     }
 
     prepararEnvio(lineas);
+    actualizarAyudaCodigo(lineas);
     actualizarCarrito(lineas);
     cerrarConfirmacion();
   }
@@ -2252,14 +2354,19 @@ import {
 
   // ---------- Datos del cliente ----------
 
-  ['pedido-nombre', 'pedido-nota'].forEach(function (id) {
+  ['pedido-nombre', 'pedido-nota', 'pedido-codigo'].forEach(function (id) {
     $(id).addEventListener('input', function () {
+      if (id === 'pedido-codigo') {
+        $('pedido-codigo').value = normalizarCodigoPedido($('pedido-codigo').value);
+        renovarRef();
+      }
       try {
         localStorage.setItem(CLAVE_CLIENTE, JSON.stringify({
           nombre: $('pedido-nombre').value, nota: $('pedido-nota').value,
+          codigo: $('pedido-codigo').value,
         }));
       } catch (err) { /* sin almacenamiento: se pierde al cerrar */ }
-      if (!$('pedido-pie').hidden) prepararEnvio(lineasDelPedido());
+      if (!$('pedido-pie').hidden) dibujarPedido();
     });
   });
 
@@ -2289,6 +2396,7 @@ import {
       var guardado = JSON.parse(localStorage.getItem(CLAVE_CLIENTE) || '{}');
       $('pedido-nombre').value = guardado.nombre || '';
       $('pedido-nota').value = guardado.nota || '';
+      $('pedido-codigo').value = normalizarCodigoPedido(guardado.codigo || '');
     } catch (err) { /* sin datos previos */ }
   }
 
@@ -2310,6 +2418,13 @@ import {
     if (!sinCliente) {
       if (cliente.nombre) partes.push('Cliente: ' + cliente.nombre);
       if (cliente.nota) partes.push('Nota: ' + cliente.nota);
+    }
+    var beneficio = beneficioDelPedido(lineas);
+    var codigoIngresado = normalizarCodigoPedido($('pedido-codigo').value);
+    if (beneficio) {
+      partes.push('Codigo: ' + beneficio.codigo + (beneficio.referencia ? ' — ' + beneficio.referencia : ''));
+    } else if (codigoIngresado) {
+      partes.push('Codigo informado: ' + codigoIngresado + ' (a validar)');
     }
     partes.push('');
     var visibles = tope ? lineas.slice(0, tope) : lineas;
@@ -2334,7 +2449,12 @@ import {
     if (conPrecios) {
       // El total es SIEMPRE el del pedido completo, aunque el detalle venga
       // recortado: mandar un total parcial haria cotizar de menos.
-      partes.push('', '*Total estimado: ' + textoTotal(lineas) + '*');
+      if (beneficio && beneficio.tipo === 'descuento' && beneficio.importe !== null) {
+        partes.push('', 'Descuento (' + beneficio.porcentaje + '%): -' + formatearPrecio(beneficio.importe, beneficio.moneda));
+        partes.push('*Total con descuento: ' + textoTotalConBeneficio(lineas) + '*');
+      } else {
+        partes.push('', '*Total estimado: ' + textoTotal(lineas) + '*');
+      }
       if (tope && lineas.length > tope) {
         partes.push('(el total incluye los ' + lineas.length + ' productos del pedido)');
       }
@@ -2407,7 +2527,7 @@ import {
   function resumenEnviado(lineas) {
     var cuantos = lineas.length === 1 ? '1 producto' : lineas.length + ' productos';
     $('enviado-detalle').textContent = 'Abrimos WhatsApp con tu pedido (' + cuantos +
-      (mostrarPrecios() ? ', ' + textoTotal(lineas) : '') +
+      (mostrarPrecios() ? ', ' + textoTotalConBeneficio(lineas) : '') +
       '). Para que nos llegue, toca Enviar en WhatsApp.';
     $('enviado-ref').textContent = estado.refPedido ? 'Pedido ' + refCorta(estado.refPedido) : '';
   }
@@ -2424,6 +2544,10 @@ import {
       var t = totalPedido(lineas.map(function (l) { return { producto: l.producto, subtotal: l.subtotalBase }; }));
       if (mostrarPrecios() && resultado.total !== null && t.total !== null && Math.abs(resultado.total - t.total) >= 0.01) {
         texto += ' Total con los precios de hoy: ' + formatearPrecio(resultado.total, t.moneda) + '.';
+      }
+      if (resultado.codigoPromocional && resultado.descuento !== null && resultado.descuento > 0 && resultado.totalConDescuento !== null) {
+        texto += ' ' + resultado.codigoPromocional + ' aplicado: -' + formatearPrecio(resultado.descuento, t.moneda) +
+          '. Total con descuento: ' + formatearPrecio(resultado.totalConDescuento, t.moneda) + '.';
       }
     } else if (resultado.estado === 'rechazado') {
       texto = (resultado.mensaje || 'No pudimos registrar el pedido.') +

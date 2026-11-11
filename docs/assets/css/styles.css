@@ -519,6 +519,9 @@ main { max-width: var(--ancho); margin: 0 auto; padding: 12px 24px 140px; }
 }
 .campo::placeholder { color: var(--tinta-3); }
 .campo:focus { outline: none; box-shadow: var(--flota-1), 0 0 0 2px var(--marca); }
+.pedido-codigo-ayuda { margin: -3px 2px 0; color: var(--tinta-2); font-size: 12.5px; line-height: 1.35; }
+.pedido-codigo-ayuda.codigo-valido { color: var(--marca); font-weight: 700; }
+.pedido-codigo-ayuda.codigo-invalido { color: var(--tinta-2); }
 
 .pedido-largo {
   margin: 0; padding: 10px 12px; border-radius: var(--r-chico);

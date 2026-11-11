@@ -105,6 +105,7 @@ export async function manejar(req: Request, entorno: Entorno, fetchImpl: typeof 
       p_ref: cuerpo.p_ref,
       p_cliente: cuerpo.p_cliente,
       p_nota: cuerpo.p_nota,
+      p_codigo: cuerpo.p_codigo,
       p_items: cuerpo.p_items,
     }),
   });

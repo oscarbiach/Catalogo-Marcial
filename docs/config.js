@@ -33,6 +33,23 @@ window.CATALOGO_CONFIG = {
     guardarPedidos: true,
   },
 
+  // Codigos que el cliente puede ingresar al confirmar un pedido. La base los
+  // vuelve a validar y calcula el descuento: esta lista solo permite mostrar
+  // de inmediato que beneficio aplica cada codigo. Para agregar una campana,
+  // hay que darla de alta tambien en supabase/04-codigos-pedido.sql.
+  CODIGOS_PEDIDO: [
+    { codigo: 'ARC1', tipo: 'referencia', referencia: 'Referido por Angel' },
+    { codigo: 'CYBERMARCIAL', tipo: 'descuento', porcentaje: 10, referencia: '10% de descuento' },
+  ],
+  // Queda en false hasta aplicar 04-codigos-pedido.sql en Supabase. Mientras
+  // tanto, el codigo igual viaja guardado dentro de la nota del pedido y en
+  // WhatsApp, sin arriesgar que falle el registro de pedidos actual.
+  CODIGOS_SERVIDOR_ACTIVOS: false,
+
+  // Seleccion comercial del carrusel. Se muestra antes que el ranking de
+  // pedidos web, que todavia no representa todas las ventas del negocio.
+  DESTACADOS_CATALOGO: ['p_6159e7ec-e4a', '117'],
+
   // Verificacion anti-robots de los pedidos (Cloudflare Turnstile).
   // Vacio = apagada: los pedidos se registran directo, con limite por IP.
   // Para activarla: crear el widget en Cloudflare, pegar aca la clave

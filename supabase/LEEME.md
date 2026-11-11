@@ -26,6 +26,7 @@ El sitio se publica en **https://distribuidoramarcial.com** (GitHub Pages, archi
 4. **Encender el sitio.** En `docs/config.js`, bloque `SUPABASE`: pegá `URL` y `ANON` y poné `activo: true`.
 5. **Cargar los datos.** Correr `02-sincronizacion.sql` en el SQL Editor. Programa la copia automática desde tu Apps Script y no hay que pegar nada en él. Se puede volver a correr sin romper nada.
 6. **Registro de pedidos.** Correr `03-pedidos.sql`. Crea `registrar_pedido` con límite por IP, idempotencia y validación estricta, y borra la versión vieja sin límites. Correrlo **antes** de publicar el `app.js` nuevo.
+7. **Códigos de pedido.** Correr `04-codigos-pedido.sql`. Activa `ARC1` como referencia de Ángel y `CYBERMARCIAL` con 10% de descuento; los códigos se validan y registran en la base, no solo en el navegador.
 7. **Probar.** Abrí el sitio con la consola del navegador abierta. No debería haber avisos de "Supabase no respondió". Mandá un pedido de prueba y mirá que aparezca en *Table Editor → pedidos_catalogo*.
 
 ## Qué puede y qué no puede hacer el sitio

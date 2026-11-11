@@ -102,10 +102,10 @@
       </a>
     </div>
 
-    <!-- Los mas pedidos: avanzan solos, a la derecha del titulo -->
-    <section class="destacados" id="destacados" hidden aria-label="Los mas pedidos">
+    <!-- Productos recomendados: avanzan solos, a la derecha del titulo -->
+    <section class="destacados" id="destacados" hidden aria-label="Productos destacados">
       <div class="destacados-cab">
-        <h2 class="destacados-tit">Los más pedidos</h2>
+        <h2 class="destacados-tit">Productos destacados</h2>
         <span class="destacados-nota">Deslizá &rarr;</span>
       </div>
       <div class="destacados-pista" id="destacados-pista"></div>
@@ -244,6 +244,8 @@
 
       <input id="pedido-nombre" class="campo" autocomplete="organization" maxlength="300" placeholder="Tu nombre o comercio">
       <input id="pedido-nota" class="campo" maxlength="300" placeholder="Aclaraciones (opcional)">
+      <input id="pedido-codigo" class="campo" autocomplete="off" autocapitalize="characters" maxlength="32" placeholder="Codigo de descuento o referencia (opcional)">
+      <p class="pedido-codigo-ayuda" id="pedido-codigo-ayuda" aria-live="polite" hidden></p>
 
       <p class="alerta" id="pedido-largo" hidden>
         El pedido es largo para el enlace: el mensaje sale resumido.
@@ -312,7 +314,7 @@
   }
 }
 </script>
-<script src="config.js?v=46"></script>
+<script src="config.js?v=47"></script>
 <script type="module" src="assets/js/app.js?v=48"></script>
 </body>
 </html>
