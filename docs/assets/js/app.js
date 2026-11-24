@@ -106,7 +106,8 @@ import {
   // los muestran con un rectangulo negro. Estos IDs se piden como archivo
   // original; el resto conserva la miniatura liviana de siempre.
   var IMAGENES_ORIGINAL_CON_ALFA = {
-    '1q9MfbKlULhOxGNPV0Xuj0SQZB8mkkYxI': true
+    // Blend para Hamburguesa Comun: la ficha actual apunta a este ID.
+    '1Y-zA_vwgJfAxV-_v2ZR7KDmFUVRVpp-J': true
   };
 
   function urlImagen(fileId, ancho) {
