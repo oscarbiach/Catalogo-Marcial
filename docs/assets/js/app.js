@@ -118,6 +118,11 @@ import {
   }
 
   function urlImagenAlterna(fileId, ancho) {
+    // Nunca reemplazar un PNG con alfa por una miniatura: Drive aplana el
+    // fondo de este archivo concreto a negro en algunos tamaños.
+    if (IMAGENES_ORIGINAL_CON_ALFA[fileId]) {
+      return 'https://drive.google.com/uc?export=view&id=' + encodeURIComponent(fileId);
+    }
     return 'https://lh3.googleusercontent.com/d/' + encodeURIComponent(fileId) + '=w' + ancho;
   }
 
