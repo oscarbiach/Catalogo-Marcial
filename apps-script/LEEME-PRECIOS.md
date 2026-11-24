@@ -42,14 +42,16 @@ Va en el proyecto de Apps Script **del catálogo**, el mismo que tiene
 4. Ejecutar `pp_instalar` para que revise sola cada 15 minutos. Se saca con
    `pp_quitar`.
 
-Cada producto se busca **por nombre**, nunca por posición:
+Cada producto se busca por **código o nombre**, nunca por posición. El orden es:
+- Primero `codigo_precio`; si está vacío, usa `SKU` (compatibilidad con el panel de catálogo).
 - Mayúsculas, tildes y signos no cuentan.
 - También sirven nombre + " - " + marca, nombre + " - " + descripción y el
   nombre sin la marca adelante.
 
-Si un producto tiene en la lista un nombre distinto, escribir el nombre exacto
-de la lista en la columna **nombre_lista** de Productos. `pp_aplicar` la crea al
-final de la hoja.
+Para productos nuevos o con un nombre distinto, cargar el mismo código de la
+lista operativa en **codigo_precio**. Si el panel solo muestra SKU, ese mismo
+código también funciona como respaldo. `nombre_lista` queda como alternativa
+cuando no existe un código.
 
 La columna del precio sale de `unidad_precio`:
 

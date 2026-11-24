@@ -22,7 +22,7 @@ const COLS = ['id', 'sku', 'nombre', 'descripcion', 'categoria', 'marca',
 function prod(id, nombre, precio, unidadPrecio, extra) {
   const f = COLS.map(() => '');
   const o = Object.assign({ marca: '', descripcion: '', unidades_caja: '', activo: true }, extra);
-  f[0] = id; f[2] = nombre; f[3] = o.descripcion; f[5] = o.marca; f[6] = precio; f[7] = 'ARS';
+  f[0] = id; f[1] = o.sku || ''; f[2] = nombre; f[3] = o.descripcion; f[5] = o.marca; f[6] = precio; f[7] = 'ARS';
   f[8] = o.unidades_caja; f[15] = o.activo; f[19] = o.codigo_precio || ''; f[20] = unidadPrecio;
   return f;
 }
@@ -244,6 +244,14 @@ caso('Dubix identifica un nombre cambiado y no cruza codigos distintos', () => {
   assert.strictEqual(precioDe(shP,'a'),300);
   assert.strictEqual(precioDe(shP,'b'),100);
   assert.strictEqual(shP.celdas[2][15],false);
+});
+
+caso('SKU vincula un producto del panel cuando codigo_precio esta vacio', () => {
+  const p = [COLS.slice(), prod('blend', 'Blend para Hamburguesa Comun', 14500, 'kg', { sku: '132' })];
+  const {api, shP} = cargar(p, [item('PICADA COMUN', 18125, '-', '-', '132')]);
+  api.pp_aplicar();
+  assert.strictEqual(precioDe(shP, 'blend'), 18125);
+  assert.strictEqual(shP.celdas[1][15], true);
 });
 
 caso('Error de formula conserva precios y publicacion', () => {

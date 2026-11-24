@@ -6,12 +6,13 @@
  * Este script copia esos precios a la columna "precio" de la hoja Productos.
  * Supabase los toma de ahi en la sincronizacion de cada 10 minutos.
  *
- * Cada producto se busca en la lista por NOMBRE, no por posicion, en este orden:
- *   1. la columna "nombre_lista" de Productos, si tiene algo escrito;
- *   2. las equivalencias de PP_EQUIVALENCIAS (abajo);
- *   3. el nombre del producto, igual;
- *   4. nombre + " - " + marca, y nombre + " - " + descripcion;
- *   5. el nombre sin la marca adelante ("KALIS Liso..." -> "Liso...").
+ * Cada producto se busca por CODIGO o NOMBRE, no por posicion, en este orden:
+ *   1. codigo_precio; si esta vacio, SKU (codigo de la lista de precios);
+ *   2. la columna "nombre_lista" de Productos, si tiene algo escrito;
+ *   3. las equivalencias de PP_EQUIVALENCIAS (abajo);
+ *   4. el nombre del producto, igual;
+ *   5. nombre + " - " + marca, y nombre + " - " + descripcion;
+ *   6. el nombre sin la marca adelante ("KALIS Liso..." -> "Liso...").
  * Mayusculas, tildes y signos no cuentan ("Jamon" = "Jam\u00f3n").
  *
  * La columna del precio sale de unidad_precio: kg -> KILO, unidad -> UNIDAD,
@@ -26,8 +27,9 @@
  *   4. pp_instalar()     -> lo deja corriendo solo cada 15 minutos.
  *      pp_quitar()       -> saca la revision automatica.
  *
- * Si un producto tiene en la lista un nombre distinto, escribir el nombre
- * exacto de la lista en la columna "nombre_lista" de Productos (la crea
+ * Si un producto tiene en la lista un nombre distinto, cargar primero el
+ * mismo codigo en codigo_precio (preferido) o SKU. Si no tiene codigo,
+ * escribir el nombre exacto de la lista en nombre_lista (la crea
  * pp_aplicar al final de la hoja).
  *
  * La lista se lee hasta la fila PP.CORTAR_DESDE (sin incluirla).
@@ -171,8 +173,14 @@ function pp_leerLista_() {
 
 /** Busca el producto en la lista. Devuelve { item, por } o null. */
 function pp_buscar_(lista, p) {
-  var codigo = String(p.codigo || '').trim();
-  if (codigo && lista._codigos && lista._codigos[codigo]) return {item: lista._codigos[codigo], por: 'codigo Dubix'};
+  // codigo_precio es el campo explicito. SKU es el respaldo para el panel
+  // actual, que ya guarda alli el codigo de Lista. Si ambos existen, siempre
+  // manda codigo_precio.
+  var codigoExplicito = String(p.codigo || '').trim();
+  var codigo = codigoExplicito || String(p.sku || '').trim();
+  if (codigo && lista._codigos && lista._codigos[codigo]) {
+    return {item: lista._codigos[codigo], por: codigoExplicito ? 'codigo de precio' : 'SKU'};
+  }
   var marca = pp_clave_(p.marca);
   var nombre = pp_clave_(p.nombre);
   var candidatos = [
@@ -220,7 +228,7 @@ function pp_correr_(op) {
     var ancho = Math.max(hoja.getLastColumn(), COLUMNAS.length);
     var titulos = hoja.getRange(1, 1, 1, ancho).getValues()[0].map(function (t) { return String(t).trim().toLowerCase(); });
     var col = {};
-    ['id', 'nombre', 'marca', 'descripcion', 'precio', 'unidades_caja', 'unidad_precio', 'actualizado', 'activo'].forEach(function (c) {
+    ['id', 'sku', 'nombre', 'marca', 'descripcion', 'precio', 'unidades_caja', 'unidad_precio', 'actualizado', 'activo'].forEach(function (c) {
       var i = titulos.indexOf(c);
       if (i < 0) throw new Error('Falta la columna "' + c + '" en Productos. No se toca nada.');
       col[c] = i;
@@ -239,6 +247,7 @@ function pp_correr_(op) {
       var p = {
         id: id,
         codigo: colCodigo > -1 ? String(f[colCodigo]).trim() : '',
+        sku: String(f[col.sku]).trim(),
         nombre: String(f[col.nombre]).trim(),
         marca: String(f[col.marca]).trim(),
         descripcion: String(f[col.descripcion]).trim(),
@@ -269,7 +278,7 @@ function pp_correr_(op) {
         lista: hallado.item.nombre, por: hallado.por
       };
       var salto = antes ? Math.abs(eleccion.precio - antes) / antes : 0;
-      if (salto > PP.CAMBIO_MAXIMO && !op.forzar && !p.codigo && !p.nombreLista) grandes.push(cambio);
+      if (salto > PP.CAMBIO_MAXIMO && !op.forzar && !p.codigo && !p.sku && !p.nombreLista) grandes.push(cambio);
       else cambios.push(cambio);
     });
 
@@ -343,7 +352,7 @@ function pp_publicacion_(lista, hoja, datos, col, colLista, colCodigo) {
   datos.forEach(function (f, i) {
     var id = String(f[col.id] || '').trim();
     if (!id) return;
-    var p = {id:id, codigo:colCodigo>-1?String(f[colCodigo]||'').trim():'',
+    var p = {id:id, codigo:colCodigo>-1?String(f[colCodigo]||'').trim():'', sku:String(f[col.sku]||'').trim(),
       nombre:String(f[col.nombre]||''), marca:String(f[col.marca]||''),
       descripcion:String(f[col.descripcion]||''), nombreLista:colLista>-1?String(f[colLista]||''):''};
     var hallado = pp_buscar_(lista,p);
