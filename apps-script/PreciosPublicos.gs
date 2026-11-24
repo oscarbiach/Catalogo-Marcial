@@ -178,8 +178,9 @@ function pp_buscar_(lista, p) {
   // manda codigo_precio.
   var codigoExplicito = String(p.codigo || '').trim();
   var codigo = codigoExplicito || String(p.sku || '').trim();
-  if (codigo && lista._codigos && lista._codigos[codigo]) {
-    return {item: lista._codigos[codigo], por: codigoExplicito ? 'codigo de precio' : 'SKU'};
+  var porCodigo = codigo && lista._codigos && lista._codigos[codigo];
+  if (porCodigo && !porCodigo.ambiguo) {
+    return {item: porCodigo, por: codigoExplicito ? 'codigo de precio' : 'SKU'};
   }
   var marca = pp_clave_(p.marca);
   var nombre = pp_clave_(p.nombre);
@@ -193,7 +194,10 @@ function pp_buscar_(lista, p) {
   ];
   for (var i = 0; i < candidatos.length; i++) {
     var k = pp_clave_(candidatos[i][0]);
-    if (k && lista[k] && (!codigo || !lista[k].codigo || codigo === lista[k].codigo)) {
+    // Cuando un codigo se repite en la lista, nombre_lista es el desempate
+    // explicito; no se infiere a partir del nombre comercial.
+    var permite = i === 0 && porCodigo && porCodigo.ambiguo;
+    if (k && lista[k] && (permite || !codigo || !lista[k].codigo || codigo === lista[k].codigo)) {
       return { item: lista[k], por: candidatos[i][1] };
     }
   }
