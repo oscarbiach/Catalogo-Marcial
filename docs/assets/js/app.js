@@ -20,6 +20,9 @@ import {
   'use strict';
 
   var CFG = window.CATALOGO_CONFIG || {};
+  // El titulo normal puede venir del catalogo; se conserva para restaurarlo
+  // al volver a esta pestana despues del aviso breve "¡Volve!".
+  var tituloNormal = document.title;
   // [AUDITORIA H05] v2: la cache guarda solo catalogos ya validados y con
   // version de esquema. Las copias v1 (sin validar) se ignoran.
   var CLAVE_CACHE = 'catalogo_datos_v2';
@@ -766,7 +769,12 @@ import {
   // pestania despues de un rato.
   window.addEventListener('online', function () { consultarCatalogo(); });
   document.addEventListener('visibilitychange', function () {
-    if (document.hidden || !estado.datos) return;
+    if (document.hidden) {
+      document.title = '¡Volvé!';
+      return;
+    }
+    document.title = tituloNormal;
+    if (!estado.datos) return;
     if (Date.now() - estado.ultimaConsulta > MINUTOS_CACHE * 60000) consultarCatalogo();
   });
 
@@ -796,7 +804,8 @@ import {
 
     // El logo es el de la identidad de Marcial (assets/marca/logo/), fijo en
     // el HTML: no se toma de Drive ni del panel, igual que los colores.
-    document.title = nombre;
+    tituloNormal = nombre;
+    if (!document.hidden) document.title = tituloNormal;
 
     // El titulo del banner se edita desde el panel. Si viene vacio queda el
     // que ya trae el HTML, asi el banner nunca aparece mudo.
