@@ -71,7 +71,7 @@ function servidor() {
  * opciones.registro: (cuerpo) => { status, body }
  */
 async function abrir(navegador, base, opciones) {
-  const o = Object.assign({ supabase: 'ok', registro: null, storage: null, demoraSupabase: 0, sincronizadoEn: null, extra: [] }, opciones);
+  const o = Object.assign({ supabase: 'ok', registro: null, storage: null, demoraSupabase: 0, sincronizadoEn: null, extra: [], ruta: '/index.html' }, opciones);
   const contexto = o.contexto || await navegador.newContext({ serviceWorkers: 'block' });
   const registros = [];
   await contexto.route(/drive\.google\.com|googleusercontent|wa\.me|whatsapp/, (r) => r.fulfill({ status: 204, body: '' }));
@@ -100,7 +100,7 @@ async function abrir(navegador, base, opciones) {
   const pagina = await contexto.newPage();
   const errores = [];
   pagina.on('pageerror', (e) => errores.push(e.message));
-  await pagina.goto(base + '/index.html');
+  await pagina.goto(base + o.ruta);
   return { pagina, contexto, registros, errores };
 }
 
@@ -125,6 +125,17 @@ caso('H01 Supabase: el 105 se pide por caja de 20 y el subtotal es de la caja', 
   await pagina.locator('#carrito').click();
   assert.match(await pagina.locator('#pedido-total').innerText(), /32\.480/);
   assert.deepStrictEqual(errores, []);
+});
+
+caso('La busqueda queda en la URL y sobrevive una recarga', async (nav, base) => {
+  const { pagina } = await abrir(nav, base, { ruta: '/index.html?buscar=panceta' });
+  await esperarCatalogo(pagina);
+  assert.strictEqual(await pagina.locator('#buscar').inputValue(), 'panceta');
+  assert.ok(await pagina.locator('#grilla .pieza').count() > 0);
+  await pagina.reload();
+  await esperarCatalogo(pagina);
+  assert.strictEqual(await pagina.locator('#buscar').inputValue(), 'panceta');
+  assert.match(pagina.url(), /[?&]buscar=panceta/);
 });
 
 caso('H01 Respaldo sin reglas conocidas: modo consulta, sin carrito y con aviso', async (nav, base) => {

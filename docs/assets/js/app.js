@@ -932,6 +932,22 @@ import {
     }
   }
 
+  // La busqueda forma parte del enlace: recargar, volver desde el historial o
+  // compartir la URL conserva lo que se estaba viendo. No se usa pushState en
+  // cada letra para no llenar el boton "atras" del navegador.
+  function escribirBusquedaEnUrl(texto) {
+    var url = new URL(location.href);
+    if (texto) url.searchParams.set('buscar', texto);
+    else url.searchParams.delete('buscar');
+    history.replaceState(null, '', url.pathname + url.search + url.hash);
+  }
+
+  function leerBusquedaDeUrl() {
+    var texto = new URL(location.href).searchParams.get('buscar') || '';
+    estado.filtro.texto = texto;
+    $('buscar').value = texto;
+  }
+
   $('filtro-categoria').addEventListener('change', function (e) {
     estado.filtro.categoria = e.target.value;
     dibujar();
@@ -944,6 +960,7 @@ import {
     var valor = evento.target.value;
     debounce = setTimeout(function () {
       estado.filtro.texto = valor;
+      escribirBusquedaEnUrl(valor);
       dibujar();
     }, 140);
   });
@@ -965,7 +982,13 @@ import {
     $('buscar').value = '';
     $('filtro-categoria').value = '';
     $('filtro-marca').value = '';
+    escribirBusquedaEnUrl('');
     dibujar();
+  });
+
+  window.addEventListener('popstate', function () {
+    leerBusquedaDeUrl();
+    if (estado.datos) dibujar();
   });
 
   $('reintentar').addEventListener('click', function () {
@@ -2732,5 +2755,6 @@ import {
   marquesina($('destacados-pista'));
   recuperarPedido();
   recordarCliente();
+  leerBusquedaDeUrl();
   iniciar();
 })();
