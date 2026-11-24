@@ -110,7 +110,16 @@ import {
     '1ReHcu7slZUdOWw9LX93UnVFr_Sto5Owx': true
   };
 
+  // Esta copia es el PNG original de Drive, sin recomprimir. Se usa solo en
+  // la grilla porque el servicio de miniaturas de Drive lo convierte a JPEG
+  // (y le inventa un fondo negro). La ficha y la tarjeta ven exactamente los
+  // mismos píxeles transparentes.
+  var IMAGENES_LOCALES_CON_ALFA = {
+    '1ReHcu7slZUdOWw9LX93UnVFr_Sto5Owx': 'assets/img/productos/blend-hamburguesa-comun.png'
+  };
+
   function urlImagen(fileId, ancho) {
+    if (IMAGENES_LOCALES_CON_ALFA[fileId]) return IMAGENES_LOCALES_CON_ALFA[fileId];
     if (IMAGENES_ORIGINAL_CON_ALFA[fileId]) {
       return 'https://drive.google.com/uc?export=view&id=' + encodeURIComponent(fileId);
     }
@@ -118,6 +127,7 @@ import {
   }
 
   function urlImagenAlterna(fileId, ancho) {
+    if (IMAGENES_LOCALES_CON_ALFA[fileId]) return IMAGENES_LOCALES_CON_ALFA[fileId];
     // Nunca reemplazar un PNG con alfa por una miniatura: Drive aplana el
     // fondo de este archivo concreto a negro en algunos tamaños.
     if (IMAGENES_ORIGINAL_CON_ALFA[fileId]) {

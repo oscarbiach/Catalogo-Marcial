@@ -18,7 +18,7 @@
 
 'use strict';
 
-var CACHE = 'catalogo-cascara-v2';
+var CACHE = 'catalogo-cascara-v3';
 var PAGINA = 'index.html';
 
 /** Las rutas locales que usa el HTML (href/src sin dominio), sin el #fragmento. */
