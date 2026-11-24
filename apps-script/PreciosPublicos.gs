@@ -345,34 +345,26 @@ function pp_correr_(op) {
   }
 }
 
-/** Publicar controla las fichas existentes; conserva las bajas manuales del catalogo.
- * Las fichas sin coincidencia segura se ocultan, nunca reciben un precio supuesto.
- * Al volver a aparecer en la lista se restaura su estado anterior.
+/**
+ * La actualización de precios nunca cambia la publicación de una ficha.
+ *
+ * Una coincidencia ausente o ambigua se informa para revisión y conserva el
+ * último precio, pero no puede sacar un producto del catálogo. También revive
+ * las fichas que una versión anterior de esta automatización había ocultado.
  */
 function pp_publicacion_(lista, hoja, datos, col, colLista, colCodigo) {
   var props = PropertiesService.getScriptProperties();
   var guardados = JSON.parse(props.getProperty('PP_OCULTOS_PUBLICACION') || '{}');
-  var ocultos = 0, restaurados = 0;
+  var restaurados = 0;
   datos.forEach(function (f, i) {
     var id = String(f[col.id] || '').trim();
     if (!id) return;
-    var p = {id:id, codigo:colCodigo>-1?String(f[colCodigo]||'').trim():'', sku:String(f[col.sku]||'').trim(),
-      nombre:String(f[col.nombre]||''), marca:String(f[col.marca]||''),
-      descripcion:String(f[col.descripcion]||''), nombreLista:colLista>-1?String(f[colLista]||''):''};
-    var hallado = pp_buscar_(lista,p);
-    var visible = hallado && !hallado.item.ambiguo;
-    if (!visible) {
-      if (aBool(f[col.activo])) {
-        if (!Object.prototype.hasOwnProperty.call(guardados,id)) guardados[id] = true;
-        hoja.getRange(i+2,col.activo+1).setValue(false);
-        ocultos++;
-      }
-    } else if (Object.prototype.hasOwnProperty.call(guardados,id)) {
+    if (Object.prototype.hasOwnProperty.call(guardados,id)) {
       hoja.getRange(i+2,col.activo+1).setValue(guardados[id] === true);
       delete guardados[id];
       restaurados++;
     }
   });
   props.setProperty('PP_OCULTOS_PUBLICACION',JSON.stringify(guardados));
-  return {ocultos:ocultos,restaurados:restaurados};
+  return {ocultos:0,restaurados:restaurados};
 }

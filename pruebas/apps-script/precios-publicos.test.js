@@ -225,12 +225,12 @@ caso('No depende de que exista una fila de corte', () => {
   assert.strictEqual(precioDe(shP, '50'), 4200);
 });
 
-caso('Publicacion vacia oculta; al volver restaura solo los que estaban activos', () => {
+caso('Publicacion vacia nunca oculta productos', () => {
   const p = [COLS.slice(), prod('a','Activo',100,'kg'), prod('b','Manual',100,'kg',{activo:false})];
   const l = [];
   const {api,shP} = cargar(p,l);
   api.pp_aplicar();
-  assert.strictEqual(shP.celdas[1][15],false);
+  assert.strictEqual(shP.celdas[1][15],true);
   l.push(item('Activo',100,'-','-'),item('Manual',100,'-','-'));
   api.pp_aplicar();
   assert.strictEqual(shP.celdas[1][15],true);
@@ -243,7 +243,7 @@ caso('Dubix identifica un nombre cambiado y no cruza codigos distintos', () => {
   api.pp_aplicar();
   assert.strictEqual(precioDe(shP,'a'),300);
   assert.strictEqual(precioDe(shP,'b'),100);
-  assert.strictEqual(shP.celdas[2][15],false);
+  assert.strictEqual(shP.celdas[2][15],true);
 });
 
 caso('SKU vincula un producto del panel cuando codigo_precio esta vacio', () => {
