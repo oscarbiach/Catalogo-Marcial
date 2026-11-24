@@ -102,7 +102,17 @@ import {
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
+  // Algunas miniaturas de Drive pierden el alfa al reducir PNGs concretos y
+  // los muestran con un rectangulo negro. Estos IDs se piden como archivo
+  // original; el resto conserva la miniatura liviana de siempre.
+  var IMAGENES_ORIGINAL_CON_ALFA = {
+    '1q9MfbKlULhOxGNPV0Xuj0SQZB8mkkYxI': true
+  };
+
   function urlImagen(fileId, ancho) {
+    if (IMAGENES_ORIGINAL_CON_ALFA[fileId]) {
+      return 'https://drive.google.com/uc?export=view&id=' + encodeURIComponent(fileId);
+    }
     return 'https://drive.google.com/thumbnail?id=' + encodeURIComponent(fileId) + '&sz=w' + ancho;
   }
 
