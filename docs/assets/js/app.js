@@ -102,18 +102,7 @@ import {
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
-  // Algunas miniaturas de Drive pierden el alfa al reducir PNGs concretos y
-  // los muestran con un rectangulo negro. Estos IDs se piden como archivo
-  // original; el resto conserva la miniatura liviana de siempre.
-  var IMAGENES_ORIGINAL_CON_ALFA = {
-    // Blend para Hamburguesa Comun: la ficha publicada apunta a este ID.
-    '1ReHcu7slZUdOWw9LX93UnVFr_Sto5Owx': true
-  };
-
-  // Esta copia es el PNG original de Drive, sin recomprimir. Se usa solo en
-  // la grilla porque el servicio de miniaturas de Drive lo convierte a JPEG
-  // (y le inventa un fondo negro). La ficha y la tarjeta ven exactamente los
-  // mismos píxeles transparentes.
+  // Copias locales que ya estaban publicadas para evitar miniaturas opacas.
   var IMAGENES_LOCALES_CON_ALFA = {
     '1ReHcu7slZUdOWw9LX93UnVFr_Sto5Owx': 'assets/img/productos/blend-hamburguesa-comun.png',
     '1yyVbxm7LnLenS2iKb0YArYZ-aaxwwoRS': 'assets/img/productos/one-fry-bolsa.png',
@@ -122,20 +111,14 @@ import {
 
   function urlImagen(fileId, ancho) {
     if (IMAGENES_LOCALES_CON_ALFA[fileId]) return IMAGENES_LOCALES_CON_ALFA[fileId];
-    if (IMAGENES_ORIGINAL_CON_ALFA[fileId]) {
-      return 'https://drive.google.com/uc?export=view&id=' + encodeURIComponent(fileId);
-    }
-    return 'https://drive.google.com/thumbnail?id=' + encodeURIComponent(fileId) + '&sz=w' + ancho;
+    // Las miniaturas de Drive pueden convertir PNG transparente a JPEG negro.
+    // El archivo original conserva el alpha sin mantener una lista de IDs.
+    return 'https://drive.google.com/uc?export=view&id=' + encodeURIComponent(fileId);
   }
 
   function urlImagenAlterna(fileId, ancho) {
-    if (IMAGENES_LOCALES_CON_ALFA[fileId]) return IMAGENES_LOCALES_CON_ALFA[fileId];
-    // Nunca reemplazar un PNG con alfa por una miniatura: Drive aplana el
-    // fondo de este archivo concreto a negro en algunos tamaños.
-    if (IMAGENES_ORIGINAL_CON_ALFA[fileId]) {
-      return 'https://drive.google.com/uc?export=view&id=' + encodeURIComponent(fileId);
-    }
-    return 'https://lh3.googleusercontent.com/d/' + encodeURIComponent(fileId) + '=w' + ancho;
+    // No volver a una miniatura sin alpha cuando falla la descarga original.
+    return '';
   }
 
   function formatearPrecio(valor, moneda) {
@@ -1854,7 +1837,9 @@ import {
       });
     }
     fotosEnCurso[alta] = cargar(alta).catch(function () {
-      return cargar(urlImagenAlterna(fileId, ANCHO_FICHA));
+      var alterna = urlImagenAlterna(fileId, ANCHO_FICHA);
+      if (!alterna) throw new Error('No se pudo cargar la imagen original.');
+      return cargar(alterna);
     }).then(function (url) {
       fotosListas[alta] = url;
       delete fotosEnCurso[alta];
