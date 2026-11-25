@@ -110,16 +110,14 @@ import {
     '1F8D6yIA_esyUuDC_W2ahVDxjasNMtFVy': 'assets/img/productos/one-fry-caja.png'
   };
 
-  function urlImagen(fileId, ancho) {
+  function urlImagen(fileId) {
     if (IMAGENES_LOCALES_CON_ALFA[fileId]) return IMAGENES_LOCALES_CON_ALFA[fileId];
-    // Las miniaturas de Drive pueden convertir PNG transparente a JPEG negro.
-    // El archivo original conserva el alpha sin mantener una lista de IDs.
-    return 'https://drive.google.com/uc?export=view&id=' + encodeURIComponent(fileId);
+    // s0 pide la imagen completa. Pedir w480, incluso como PNG, aplana el alfa.
+    return 'https://lh3.googleusercontent.com/d/' + encodeURIComponent(fileId) + '=s0';
   }
 
-  function urlImagenAlterna(fileId, ancho) {
-    // No volver a una miniatura sin alpha cuando falla la descarga original.
-    return '';
+  function urlImagenAlterna(fileId) {
+    return 'https://drive.google.com/uc?export=view&id=' + encodeURIComponent(fileId);
   }
 
   function formatearPrecio(valor, moneda) {
@@ -1291,8 +1289,8 @@ import {
 
     function tarjeta(p, i) {
       var foto = p.imagenes && p.imagenes.length
-        ? '<img src="' + urlImagen(p.imagenes[0], 360) + '" alt="' + escapar(p.nombre) +
-          '" loading="lazy" data-alterna="' + urlImagenAlterna(p.imagenes[0], 360) + '">'
+        ? '<img src="' + urlImagen(p.imagenes[0]) + '" alt="' + escapar(p.nombre) +
+          '" loading="lazy" data-alterna="' + urlImagenAlterna(p.imagenes[0]) + '">'
         : '';
       var precio = mostrarPrecios() && p.precio !== null && p.precio !== undefined && p.precio !== ''
         ? escapar(formatearPrecio(p.precio, p.moneda)) : '';
@@ -1437,8 +1435,8 @@ import {
     fijarCantidad(campo.closest('.dest').dataset.id, campo.value);
   });
 
-  /** El fallback de imagen tambien aplica al carrusel. */
-  $('destacados-pista').addEventListener('error', function (evento) {
+  // Una sola recuperación para cualquier foto del catálogo, incluido el pedido.
+  document.addEventListener('error', function (evento) {
     var img = evento.target;
     if (img.tagName !== 'IMG' || !img.dataset.alterna) return;
     img.src = img.dataset.alterna;
@@ -1456,8 +1454,8 @@ import {
     if (p.sinStock) senias += '<span class="senia senia-sin-stock">Sin stock</span>';
 
     var foto = p.imagenes && p.imagenes.length
-      ? '<img src="' + urlImagen(p.imagenes[0], 480) + '" alt="' + escapar(p.nombre) +
-        '" loading="lazy" data-alterna="' + urlImagenAlterna(p.imagenes[0], 480) + '">'
+      ? '<img src="' + urlImagen(p.imagenes[0]) + '" alt="' + escapar(p.nombre) +
+        '" loading="lazy" data-alterna="' + urlImagenAlterna(p.imagenes[0]) + '">'
       : '';
 
     var precio = mostrarPrecios() && p.precio !== null && p.precio !== undefined && p.precio !== ''
@@ -1540,14 +1538,6 @@ import {
       caja.insertAdjacentHTML('beforeend', mando(producto));
     });
   }
-
-  // Fallback de imagen: si el enlace de Drive falla, se prueba el alternativo
-  $('grilla').addEventListener('error', function (evento) {
-    var img = evento.target;
-    if (img.tagName !== 'IMG' || !img.dataset.alterna) return;
-    img.src = img.dataset.alterna;
-    delete img.dataset.alterna;
-  }, true);
 
   ['mouseover', 'touchstart'].forEach(function (tipo) {
     $('grilla').addEventListener(tipo, function (evento) {
@@ -1815,7 +1805,6 @@ import {
    *    la ficha (y un poco antes, cuando el mouse pasa por encima), asi pasar de
    *    una foto a otra ya no espera la red.
    */
-  var ANCHO_FICHA = 1000;
   var fotosListas = {};
   var fotosEnCurso = {};
 
@@ -1825,7 +1814,7 @@ import {
    * alternativa), y si se esta bajando reutiliza esa misma promesa.
    */
   function bajarFoto(fileId) {
-    var alta = urlImagen(fileId, ANCHO_FICHA);
+    var alta = urlImagen(fileId);
     if (fotosListas[alta]) return Promise.resolve(fotosListas[alta]);
     if (fotosEnCurso[alta]) return fotosEnCurso[alta];
     function cargar(url) {
@@ -1838,7 +1827,7 @@ import {
       });
     }
     fotosEnCurso[alta] = cargar(alta).catch(function () {
-      var alterna = urlImagenAlterna(fileId, ANCHO_FICHA);
+      var alterna = urlImagenAlterna(fileId);
       if (!alterna) throw new Error('No se pudo cargar la imagen original.');
       return cargar(alterna);
     }).then(function (url) {
@@ -1874,12 +1863,12 @@ import {
 
     img.hidden = false;
     marco.classList.remove('sin-foto');
-    mostrarFoto(imagenes[0], p.nombre, 480);
+    mostrarFoto(imagenes[0], p.nombre);
 
     $('ficha-tiras').innerHTML = imagenes.length > 1
       ? imagenes.map(function (id, i) {
           return '<button class="ficha-tira' + (i === 0 ? ' viva' : '') + '" type="button" data-foto="' +
-            escapar(id) + '"><img src="' + urlImagen(id, 140) + '" alt=""></button>';
+            escapar(id) + '"><img src="' + urlImagen(id) + '" data-alterna="' + urlImagenAlterna(id) + '" alt=""></button>';
         }).join('')
       : '';
 
@@ -1892,10 +1881,10 @@ import {
     })();
   }
 
-  function mostrarFoto(fileId, nombre, anchoBajo) {
+  function mostrarFoto(fileId, nombre) {
     var img = $('ficha-img');
     var token = ++estado.fotoToken;
-    var alta = urlImagen(fileId, ANCHO_FICHA);
+    var alta = urlImagen(fileId);
     img.alt = nombre || '';
 
     if (fotosListas[alta]) {               // ya bajada: aparece al instante
@@ -1905,7 +1894,7 @@ import {
     }
 
     img.classList.add('cargando');
-    img.src = urlImagen(fileId, anchoBajo || 140);
+    img.src = alta;
     bajarFoto(fileId).then(function (url) {
       if (token !== estado.fotoToken) return;   // ya se paso a otra foto
       img.src = url;
@@ -1921,7 +1910,7 @@ import {
     Array.prototype.forEach.call($('ficha-tiras').querySelectorAll('.ficha-tira'), function (t) {
       t.classList.toggle('viva', t === tira);
     });
-    mostrarFoto(tira.dataset.foto, estado.fichaActual ? estado.fichaActual.nombre : '', 140);
+    mostrarFoto(tira.dataset.foto, estado.fichaActual ? estado.fichaActual.nombre : '');
   });
 
   function cerrarFicha() {
@@ -2242,7 +2231,7 @@ import {
     $('pedido-lineas').innerHTML = lineas.map(function (l) {
       var p = l.producto;
       var foto = p.imagenes && p.imagenes.length
-        ? '<img class="pedido-foto" src="' + urlImagen(p.imagenes[0], 120) + '" alt="" loading="lazy">'
+        ? '<img class="pedido-foto" src="' + urlImagen(p.imagenes[0]) + '" data-alterna="' + urlImagenAlterna(p.imagenes[0]) + '" alt="" loading="lazy">'
         : '<div class="pedido-foto-vacia"></div>';
 
       var derecha = mostrarPrecios() && l.subtotal !== null

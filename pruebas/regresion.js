@@ -117,6 +117,38 @@ async function esperarCatalogo(pagina) {
 }
 
 // ── Casos ──────────────────────────────────────────────────────────────
+caso('Una foto nueva conserva el fondo transparente en la grilla y la ficha', async (nav, base) => {
+  const idFoto = 'foto-nueva-con-alfa';
+  const producto = { ...filasSupabase()[0], id: 'foto-prueba', nombre: 'Producto de prueba', imagenes: [idFoto] };
+  const { pagina, contexto } = await abrir(nav, base, { extra: [producto] });
+  const original = 'https://lh3.googleusercontent.com/d/' + idFoto + '=s0';
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAEElEQVR4nGNgQAb/GRj+AwAFDQH/OH1KHAAAAABJRU5ErkJggg==', 'base64');
+  try {
+    await pagina.route(original, r => r.fulfill({ contentType: 'image/png', body: png }));
+    await pagina.reload();
+    const tarjeta = pagina.locator('.pieza[data-id="foto-prueba"]');
+    const foto = tarjeta.locator('img');
+    await foto.scrollIntoViewIfNeeded();
+    await foto.evaluate(i => i.decode());
+    assert.strictEqual(await foto.getAttribute('src'), original);
+    await tarjeta.locator('.pieza-nombre').click();
+    await pagina.locator('#ficha-img').evaluate(i => i.decode());
+    assert.strictEqual(await pagina.locator('#ficha-img').getAttribute('src'), original);
+    // Si falla el primer enlace, la tarjeta debe recuperar los bytes originales.
+    const respaldo = 'https://drive.google.com/uc?export=view&id=' + idFoto;
+    await pagina.route(original, r => r.abort());
+    await pagina.route(respaldo, r => r.fulfill({ contentType: 'image/png', body: png }));
+    await pagina.reload();
+    await foto.scrollIntoViewIfNeeded();
+    await pagina.waitForFunction(url => {
+      const i = document.querySelector('.pieza[data-id="foto-prueba"] img');
+      return i && i.currentSrc === url && i.naturalWidth === 2;
+    }, respaldo);
+  } finally {
+    await contexto.close();
+  }
+});
+
 caso('H01 Supabase: el 105 se pide por caja de 20 y el subtotal es de la caja', async (nav, base) => {
   const { pagina, errores } = await abrir(nav, base);
   await esperarCatalogo(pagina);
