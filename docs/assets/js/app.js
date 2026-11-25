@@ -104,6 +104,7 @@ import {
 
   // Copias locales que ya estaban publicadas para evitar miniaturas opacas.
   var IMAGENES_LOCALES_CON_ALFA = {
+    '1r13tNquZOjs4Rf5PVge2DKLBOdh80F7H': 'assets/img/productos/blend-hamburguesa-premium.png',
     '1ReHcu7slZUdOWw9LX93UnVFr_Sto5Owx': 'assets/img/productos/blend-hamburguesa-comun.png',
     '1yyVbxm7LnLenS2iKb0YArYZ-aaxwwoRS': 'assets/img/productos/one-fry-bolsa.png',
     '1F8D6yIA_esyUuDC_W2ahVDxjasNMtFVy': 'assets/img/productos/one-fry-caja.png'
